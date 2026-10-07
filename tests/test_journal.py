@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from etrace import journal
+from etrace import journal, presets
 from etrace.journal import (
     JournalError,
     JournalFormatError,
@@ -296,7 +296,7 @@ class JournalTest(unittest.TestCase):
         for lang in ("zh", "en"):
             doc = journal.new_note("2026-10-08", "tiger-method", lang)
             g_rows = self._table_rows(doc.block("user:g-self").body)
-            self.assertEqual([r.split("|")[1].strip() for r in g_rows],
+            self.assertEqual([r.split("|")[1].split()[0] for r in g_rows],
                              ["B1", "B2", "B3", "B4", "E1", "E2", "E3", "E4"])
             pad_rows = self._table_rows(doc.block("user:pad-self").body)
             self.assertEqual(len(pad_rows), 4)
@@ -304,6 +304,16 @@ class JournalTest(unittest.TestCase):
                 cells = [c.strip() for c in row.strip().strip("|").split("|")]
                 self.assertTrue(cells[0])
                 self.assertEqual(cells[1:], [""] * (len(cells) - 1), row)
+
+    def test_new_note_uses_preset_g_names_and_pad_labels(self):
+        for lang in ("zh", "en"):
+            p = presets.load("default")
+            body = journal.new_note("2026-10-08", "default", lang).render()
+            for code, _, name in presets.g_items(p):
+                self.assertIn(f"| {code} {presets.label(name, lang)} |", body)
+            for axis in presets.PAD_AXES:
+                self.assertIn(presets.label(p["pad"]["axes"][axis]["label"], lang), body)
+        self.assertIn("B3 关系与支持", journal.new_note("2026-10-08", "tiger-method", "zh").render())
 
     def test_new_note_labels_by_language(self):
         zh = journal.new_note("2026-10-08", language="zh").render()

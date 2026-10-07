@@ -25,9 +25,10 @@ import hashlib
 import os
 import re
 
+from etrace import presets
 from etrace.store import write_text_atomic
 
-PRESETS = ("default", "tiger-method")
+PRESETS = presets.NAMES
 LANGUAGES = ("zh", "en")
 
 _MARKER = re.compile(
@@ -269,7 +270,7 @@ def _check(before, after, verbatim_append):
 
 # --- new note template ------------------------------------------------------
 
-G_ITEMS = ("B1", "B2", "B3", "B4", "E1", "E2", "E3", "E4")
+G_ITEMS = presets.G_GROUPS["B"] + presets.G_GROUPS["E"]
 PAD_SLOTS = ("morning", "noon", "afternoon", "other")
 
 _LABELS = {
@@ -286,7 +287,7 @@ _LABELS = {
         "narrative": "我今天经历了什么",
         "verbatim": "原版本",
         "slots": {"morning": "早上", "noon": "中午", "afternoon": "下午", "other": "其他"},
-        "pad_head": ("时段", "P 愉悦", "A 激活", "D 掌控", "词", "备注"),
+        "pad_head": ("时段", "词", "备注"),
         "g_head": ("项目", "分数 0–10", "备注"),
         "hint_pad": "每格 1–5，不确定就留空。可以在「其他」行补充具体时间。",
         "hint_g": "每项 0–10，不想填就留空，留空不会被当成 0。",
@@ -306,7 +307,7 @@ _LABELS = {
         "narrative": "What I went through today",
         "verbatim": "Original version",
         "slots": {"morning": "Morning", "noon": "Noon", "afternoon": "Afternoon", "other": "Other"},
-        "pad_head": ("Slot", "P pleasure", "A arousal", "D dominance", "Word", "Note"),
+        "pad_head": ("Slot", "Word", "Note"),
         "g_head": ("Item", "Score 0-10", "Note"),
         "hint_pad": "Each cell 1-5; leave it empty if unsure. Use the Other row for exact times.",
         "hint_g": "Each item 0-10; empty is fine and is never read as 0.",
@@ -361,10 +362,14 @@ def new_note(date, preset="default", language="zh"):
     if language not in LANGUAGES:
         raise JournalError(f"unknown language {language!r}; expected one of {', '.join(LANGUAGES)}")
     L = _LABELS[language]
+    p = presets.load(preset)
+    axes = [presets.label(p["pad"]["axes"][a]["label"], language) for a in presets.PAD_AXES]
+    pad_head = (L["pad_head"][0], *axes, *L["pad_head"][1:])
+    g_rows = [f"{code} {presets.label(name, language)}" for code, _, name in presets.g_items(p)]
     bodies = {
-        "pad-self": _table(L["pad_head"], [L["slots"][s] for s in PAD_SLOTS])
+        "pad-self": _table(pad_head, [L["slots"][s] for s in PAD_SLOTS])
         + f"\n\n<!-- hint: {L['hint_pad']} -->",
-        "g-self": _table(L["g_head"], G_ITEMS) + f"\n\n<!-- hint: {L['hint_g']} -->",
+        "g-self": _table(L["g_head"], g_rows) + f"\n\n<!-- hint: {L['hint_g']} -->",
         "journal": f"<!-- hint: {L['hint_journal']} -->",
         "feedback": f"<!-- hint: {L['hint_feedback']} -->",
     }

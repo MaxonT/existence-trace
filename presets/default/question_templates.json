@@ -1,0 +1,62 @@
+{
+  "version": "1.0.0",
+  "templates": [
+    {
+      "id": "local-vs-day",
+      "dimensions": [
+        "pad"
+      ],
+      "label": {
+        "zh": "局部情绪与整日基调冲突",
+        "en": "A moment clashes with the day's tone"
+      },
+      "prompt": {
+        "zh": "你写到「{quote}」，但整天读起来是{day_tone}。这一刻更接近 {a}，还是 {b}？",
+        "en": "You wrote \"{quote}\", but the day as a whole reads as {day_tone}. Was this moment closer to {a} or {b}?"
+      }
+    },
+    {
+      "id": "self-vs-evidence",
+      "dimensions": [
+        "pad",
+        "g"
+      ],
+      "label": {
+        "zh": "手填与证据不一致",
+        "en": "Self-rating disagrees with the evidence"
+      },
+      "prompt": {
+        "zh": "你给 {item} 填了 {self_value}，但日记里「{quote}」读起来更像 {model_value}。哪个更接近你？",
+        "en": "You rated {item} as {self_value}, but \"{quote}\" reads more like {model_value}. Which is closer?"
+      }
+    },
+    {
+      "id": "event-or-ordinary",
+      "dimensions": [
+        "xp"
+      ],
+      "label": {
+        "zh": "重大事件还是普通成果",
+        "en": "Major event or ordinary achievement"
+      },
+      "prompt": {
+        "zh": "「{quote}」应该算一次重大事件（{a}），还是普通成果（{b}）？",
+        "en": "Should \"{quote}\" count as a major event ({a}) or an ordinary achievement ({b})?"
+      }
+    },
+    {
+      "id": "rule-scope",
+      "dimensions": [
+        "rules"
+      ],
+      "label": {
+        "zh": "规则适用范围不清",
+        "en": "Unclear rule scope"
+      },
+      "prompt": {
+        "zh": "你之前说过「{quote}」。这条只适用于 {a}，还是也适用于 {b}？",
+        "en": "You said \"{quote}\" earlier. Does it apply only to {a}, or also to {b}?"
+      }
+    }
+  ]
+}

@@ -1,0 +1,302 @@
+{
+  "version": "1.0.0",
+  "scale": {
+    "min": 1,
+    "max": 5
+  },
+  "axes": {
+    "P": {
+      "label": {
+        "zh": "P 愉悦",
+        "en": "P pleasure"
+      },
+      "levels": {
+        "1": {
+          "zh": "非常不愉快",
+          "en": "very unpleasant"
+        },
+        "2": {
+          "zh": "有些不愉快",
+          "en": "somewhat unpleasant"
+        },
+        "3": {
+          "zh": "中性",
+          "en": "neutral"
+        },
+        "4": {
+          "zh": "有些愉快",
+          "en": "somewhat pleasant"
+        },
+        "5": {
+          "zh": "非常愉快",
+          "en": "very pleasant"
+        }
+      }
+    },
+    "A": {
+      "label": {
+        "zh": "A 激活",
+        "en": "A arousal"
+      },
+      "levels": {
+        "1": {
+          "zh": "非常低沉、困倦",
+          "en": "very low, drowsy"
+        },
+        "2": {
+          "zh": "放松、慢",
+          "en": "relaxed, slow"
+        },
+        "3": {
+          "zh": "平常",
+          "en": "ordinary"
+        },
+        "4": {
+          "zh": "有劲、紧绷",
+          "en": "energized or tense"
+        },
+        "5": {
+          "zh": "高度激活",
+          "en": "highly activated"
+        }
+      }
+    },
+    "D": {
+      "label": {
+        "zh": "D 掌控",
+        "en": "D dominance"
+      },
+      "levels": {
+        "1": {
+          "zh": "完全被局面推着走",
+          "en": "fully pushed around by the situation"
+        },
+        "2": {
+          "zh": "掌控感偏弱",
+          "en": "weak sense of control"
+        },
+        "3": {
+          "zh": "一般",
+          "en": "moderate"
+        },
+        "4": {
+          "zh": "比较能掌控",
+          "en": "fairly in control"
+        },
+        "5": {
+          "zh": "完全掌控",
+          "en": "fully in control"
+        }
+      }
+    }
+  },
+  "projection": {
+    "low": [
+      1,
+      2
+    ],
+    "mid": [
+      3,
+      3
+    ],
+    "high": [
+      4,
+      5
+    ]
+  },
+  "projection_note": {
+    "zh": "档位 1–2 为低、3 为中、4–5 为高；小数先四舍五入到最近档位。",
+    "en": "Levels 1-2 are low, 3 is mid, 4-5 are high; decimals round to the nearest level first."
+  },
+  "words": [
+    {
+      "P": "low",
+      "A": "low",
+      "D": "low",
+      "zh": "无助",
+      "en": "helpless"
+    },
+    {
+      "P": "low",
+      "A": "low",
+      "D": "mid",
+      "zh": "沮丧",
+      "en": "dejected"
+    },
+    {
+      "P": "low",
+      "A": "low",
+      "D": "high",
+      "zh": "轻蔑",
+      "en": "contemptuous"
+    },
+    {
+      "P": "low",
+      "A": "mid",
+      "D": "low",
+      "zh": "担忧",
+      "en": "worried"
+    },
+    {
+      "P": "low",
+      "A": "mid",
+      "D": "mid",
+      "zh": "烦躁",
+      "en": "irritated"
+    },
+    {
+      "P": "low",
+      "A": "mid",
+      "D": "high",
+      "zh": "不满",
+      "en": "dissatisfied"
+    },
+    {
+      "P": "low",
+      "A": "high",
+      "D": "low",
+      "zh": "恐慌",
+      "en": "panicked"
+    },
+    {
+      "P": "low",
+      "A": "high",
+      "D": "mid",
+      "zh": "紧张",
+      "en": "tense"
+    },
+    {
+      "P": "low",
+      "A": "high",
+      "D": "high",
+      "zh": "愤怒",
+      "en": "angry"
+    },
+    {
+      "P": "mid",
+      "A": "low",
+      "D": "low",
+      "zh": "茫然",
+      "en": "blank"
+    },
+    {
+      "P": "mid",
+      "A": "low",
+      "D": "mid",
+      "zh": "平静",
+      "en": "calm"
+    },
+    {
+      "P": "mid",
+      "A": "low",
+      "D": "high",
+      "zh": "淡定",
+      "en": "composed"
+    },
+    {
+      "P": "mid",
+      "A": "mid",
+      "D": "low",
+      "zh": "困惑",
+      "en": "confused"
+    },
+    {
+      "P": "mid",
+      "A": "mid",
+      "D": "mid",
+      "zh": "专注",
+      "en": "focused"
+    },
+    {
+      "P": "mid",
+      "A": "mid",
+      "D": "high",
+      "zh": "笃定",
+      "en": "assured"
+    },
+    {
+      "P": "mid",
+      "A": "high",
+      "D": "low",
+      "zh": "震惊",
+      "en": "shocked"
+    },
+    {
+      "P": "mid",
+      "A": "high",
+      "D": "mid",
+      "zh": "惊讶",
+      "en": "surprised"
+    },
+    {
+      "P": "mid",
+      "A": "high",
+      "D": "high",
+      "zh": "警觉",
+      "en": "alert"
+    },
+    {
+      "P": "high",
+      "A": "low",
+      "D": "low",
+      "zh": "依恋",
+      "en": "attached"
+    },
+    {
+      "P": "high",
+      "A": "low",
+      "D": "mid",
+      "zh": "满足",
+      "en": "content"
+    },
+    {
+      "P": "high",
+      "A": "low",
+      "D": "high",
+      "zh": "惬意",
+      "en": "at ease"
+    },
+    {
+      "P": "high",
+      "A": "mid",
+      "D": "low",
+      "zh": "感动",
+      "en": "moved"
+    },
+    {
+      "P": "high",
+      "A": "mid",
+      "D": "mid",
+      "zh": "开心",
+      "en": "happy"
+    },
+    {
+      "P": "high",
+      "A": "mid",
+      "D": "high",
+      "zh": "自豪",
+      "en": "proud"
+    },
+    {
+      "P": "high",
+      "A": "high",
+      "D": "low",
+      "zh": "惊喜",
+      "en": "delighted"
+    },
+    {
+      "P": "high",
+      "A": "high",
+      "D": "mid",
+      "zh": "兴奋",
+      "en": "excited"
+    },
+    {
+      "P": "high",
+      "A": "high",
+      "D": "high",
+      "zh": "豪迈",
+      "en": "exhilarated"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "base-1-verbatim",
+      "scope": "principle:verbatim",
+      "text": {
+        "zh": "原话逐字保存在原版本区；AI 只在授权的 ai 区做最小整理，永不改动 user 区。",
+        "en": "Keep the user's words verbatim in the original block; the AI only tidies authorized ai blocks and never changes user blocks."
+      }
+    },
+    {
+      "id": "base-2-provenance",
+      "scope": "principle:provenance",
+      "text": {
+        "zh": "每个数值都写明 provenance（self_report / model_inference / gap_fill）、来源和置信度；AI 估计不冒充自述。",
+        "en": "Every number states its provenance (self_report / model_inference / gap_fill), source and confidence; AI estimates never pose as self-reports."
+      }
+    },
+    {
+      "id": "base-3-missing",
+      "scope": "principle:missing",
+      "text": {
+        "zh": "没写就留空或标「待评分」，缺失不是 0；补值必须低置信度，且不进入校准和准确率统计。",
+        "en": "Missing is not zero: leave it empty or mark it pending; filled values are low confidence and never enter calibration or accuracy stats."
+      }
+    },
+    {
+      "id": "base-4-events",
+      "scope": "principle:events",
+      "text": {
+        "zh": "重大事件用唯一 event_id，只在发生日记一次。",
+        "en": "Book a major event once, on the day it happened, with a unique event_id."
+      }
+    },
+    {
+      "id": "base-5-predictions",
+      "scope": "principle:predictions",
+      "text": {
+        "zh": "先冻结预测快照，反馈到了再评价；数值修正要过 10 日训练 + 10 日检验门槛。",
+        "en": "Freeze a prediction snapshot first and evaluate when feedback arrives; numeric correction needs 10 training days plus 10 test days."
+      }
+    },
+    {
+      "id": "base-6-latest-feedback",
+      "scope": "principle:latest-feedback",
+      "text": {
+        "zh": "同一范围内，按用户原始表达时间，新规则替代旧规则；原始反馈永远保留为证据。",
+        "en": "Within one scope the rule expressed most recently wins; the original feedback is always kept as evidence."
+      }
+    },
+    {
+      "id": "base-7-decide-report",
+      "scope": "principle:decide-report",
+      "text": {
+        "zh": "不等精确数字，先作合理决定并写明理由，报告给用户并邀请反馈，用户可以推翻。",
+        "en": "Do not wait for exact numbers: make a reasonable decision, explain why, report it and invite feedback; the user can overturn it."
+      }
+    },
+    {
+      "id": "base-8-readback",
+      "scope": "principle:readback",
+      "text": {
+        "zh": "每次写入后读回检查；只有真实产物里用上了才记「已应用」，读过不算用过。",
+        "en": "Read back after every write; only a change that shows up in a real output counts as applied, reading a rule is not using it."
+      }
+    },
+    {
+      "id": "base-9-self-rating",
+      "scope": "principle:self-rating",
+      "text": {
+        "zh": "用户手填是参考不是命令：原值永远保留并重点参考，AI 结合证据独立决定，并说明采纳或偏离的理由。",
+        "en": "A self-rating is a reference, not an order: keep the original value, weigh it heavily, decide independently from the evidence and explain why you followed or departed from it."
+      }
+    },
+    {
+      "id": "tiger-pad-focus",
+      "scope": "pad:focus",
+      "text": {
+        "zh": "沉浸专注、做得顺的时段，PAD 参考 P3–4、A3、D4（「专注」到「笃定」），不要因为不兴奋就判低愉悦。",
+        "en": "For absorbed, going-well focus time, use P3-4, A3, D4 (focused to assured) as the PAD reference; do not mark pleasure low just because it is not exciting."
+      }
+    },
+    {
+      "id": "tiger-feedback-decide",
+      "scope": "container:numbers",
+      "text": {
+        "zh": "用户没给精确数字时，AI 先代理决定并标明 agent_decision，不反复追问数字。",
+        "en": "When the user gives no exact number, the AI decides on their behalf, marks it agent_decision and does not keep asking for numbers."
+      }
+    }
+  ]
+}

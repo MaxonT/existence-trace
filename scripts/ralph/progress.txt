@@ -19,6 +19,7 @@
 - Questions: etrace.container.questions.add_question(data_dir, source, date, evidence={'kind': 'quote'|'behavior', 'text'}, candidates=[a, b], uncertainty, dimensions=[...], dedupe_key, now=None) -> id 'Q-YYYYMMDD-N'. follow_up/answer(feedback_id must exist in feedback.jsonl)/skip append event records; get/all_questions/open_questions replay them. daily_status(data_dir, date, scan_ok) -> list or questions.NO_QUESTIONS / SCAN_FAILED.
 - Check-then-append on a JSONL file: `with store.lock():` read_all + validate + store.append_locked(name, record) (Store.append would deadlock on the non-reentrant lock).
 - Decisions/usage: decisions.decide(data_dir, feedback_ids, decision_text, value_source='user'|'agent_decision', rule_changes=[{rule_id, scope, text, expressed_at, source_feedback_id?, reason?}], now) -> 'D-YYYYMMDD-N'; decisions.mark_pending(id, reason). usage.record(data_dir, task, target, rule_version, feedback_ids, decision_ids, before, after, status, verified_readback=True, now) -> 'U-YYYYMMDD-N'. Only usage.applied() (a verified changed/confirmed receipt) means a decision was used; validate.validate(data_dir, now).ok checks the chain.
+- Presets: etrace.presets.load(name, presets_dir=None) -> {'name','pad','g','xp','rules','question_templates'}, validated (ValueError 'NAME/file.json.field: msg'). Labels are {'zh','en'} objects; pick with presets.label(obj, language). Helpers: g_items(p) -> [(code, weight, label)], band(level) 1-5 -> low/mid/high, pad_word(p, P, A, D, language). Preset rules.json = {version, rules:[{id, scope, text:{zh,en}}]}: pass presets.label(rule['text'], lang) to rules.add_rule (it needs a str). xp.json dims ids are the same in both presets (rhythm, learning, boundaries, action, reflection, connection); only labels differ.
 - Note outreach: etrace.outreach.note.write(journal_dir, data_dir, date, scan_ok, language, preset, decision_ids=None, summary=None, now) rewrites ai:questions (creates the note if missing), reads back, then appends notifications.jsonl ('N-YYYYMMDD-N', channel/status/verified_readback/question_ids/decision_ids/daily_status/content_hash). Default decisions = those not reported on an earlier day. Wrap user-facing text with note._wrap (zh 40 / en 72 chars) to stay phone-readable.
 ---
 ## Hard boundary
@@ -114,4 +115,15 @@
   - US-016 email should reuse note.render / render_questions / render_report for the text and append its own notifications record with channel 'email' (records are per channel; ids N-YYYYMMDD-N count all channels per day).
   - journal.save looks up load() as a module global, so mocking journal.load in tests also affects save; mock journal.save instead to simulate a bad write.
   - textwrap breaks CJK text by character count, which is fine for the 120-char limit.
+---
+
+## 2026-10-07 - US-009
+- Added presets/default and presets/tiger-method (pad.json, g.json, xp.json, rules.json, question_templates.json; all labels zh+en) and presets/tiger-method/README.md. PAD: 5 anchored levels per axis, 27-word table, projection low 1-2 / mid 3 / high 4-5. G: B/E weights per design, anchors 0/2/5/8/10, formula + not-clinical notice. XP: six dims caps 18..12, levels 0-4, ordinary 0-10, uncapped events, booked_events [] (validator rejects any). Rules: 9 principle rules (scope 'principle:*'); tiger-method adds pad:focus and container:numbers.
+- etrace/presets.py: per-file validators naming the field, load, label, g_items, band, pad_word.
+- journal.new_note now loads the preset: G rows are 'B1 <name>', PAD header uses pad.json axis labels; journal.PRESETS = presets.NAMES.
+- Files: etrace/presets.py, etrace/journal.py, presets/**, tests/test_presets.py, tests/test_journal.py
+- **Learnings for future iterations:**
+  - presets/ lives at repo root (PRESETS_DIR = parent of etrace/); US-019 init should copy from presets.preset_dir(name).
+  - The g-self table first cell is now 'CODE label'; parsers should take the first whitespace token as the item code.
+  - band() rounds half up (2.5 -> mid); US-010 project() can reuse presets.pad_word.
 ---

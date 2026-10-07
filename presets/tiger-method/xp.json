@@ -1,0 +1,95 @@
+{
+  "version": "2.2.0",
+  "levels": {
+    "0": {
+      "zh": "没有",
+      "en": "none"
+    },
+    "1": {
+      "zh": "一点",
+      "en": "a little"
+    },
+    "2": {
+      "zh": "明显",
+      "en": "clear"
+    },
+    "3": {
+      "zh": "很强",
+      "en": "strong"
+    },
+    "4": {
+      "zh": "突破",
+      "en": "breakthrough"
+    }
+  },
+  "dimensions": [
+    {
+      "id": "rhythm",
+      "cap": 18,
+      "label": {
+        "zh": "日程与稳定今天",
+        "en": "Keeping today's schedule steady"
+      }
+    },
+    {
+      "id": "learning",
+      "cap": 16,
+      "label": {
+        "zh": "真正吸收与学习",
+        "en": "Truly absorbing and learning"
+      }
+    },
+    {
+      "id": "boundaries",
+      "cap": 16,
+      "label": {
+        "zh": "停下优化与边界",
+        "en": "Stopping over-optimizing, holding boundaries"
+      }
+    },
+    {
+      "id": "action",
+      "cap": 14,
+      "label": {
+        "zh": "在不确定中行动",
+        "en": "Acting under uncertainty"
+      }
+    },
+    {
+      "id": "reflection",
+      "cap": 14,
+      "label": {
+        "zh": "个人发现与知行整合",
+        "en": "Personal discovery, knowing and doing as one"
+      }
+    },
+    {
+      "id": "connection",
+      "cap": 12,
+      "label": {
+        "zh": "真实联结与自主探索",
+        "en": "Real connection and self-directed exploration"
+      }
+    }
+  ],
+  "ordinary": {
+    "min": 0,
+    "max": 10,
+    "label": {
+      "zh": "普通成果",
+      "en": "Ordinary achievements"
+    }
+  },
+  "events": {
+    "capped": false,
+    "requires": [
+      "event_id",
+      "occurred_on"
+    ],
+    "note": {
+      "zh": "重大事件不封顶，用唯一 event_id 在发生日记一次。",
+      "en": "Major events are uncapped and booked once, on the day they happened, with a unique event_id."
+    }
+  },
+  "booked_events": []
+}
