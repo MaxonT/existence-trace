@@ -1,0 +1,82 @@
+"""Short task prompts for coding agents (zh/en).
+
+A prompt only schedules work: it lists the steps and the exact CLI JSON shapes,
+and defers every rule to the engine. Templates use string.Template ($name,
+$$ for a literal dollar). render() fills them from trace.toml and the active
+rules; it never writes the data root path into the text, so a rendered prompt
+holds no absolute paths.
+"""
+
+import os
+import string
+
+from etrace.container import rules as rules_mod
+
+TASKS = ("calibrate", "feedback", "daily", "g", "audit")
+LANGUAGES = ("zh", "en")
+MAX_CHARS = 6000
+PROMPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+_MORE = {
+    "zh": "……另有 {n} 条生效规则未列出：运行 `python3 -m etrace rules list` 查看全部。",
+    "en": "...{n} more active rules not shown: run `python3 -m etrace rules list` for all of them.",
+}
+_NO_RULES = {"zh": "（还没有生效规则）", "en": "(no active rules yet)"}
+_OUTREACH = {
+    "zh": {"note": "只写进当天笔记", "note+email": "写进当天笔记并发邮件"},
+    "en": {"note": "today's note only", "note+email": "today's note and email"},
+}
+
+
+class PromptError(ValueError):
+    """Unknown task or language."""
+
+
+def template(task, language):
+    """Raw template text for TASK ('_principles' included) in LANGUAGE."""
+    if task not in TASKS + ("_principles",):
+        raise PromptError(f"task: unknown task {task!r}; expected one of {', '.join(TASKS)}")
+    if language not in LANGUAGES:
+        raise PromptError(f"language: must be one of {', '.join(LANGUAGES)}, got {language!r}")
+    with open(os.path.join(PROMPTS_DIR, language, f"{task}.md"), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _rule_line(rule):
+    return f"- `{rule['id']}` [{rule['scope']}] {' '.join(rule['text'].split())}"
+
+
+def _fill(text, values, rules_text):
+    return string.Template(text).substitute(values, rules=rules_text).strip() + "\n"
+
+
+def render(task, cfg, data_dir, language=None, max_chars=MAX_CHARS):
+    """The prompt for TASK with values from CFG and the active rules in DATA_DIR.
+
+    Rules are listed while they fit under max_chars; the rest are counted with
+    a pointer to `rules list`, so the prompt always stays under the limit.
+    """
+    lang = language or cfg.language
+    body = template(task, lang)
+    values = {
+        "task": task,
+        "times": ", ".join(cfg.tasks[task]),
+        "timezone": cfg.timezone,
+        "preset": cfg.preset,
+        "language": lang,
+        "outreach": _OUTREACH[lang][cfg.outreach],
+        "rules_version": rules_mod.version(data_dir),
+    }
+    values["principles"] = _fill(template("_principles", lang), values, "").strip()
+
+    active = rules_mod.active_rules(data_dir)
+    lines = [_rule_line(r) for r in active]
+    if not lines:
+        return _fill(body, values, _NO_RULES[lang])
+    for shown in range(len(lines), -1, -1):
+        rest = len(lines) - shown
+        rules_text = "\n".join(lines[:shown] + ([_MORE[lang].format(n=rest)] if rest else []))
+        text = _fill(body, values, rules_text)
+        if len(text) < max_chars:
+            return text
+    raise PromptError(f"prompt {task}/{lang} is over {max_chars} characters even without rules")

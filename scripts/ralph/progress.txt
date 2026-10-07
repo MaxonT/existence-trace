@@ -32,6 +32,7 @@
 - Checkpoint: etrace.checkpoint.checkpoint(root_dir, message, remote=None) -> CheckpointResult(committed, commit, initialized, pushed, push_error). root_dir is the user data root (holds journal/, data/, audits/), not Store's data/ dir. Pass cfg.git_remote as remote; None never pushes. Raises CheckpointError if git is missing or a local step fails; push failures only set push_error. Git tests patch GIT_CONFIG_GLOBAL/GIT_CONFIG_NOSYSTEM/HOME and skipUnless(shutil.which('git')).
 - CLI: etrace/cli.py main(argv) -> exit code; every command prints one JSON object on stdout, errors go to stderr as 'error: field: msg'. Exit 0 ok, 1 ran-but-failed (validate problems, email not sent, push error; raise cli.Failure(msg, result)), 2 bad input (raise cli.InputError(list) or a module error listed in cli._INPUT_ERRORS). Config lookup: --config, $ETRACE_CONFIG, ./trace.toml, ~/existence-trace-data/trace.toml. Data root layout: ROOT/{trace.toml, journal, data, audits, charts, presets/NAME}; cli.load_preset prefers ROOT/presets copy. New subcommands: add a cmd_* function + parser entry in build_parser (FILE commands use read_json + check_fields).
 - PAD persistence: pad.record(data_dir, points, now) -> pad.jsonl 'PAD-YYYYMMDD-N' (unchanged points skipped, same date+slot supersedes); pad.points_for(data_dir, date) -> current PadPoints in time order.
+- Prompts: etrace.prompts.render(task, cfg, data_dir, language=None) -> text < 6000 chars; templates are etrace/prompts/{zh,en}/TASK.md (string.Template: $name, $$ literal; $principles inlines _principles.md, $rules lists active rules and truncates with a `rules list` pointer). Never put cfg.data_dir or any path into a prompt. CLI: `prompt TASK [--language] [--raw]` (--raw returns cli.RawText, printed as plain text, for scheduler scripts). When a CLI command or JSON shape changes, update both languages' prompt files (tests/test_prompts.py checks each task names its commands).
 - feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
 ---
 ## Hard boundary
@@ -234,4 +235,15 @@
   - argparse errors are routed through _Parser.error -> InputError so they exit 2 without SystemExit; --help still returns 0.
   - cmd_validate turns config/input errors into exit 1 (the AC: validate exits 1 on any failure).
   - US-020 prompts should tell agents the exact JSON shapes: question add (7 fields), decide {feedback_ids, decision_text, value_source, rule_changes?}, usage add {task, target, rule_version, before, after, status, verified_readback, feedback_ids?, decision_ids?}, pad add {points:[...]}, g predict {date, items}, g feedback {prediction_id, targets?, text?, expressed_at?}, xp score {date, levels, ordinary, events?}.
+---
+
+## 2026-10-07 - US-020
+- Implemented etrace/prompts/ (render + PromptError, TASKS, MAX_CHARS) with zh/en _principles.md (9 principles + how to use the engine), calibrate/feedback/daily/g/audit.md. Each prompt: checkpoint before, task steps with exact JSON shapes for its CLI commands, checkpoint after, validate last, honest failure report.
+- CLI: `prompt TASK [--language zh|en] [--raw]`; new `note write DATE headline|xp|narrative FILE` (replace_ai_block + save + read back) because agents had no engine path to fill those ai blocks.
+- Files: etrace/prompts/__init__.py, etrace/prompts/{zh,en}/*.md, etrace/cli.py, tests/test_prompts.py
+- **Learnings for future iterations:**
+  - Rendered sizes: zh ~2.3-3.3k chars, en ~3.7-4.7k with the tiger-method rules; rules are dropped from the end (with a count) only if the limit would be hit.
+  - Rules are shown in the stored language (seeded at init), even when the prompt is rendered in the other language.
+  - US-021 claude-code adapter can use `python3 -m etrace prompt TASK --raw` at run time instead of baking prompt text into the script.
+  - The engine has no CLI for decisions.mark_pending or journal.append_verbatim yet; prompts do not mention them.
 ---

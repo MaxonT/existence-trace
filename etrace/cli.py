@@ -24,7 +24,7 @@ import shutil
 import sys
 from zoneinfo import ZoneInfo
 
-from etrace import chart, checkpoint, config, journal, presets
+from etrace import chart, checkpoint, config, journal, presets, prompts
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
 from etrace.outreach import email as mail
@@ -34,6 +34,8 @@ from etrace.store import Store, StoreError, write_text_atomic
 ENV_CONFIG = "ETRACE_CONFIG"
 DEFAULT_ROOT = "~/existence-trace-data"
 DIRS = ("journal", "data", "audits", "charts", "presets")
+# ai blocks an agent writes as free text; questions/pad/g are written by their commands.
+TEXT_BLOCKS = ("headline", "xp", "narrative")
 
 
 class InputError(Exception):
@@ -50,6 +52,10 @@ class Failure(Exception):
     def __init__(self, message, result=None):
         super().__init__(message)
         self.result = result
+
+
+class RawText(str):
+    """A command result printed as plain text instead of JSON (prompt --raw)."""
 
 
 class _Parser(argparse.ArgumentParser):
@@ -209,6 +215,38 @@ def cmd_init(args):
 def cmd_note_new(ctx, args):
     path = journal.create_note(ctx.journal, ctx.day(args.date), ctx.cfg.preset, ctx.lang)
     return {"note": path}
+
+
+def _read_text(path):
+    try:
+        if path == "-":
+            return sys.stdin.read()
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    except OSError as exc:
+        raise InputError(f"file: cannot read {path}: {exc.strerror}") from None
+
+
+def cmd_note_write(ctx, args):
+    day = ctx.day(args.date)
+    note_file = journal.note_path(ctx.journal, day)
+    if not os.path.exists(note_file):
+        raise InputError(f"date: no note for {day}; run `note new {day}` first")
+    text = _read_text(args.file).strip("\n")
+    doc = journal.load(note_file)
+    journal.replace_ai_block(doc, args.block, text)
+    journal.save(doc, note_file)
+    out = {"note": note_file, "block": f"ai:{args.block}"}
+    if text not in journal.load(note_file).block(f"ai:{args.block}").content():
+        raise Failure(f"ai:{args.block} text not found in {note_file} after writing", out)
+    return out
+
+
+def cmd_prompt(ctx, args):
+    text = prompts.render(args.task, ctx.cfg, ctx.store, args.language)
+    if args.raw:
+        return RawText(text)
+    return {"task": args.task, "language": args.language or ctx.lang, "chars": len(text), "prompt": text}
 
 
 def cmd_question_add(ctx, args):
@@ -513,6 +551,11 @@ def build_parser():
     s = n.add_parser("new")
     s.add_argument("date")
     s.set_defaults(func=cmd_note_new)
+    s = n.add_parser("write", help="replace the text of an ai block and read it back")
+    s.add_argument("date")
+    s.add_argument("block", choices=TEXT_BLOCKS)
+    s.add_argument("file", help="plain Markdown; '-' reads stdin")
+    s.set_defaults(func=cmd_note_write)
 
     q = group("question", "questions for the user")
     s = q.add_parser("add")
@@ -582,6 +625,12 @@ def build_parser():
     s.add_argument("--all", action="store_true", help="include superseded rules")
     s.set_defaults(func=cmd_rules_list)
 
+    s = sub.add_parser("prompt", help="render the agent prompt for a task")
+    s.add_argument("task", choices=prompts.TASKS)
+    s.add_argument("--language", choices=prompts.LANGUAGES, help="default: language in trace.toml")
+    s.add_argument("--raw", action="store_true", help="print the prompt text instead of JSON")
+    s.set_defaults(func=cmd_prompt)
+
     s = sub.add_parser("validate", help="check the data chain and notes; exit 1 on any failure")
     s.set_defaults(func=cmd_validate)
     return p
@@ -590,10 +639,14 @@ def build_parser():
 # Module exceptions that mean "the input was wrong" (exit 2).
 _INPUT_ERRORS = (questions.QuestionError, decisions.DecisionError, usage.UsageError,
                  rules.RuleError, g.GError, pad.PadError, xp.XPError, journal.JournalError,
-                 note.OutreachError, mail.EmailError, audit.AuditError, config.ConfigError, ValueError)
+                 note.OutreachError, mail.EmailError, audit.AuditError, config.ConfigError,
+                 prompts.PromptError, ValueError)
 
 
 def _print(obj, stream):
+    if isinstance(obj, RawText):
+        stream.write(obj if obj.endswith("\n") else obj + "\n")
+        return
     stream.write(json.dumps(obj, ensure_ascii=False, indent=2, default=str) + "\n")
 
 
