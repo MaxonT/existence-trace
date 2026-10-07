@@ -34,6 +34,12 @@ class CheckpointTest(unittest.TestCase):
         })
         env.start()
         self.addCleanup(env.stop)
+        # A contributor's own GIT_AUTHOR_* / GIT_COMMITTER_* would override the identity under test.
+        for name in ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"):
+            clear = mock.patch.dict(os.environ)
+            clear.start()
+            self.addCleanup(clear.stop)
+            os.environ.pop(name, None)
 
     def tearDown(self):
         self._tmp.cleanup()
