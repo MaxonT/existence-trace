@@ -28,6 +28,7 @@
 - XP: etrace.models.xp.score_day(date, levels{dim_id: int 0-4, all six required}, ordinary, events=[{event_id, occurred_on (== date), points>=0, title?}], preset) -> XPDay(.total int half-up, .raw_total); xp.record(data_dir, day, now) -> xp.jsonl 'XP-YYYYMMDD-rN' (rejects event_id booked on another day); xp.week_total(days|data_dir, monday) -> WeekTotal(total, days, missing).
 - Chart: etrace.chart.pad_svg(points, kind='day'|'week', language, preset=None) -> SVG string (data lines are the only <path> elements, class 'pad-line'; grid uses <line>). chart.smooth/local_linear are reusable for the G chart (US-013).
 - Email: etrace.outreach.email.load_credentials(path) -> Credentials (repr/errors never show the password; reasons go through _reason to scrub it). send(data_dir, creds, date, scan_ok, language, kind='questions'|'report'|'audit', now) -> SendResult; notifications.jsonl records have channel 'email' + kind; 'sent' only after IMAP finds the Message-ID in sent_folder. read_replies(data_dir, creds, now) -> ReplyResult, feedback records with source 'email', id 'email:MSGHASH12:QID|general'. Tests patch mail.smtplib.SMTP_SSL/SMTP and mail.imaplib.IMAP4_SSL with in-memory fakes (tests/test_outreach_email.py).
+- Audit: etrace.container.audit.weekly(data_dir, as_of, audits_dir, now=None, language) -> report dict (passed, chains[{kind, root, problems, open}], decisions_without_receipt, receipts_without_readback, samples{applied, not_applicable}, reactions{approved, objected, replied, silence}); writes audits_dir/YYYY-Www.{json,md}. Users reply to a decision by naming its D-id in feedback.
 - feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
 ---
 ## Hard boundary
@@ -201,4 +202,13 @@
   - etrace/outreach/email.py shadows nothing: absolute `import email` inside it still gets the stdlib package; import it elsewhere as `from etrace.outreach import email as mail`.
   - Email and note notifications share the N-YYYYMMDD-N id counter for a date; note.write dedupe only looks at channel 'note'.
   - read_replies does not call questions.answer; the feedback task (agent/CLI) should do that with the stored feedback id.
+---
+
+## 2026-10-07 - US-017
+- Implemented etrace/container/audit.py: weekly() builds chains rooted at questions, then unlinked feedback, then unlinked decisions; audits chains touched in the 7 days ending on as_of plus older chains that are open or broken. Broken: missing feedback, feedback with no decision after 2-day grace, rules missing/misattributed, unverified receipts, receipts recorded before the decision or on an older rules version, decisions never applied (only no_match/not_applicable/blocked receipts) or with no receipt and not pending. Pending/grace items are listed as open, not broken. Deterministic samples (random.Random(week id)) of one applied and one not_applicable receipt. Reactions: feedback naming a D-id after the decision -> approved/objected/replied by keyword; no reply -> silence (never approval).
+- Files: etrace/container/audit.py, tests/test_audit.py
+- **Learnings for future iterations:**
+  - weekly() needs an explicit audits_dir (data_dir holds the jsonl files; the CLI should pass <root>/audits).
+  - Feedback that names a decision id and does not object counts as a reaction, not as feedback needing its own decision; objections must lead to a decision.
+  - The 'structural completeness is not a pass' case: a not_applicable-only receipt satisfies validate() but fails the audit.
 ---
