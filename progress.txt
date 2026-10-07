@@ -1,0 +1,13 @@
+## Codebase Patterns
+- Read docs/SYSTEM_DESIGN.md before every story. It is the source of truth.
+- Python 3 standard library only (tomllib, json, unittest, xml.etree, urllib). No pip installs; pytest is NOT available.
+- Run tests: python3 -m unittest discover -s tests -v
+- Package name is `trace`; CLI entry: python3 -m trace <command>
+- Tests must use tempfile dirs; never write outside the repo or touch the network.
+- NEVER add real personal data, real emails, Notion IDs or absolute /Users/ paths. Example data is fictional.
+- Bilingual: code/README in English; preset labels, prompts and templates have zh and en.
+- Default PAD 27-word table (zh), rows = P,A level; columns = low D | mid D | high D:
+  P低A低: 无助|沮丧|轻蔑   P低A中: 担忧|烦躁|不满   P低A高: 恐慌|紧张|愤怒
+  P中A低: 茫然|平静|淡定   P中A中: 困惑|专注|笃定   P中A高: 震惊|惊讶|警觉
+  P高A低: 依恋|满足|惬意   P高A中: 感动|开心|自豪   P高A高: 惊喜|兴奋|豪迈
+---

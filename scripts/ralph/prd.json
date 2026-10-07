@@ -1,0 +1,231 @@
+{
+  "project": "existence-trace",
+  "branchName": "ralph/v1-core-loop",
+  "description": "Open-source, agent-agnostic daily journaling harness: user journal -> AI estimates PAD / G / XP with provenance -> daily report -> in-note feedback -> rule calibration. Read docs/SYSTEM_DESIGN.md first. Python 3 standard library only. Quality check: python3 -m unittest discover -s tests -v",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Package scaffold and config loader",
+      "description": "As a user, I configure the system with one trace.toml file.",
+      "acceptanceCriteria": [
+        "trace/__init__.py, trace/__main__.py and trace/config.py exist",
+        "config.load(path) reads TOML via tomllib: timezone (default America/Chicago), data_dir, preset (default 'default'), language ('zh' or 'en'), schedule times for calibrate/daily/g",
+        "Unknown keys raise a clear error; missing optional keys get defaults",
+        "examples/trace.toml documents every key",
+        "tests/test_config.py passes",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 1, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Append-only JSONL store with locking",
+      "description": "As the engine, I need safe storage that never loses or rewrites history.",
+      "acceptanceCriteria": [
+        "trace/store.py: append(name, record), read_all(name), write_json_atomic(path, obj) using temp file + os.replace",
+        "A lock file prevents two writers at once; stale locks older than a configurable timeout are reported, not silently removed",
+        "append rejects records missing 'id' and rejects a duplicate id in the same file",
+        "Tests use tempfile directories only",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 2, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Preset files and validation",
+      "description": "As a user, I can swap dimensions, weights and word tables without touching code.",
+      "acceptanceCriteria": [
+        "presets/default/pad.json: five levels 1-5 per axis with zh+en anchor text; 3x3x3 word table (zh from SYSTEM_DESIGN appendix list in progress.txt, en translations); projection rule 1-2=low, 3=mid, 4-5=high",
+        "presets/default/g.json: B items B1-B4 weights .28 .18 .36 .18, E items E1-E4 weights .22 .14 .36 .28, G=(B+E)/2, 0-10 anchors 0/2/5/8/10, zh+en labels",
+        "presets/default/xp.json: six daily dimensions with caps 18,16,16,14,14,12 (sum 90), levels 0-4, ordinary outcome cap 10, event bonuses uncapped; generic zh+en descriptions; NO personal events",
+        "trace/presets.py loads a preset by name and validates: weights in each group sum to 1.0 (+/-1e-9), word table has exactly 27 cells, caps are positive",
+        "Invalid preset raises ValueError naming the bad field",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 3, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "PAD core model",
+      "description": "As the engine, I validate PAD points and summarize a day.",
+      "acceptanceCriteria": [
+        "trace/pad.py: PadPoint with date, slot (early_morning|morning|noon|afternoon|evening|late_night) or exact time, P/A/D floats 0-5, provenance (self_report|model_inference), source, confidence (low|medium|high), optional duration_hours",
+        "model_inference points without a source or confidence are rejected",
+        "project(p,a,d) returns the 27-table word via preset projection",
+        "daily_summary(points) = per-axis duration-weighted mean; unknown durations use equal weight and the result is flagged estimated_duration=true",
+        "validate_day(points) fails unless morning, noon and afternoon slots are all present",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 4, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "PAD SVG chart",
+      "description": "As a user, I see my day's PAD trajectory as one consistent chart.",
+      "acceptanceCriteria": [
+        "trace/chart.py: pad_svg(points, kind='day'|'week') returns an SVG string",
+        "Canvas 1240x590, background #F3F5F7, y axis fixed 0-5 with ticks 1-5 labelled from preset, exactly three smooth solid lines P=#D6336C A=#F08C00 D=#1C7ED6 stroke-width 5, no dots or dashed lines",
+        "Smoothing is Gaussian-kernel local linear; bandwidth 2.5 hours for day, 0.75 days for week",
+        "Slot-only points are placed at fixed slot positions and the caption says slot positions are not exact clock times",
+        "Tests parse the SVG with xml.etree and check size, line count and colors",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 5, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "G score computation",
+      "description": "As the engine, I compute B, E and G exactly from item scores.",
+      "acceptanceCriteria": [
+        "trace/g.py: compute(items, preset) returns B, E, G using preset weights; no rounding before the final value; display helper rounds to 1 decimal",
+        "A group is computed only if all four items have values; G only if both B and E exist; otherwise the value is None (never 0)",
+        "Every item score carries provenance, source and confidence; items without them are rejected",
+        "legend(preset, language) returns the symbol explanation text (G=(B+E)/2, B and E formulas, item names, 0-10 anchors, 'not a clinical scale')",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 6, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "G continuity gap fill",
+      "description": "As the engine, I fill missing item scores transparently.",
+      "acceptanceCriteria": [
+        "g.gap_fill(history, date) fills only missing items, in fixed order: linear interpolation between nearest left/right real values (historical_bridge), else carry forward nearest earlier value (continuity_carry_forward), else 5.0 (scale_prior)",
+        "Filled items always have confidence=low, method, neighbor dates and values recorded; the day gets explicit_gap_fill=true",
+        "When a later real value appears, re-running gap_fill replaces a carry-forward with a bridge as a NEW revision; the old revision is kept",
+        "Gap-filled days are excluded by g.training_eligible(day)",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 7, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Frozen predictions and calibration gate",
+      "description": "As the engine, I learn from feedback without fooling myself.",
+      "acceptanceCriteria": [
+        "g.predict(...) appends a prediction snapshot (id, date, revision, rubric_version, items, created_at) to predictions.jsonl; snapshots are never edited",
+        "g.feedback(...) requires a prediction_id whose created_at is earlier than the feedback time, else rejects",
+        "Only numeric targets explicitly given by the user count as training labels; text-only feedback is stored with targets={}",
+        "Numeric bias correction is enabled only after 10 training days plus 10 later test days show lower mean absolute error than no correction; otherwise g.correction_enabled() is False",
+        "Labels from a different rubric_version are not mixed into error stats",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 8, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "XP scoring",
+      "description": "As a user, my daily XP reflects real growth and big moments are not flattened.",
+      "acceptanceCriteria": [
+        "trace/xp.py: score_day(levels, ordinary, events, preset) where each dimension level is 0-4 and points = cap * level / 4",
+        "ordinary outcome is clamped to 0..10; events each need a unique event_id and occurred_on date; total has no daily cap and is rounded to an integer",
+        "An event_id already booked on any earlier day is rejected (single booking)",
+        "week_total(days) sums the displayed daily totals only; no weekly bonus; missing days are reported as missing, never counted as 0",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 9, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Rule store with scoped supersession",
+      "description": "As the system, the newest user instruction wins within the same scope.",
+      "acceptanceCriteria": [
+        "trace/rules.py: add_rule(rule_id, scope, text, expressed_at, source_feedback_id) and active_rules()",
+        "A new rule with the same scope and later expressed_at supersedes the old one; the old rule leaves the active set; different scopes coexist",
+        "expressed_at is the user's original expression time, not the file write time; an earlier-expressed rule added later does NOT supersede a newer one",
+        "Every change appends a decision record to decisions.jsonl (old, new, scope, reason)",
+        "rules.json is written atomically and records a monotonically increasing version",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 10, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Journal file format and protected blocks",
+      "description": "As a user, nothing I write is ever silently changed by the AI.",
+      "acceptanceCriteria": [
+        "trace/journal.py parses and writes Markdown with <!-- trace:ai:NAME --> / <!-- trace:user:NAME --> / <!-- trace:verbatim --> block markers as in docs/SYSTEM_DESIGN.md section 3.3",
+        "new_note(date, preset, language) creates the next-day note: empty G self-rating table (8 items), empty PAD self table (morning/noon/afternoon + other), journal zone, feedback zone; empty cells stay empty",
+        "replace_ai_block(doc, name, text) only touches ai blocks; save() compares hashes of all user and verbatim blocks before vs after and raises ProtectedBlockChanged on any difference",
+        "Round-trip test: parse then save an unmodified file is byte-identical, including Chinese text and trailing spaces",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 11, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Feedback zone ingestion",
+      "description": "As a user, I give feedback by writing in my note.",
+      "acceptanceCriteria": [
+        "trace/feedback.py: ingest(journal_dir) reads every user:feedback block, splits entries by blank line, stores each new entry verbatim in feedback.jsonl with id = note date + block + content hash, observed_at, and the date it refers to",
+        "Re-running ingest does not duplicate entries; an edited entry is stored as a new version linked to the previous one",
+        "Template placeholder text is never ingested as feedback",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 12, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "CLI",
+      "description": "As a user or agent, I drive everything from one command.",
+      "acceptanceCriteria": [
+        "python3 -m trace with subcommands: init, note new DATE, pad add FILE, pad chart DATE, g predict FILE, g feedback FILE, g report, xp score FILE, feedback ingest, rules list, validate",
+        "Commands that take FILE accept agent-produced JSON and print a validation error with field names on bad input, exit code 2",
+        "validate checks: protected block hashes, store integrity (unique ids), preset validity; exits 1 on any failure",
+        "tests/test_cli.py calls cli.main(argv) against a temp data dir",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 13, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Agent task prompts (zh/en)",
+      "description": "As any coding agent, I get a short task prompt that defers rules to the engine.",
+      "acceptanceCriteria": [
+        "trace/prompts/{zh,en}/ contain daily.md, g.md, calibrate.md plus a shared _principles.md (the 8 invariants from SYSTEM_DESIGN 2.2)",
+        "python3 -m trace prompt TASK renders the prompt with values from trace.toml (data_dir, timezone, language, active rules from rules.json); no absolute paths or personal data are hard-coded",
+        "Each prompt tells the agent to output JSON for the matching CLI command and to run 'python3 -m trace validate' at the end",
+        "Each rendered prompt is under 6000 characters (test enforces)",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 14, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Scheduler adapters",
+      "description": "As a user, I install the daily schedule for my agent of choice.",
+      "acceptanceCriteria": [
+        "python3 -m trace schedule --target codex|claude-code|cron --out DIR writes files but never installs them",
+        "codex target writes one automation.toml per task (kind=cron, rrule from trace.toml times, prompt from US-014 render)",
+        "cron target writes a crontab snippet calling the agent CLI with the rendered prompt file; claude-code target writes a shell script using 'claude -p'",
+        "Tests check generated times match trace.toml and timezone",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 15, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Optional Notion output adapter",
+      "description": "As a Notion user, I can mirror my daily report into a Notion page.",
+      "acceptanceCriteria": [
+        "trace/adapters/notion.py converts a journal file to Notion block JSON (headings, paragraphs, tables, callouts) and pushes via urllib to the Notion API using a token read from the file path in trace.toml",
+        "Local Markdown stays the source of truth; Notion push never reads back into user blocks",
+        "Tests mock the HTTP layer; no network in tests",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 16, "passes": false, "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Privacy guard, example persona and README",
+      "description": "As a maintainer, I am sure no personal data ships.",
+      "acceptanceCriteria": [
+        "tests/test_privacy.py scans every tracked file for email addresses, 32-hex Notion-style IDs, '/Users/' paths and fails if any are found (allowlist only for example.com emails)",
+        "examples/ contains a fictional persona with 3 days of journal notes and expected outputs; an end-to-end test runs note -> pad add -> g predict -> xp score -> validate on it",
+        "README.md (English) and README.zh.md: what it is, the 8 principles, quickstart, 'not a clinical tool' notice",
+        "python3 -m unittest discover -s tests -v passes"
+      ],
+      "priority": 17, "passes": false, "notes": ""
+    }
+  ]
+}
