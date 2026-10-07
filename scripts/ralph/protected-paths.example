@@ -1,0 +1,4 @@
+# Copy this file to protected-paths.local (it is ignored by git) and list the
+# directories Ralph must never read or write, one per line. Example:
+# ~/Documents/private-notes
+# ~/work/other-project

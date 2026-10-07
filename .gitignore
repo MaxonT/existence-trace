@@ -5,3 +5,5 @@ __pycache__/
 /journal/
 scripts/ralph/.last-branch
 scripts/ralph/archive/
+.claude/settings.json
+scripts/ralph/protected-paths.local

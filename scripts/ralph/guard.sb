@@ -1,12 +1,9 @@
 ;; macOS sandbox profile for Ralph runs. The OS enforces it, not the AI.
-;; HOME is passed with: sandbox-exec -D HOME="$HOME" -f guard.sb ...
+;; Template only: safe-ralph.sh builds the real profile with make-guard.sh. HOME is passed with -D HOME=...
 (version 1)
 (allow default)
 
-;; The user's personal system: no reading, no writing.
-(deny file-read* file-write*
-  (subpath (string-append (param "HOME") "/protected-dir-1"))
-  (subpath (string-append (param "HOME") "/protected-dir-2")))
+;; Directories listed in protected-paths.local (no read, no write) are appended by make-guard.sh.
 
 ;; Shell, git, ssh config and login items: no writing.
 (deny file-write*

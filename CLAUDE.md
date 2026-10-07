@@ -6,7 +6,7 @@
 
 ## Hard boundary (non-negotiable)
 - Work only inside this repository.
-- NEVER read, write, or delete anything in `~/protected-dir-1`, `~/protected-dir-2`, or any Notion workspace. They belong to the owner's personal system and are off-limits.
+- NEVER read, write, or delete anything in the directories listed in `scripts/ralph/protected-paths.local` (not in git; the sandbox enforces it), and never touch any Notion workspace or other connector. They belong to the owner's personal system. If unsure whether a path is protected, ask.
 - Never edit shell config files, `~/.gitconfig`, `~/.ssh`, LaunchAgents, or system directories.
 - Never add real personal data, real emails, Notion IDs, or absolute `/Users/` paths to the repo.
-- Do not build any tool that imports or migrates data from the owner's personal system.
+- Do not build any tool that imports or migrates data from the owner's own personal system.

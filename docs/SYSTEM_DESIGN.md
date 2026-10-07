@@ -1,4 +1,4 @@
-# existence-trace 系统设计 v0.2（草案，待 Tiger 审）
+# existence-trace 系统设计 v0.2
 
 > 工作名 `existence-trace`（存在痕迹），正式名待定。Python 包名 `etrace`。
 > v0.2 变化：偏好容器升为核心模块；每周落实审计进 v1；邮件外联进 v1；预设两套都开箱可用。
@@ -19,14 +19,14 @@
 | 2 | 平台无关：核心是 Python 引擎 + 配置，调度层适配 Codex、Claude Code、cron |
 | 3 | 存储：本地 Markdown/JSON 优先，Notion 作为可选输出适配器 |
 | 4 | 外联渠道：默认写进笔记；v1 同时提供邮件插件（SMTP 发、IMAP 收），配置后主动发信、读回复 |
-| 5 | 预设两套，都开箱可用：`default`（通用）和 `tiger-method`（Tiger 的 PAD / G / XP 2.2，去掉个人事件） |
+| 5 | 预设两套，都开箱可用：`default`（通用）和 `tiger-method`（作者自己调出来的 PAD / G / XP 2.2，去掉个人事件） |
 | 6 | 语言：代码与 README 英文；prompt、词表、模板中英双语 |
 | 7 | 125 词候选层放 v2；v1 用 27 词表 |
 | 8 | 被替代的旧规则退出生效集合，但在 decisions 里保留「谁替代了谁、为什么」 |
 | 9 | 自我来信放 v2 可选模块；GitHub 空提交 streak 不进入开源产品 |
 | 10 | v1 只读用户自己写的日记；AI 对话记录（ChatGPT、Claude、Google AI Mode）放 v2 做可选插件 |
 | 11 | 开源协议 MIT；正式名不急，暂用 existence-trace |
-| 12 | Tiger 的系统是量身定做的，绝不迁移。新项目不做任何从 Tiger 系统导入或迁移的工具 |
+| 12 | 作者自己的系统是量身定做的，不迁移；本项目不做任何从它导入或迁移的工具 |
 
 ## 2. 九条原则（产品的灵魂，全部写成代码和测试）
 
@@ -113,7 +113,7 @@ etrace/                Python 包，只用标准库
   cli.py
 presets/
   default/             通用：pad.json  g.json  xp.json  rules.json  question_templates.json
-  tiger-method/        Tiger 的 PAD / G 1.3.0 / XP 2.2（无个人事件），同样五个文件
+  tiger-method/        作者的 PAD / G 1.3.0 / XP 2.2（无个人事件），同样五个文件
 tests/
 examples/              虚构人物的 3 天日记与期望输出
 ```
@@ -128,7 +128,7 @@ examples/              虚构人物的 3 天日记与期望输出
 | G | B1–B4 / E1–E4，权重 .28 .18 .36 .18 / .22 .14 .36 .28 | 同左（g-1.3.0） |
 | XP 六维（合计 90） | 节律与稳定 18、学习与吸收 16、边界与休息 16、行动与尝试 14、反思与发现 14、联结与探索 12 | 日程与稳定今天 18、真正吸收与学习 16、停下优化与边界 16、在不确定中行动 14、个人发现与知行整合 14、真实联结与自主探索 12 |
 | XP 其他 | 普通成果 0–10；事件加分不封顶、唯一 ID | 同左 |
-| 起步规则 | 原则 1–9 对应的基础规则 | 同左，加上 Tiger 已确认的通用偏好（如专注状态 PAD 参考） |
+| 起步规则 | 原则 1–9 对应的基础规则 | 同左，加上作者已确认的通用偏好（如专注状态 PAD 参考） |
 | 疑问模板 | 局部情绪与整日基调冲突、手填与证据不一致等 | 同左 |
 
 `tiger-method` 的 README 还要讲清「这些维度是怎样从自己的难题里长出来的」，教用户长出自己的维度。
@@ -182,14 +182,14 @@ examples/              虚构人物的 3 天日记与期望输出
 - 示例数据只用虚构人物。
 - 文档写明：G 和 PAD 不是临床量表，不做医学判断。
 
-## 7. 还没定、需要 Tiger 决定的
+## 7. 还没定的事
 
 1. 正式项目名。
 
-## 8. 开发安全边界（不可协商）
+## 8. 开发安全边界（给用 AI 代理开发本项目的人）
 
-Tiger 的现有系统（`~/protected-dir-1`、`~/protected-dir-2`、他的 Notion）对本项目的开发过程只读，且 Ralph 运行时连读都不允许。三层强制：
+Ralph 每轮都以「跳过权限确认」模式运行，所以保护必须由系统强制，不能靠代理自觉。三层：
 
-1. macOS 沙盒 `scripts/ralph/guard.sb`：拒绝读写上述目录；拒绝写 shell 配置、`.gitconfig`、`.ssh`、`LaunchAgents` 和系统目录。由操作系统执行。
-2. Claude 权限规则 `scripts/ralph/guard-settings.json` 与 `.claude/settings.json`：拒绝 Read / Edit / Write 上述目录，拒绝所有 MCP 工具。
-3. Ralph 每轮以 `--strict-mcp-config` 加空 MCP 配置启动，碰不到 Notion。`ralph.sh` 不在沙盒里就拒绝运行，必须用 `safe-ralph.sh` 启动。
+1. macOS 沙盒：`scripts/ralph/guard.sb` 是通用模板，拒绝写 shell 配置、`.gitconfig`、`.ssh`、`LaunchAgents` 和系统目录。你要保护的目录（比如放私人资料的文件夹）写在 `scripts/ralph/protected-paths.local`（不进 git，格式见 `protected-paths.example`），`make-guard.sh` 每次启动时把它们合成进沙盒，拒绝读和写。清单缺失就拒绝运行。由操作系统执行。
+2. Claude 权限规则：同一份清单同时生成 Read / Edit 的禁止规则，并禁止所有 MCP 工具。
+3. Ralph 以 `--strict-mcp-config` 加空 MCP 配置启动，碰不到你账号里的连接器。`ralph.sh` 不在沙盒里就拒绝运行，必须用 `safe-ralph.sh` 启动。

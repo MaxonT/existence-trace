@@ -98,7 +98,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
   else
     # Claude Code: use --dangerously-skip-permissions for autonomous operation, --print for output
-    OUTPUT=$(claude --dangerously-skip-permissions --strict-mcp-config --mcp-config "$SCRIPT_DIR/no-mcp.json" --settings "$SCRIPT_DIR/guard-settings.json" --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
+    OUTPUT=$(claude --dangerously-skip-permissions --strict-mcp-config --mcp-config "$SCRIPT_DIR/no-mcp.json" --settings "${ETRACE_GUARD_SETTINGS:?run through safe-ralph.sh}" --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
   fi
   
   # Stop immediately on API / auth errors instead of burning iterations

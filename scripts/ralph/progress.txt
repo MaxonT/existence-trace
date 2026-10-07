@@ -40,7 +40,7 @@
 - Example persona: examples/persona/{journal,agent,expected.json}; tests/test_example.py runs the full CLI loop on it. If a CLI command, JSON shape, note template or score formula changes, regenerate/adjust these files and expected.json (feedback ids are DATE:feedback:sha12 of the entry text, so editing feedback text changes them).
 ---
 ## Hard boundary
-- NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
+- NEVER read from or write to the directories in scripts/ralph/protected-paths.local, or any Notion workspace, while building this project. Work only inside this repository.
 - v1 reads only the user's own journal notes. Do NOT build readers for ChatGPT / Claude / Google AI Mode conversation logs.
 ---
 
@@ -261,7 +261,7 @@
 - **Learnings for future iterations:**
   - Generated files hold absolute paths (data root, repo dir for PYTHONPATH); fine because they are written to the user's out dir, never into the repo. Tests only use temp dirs.
   - An env prefix (`VAR=x cmd`) does not reach the agent spawned later; use `export`, and test it with a subprocess run from `/`.
-  - The codex automation.toml field set is our own guess at the format (we may not read ~/protected-dir-1); keep it simple TOML that tomllib parses.
+  - The codex automation.toml field set is our own guess at the format (we do not read any external automation files); keep it simple TOML that tomllib parses.
   - US-022 (Notion) goes in etrace/adapters/notion.py next to scheduler.py.
 ---
 
