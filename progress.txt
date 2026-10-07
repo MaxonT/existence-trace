@@ -11,3 +11,7 @@
   P中A低: 茫然|平静|淡定   P中A中: 困惑|专注|笃定   P中A高: 震惊|惊讶|警觉
   P高A低: 依恋|满足|惬意   P高A中: 感动|开心|自豪   P高A高: 惊喜|兴奋|豪迈
 ---
+## Hard boundary
+- NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
+- v1 reads only the user's own journal notes. Do NOT build readers for ChatGPT / Claude / Google AI Mode conversation logs.
+---
