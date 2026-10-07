@@ -4,6 +4,12 @@
 
 set -e
 
+# Safety: only run inside the macOS sandbox started by safe-ralph.sh
+if [[ "${ETRACE_SANDBOXED:-}" != "1" ]]; then
+  echo "Refusing to run outside the sandbox. Use ./scripts/ralph/safe-ralph.sh instead." >&2
+  exit 1
+fi
+
 # Parse arguments
 TOOL="amp"  # Default to amp for backwards compatibility
 MAX_ITERATIONS=10
@@ -92,7 +98,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
   else
     # Claude Code: use --dangerously-skip-permissions for autonomous operation, --print for output
-    OUTPUT=$(claude --dangerously-skip-permissions --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
+    OUTPUT=$(claude --dangerously-skip-permissions --strict-mcp-config --mcp-config "$SCRIPT_DIR/no-mcp.json" --settings "$SCRIPT_DIR/guard-settings.json" --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
   fi
   
   # Check for completion signal

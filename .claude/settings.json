@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/protected-dir-1/**)",
+      "Edit(~/protected-dir-1/**)",
+      "Write(~/protected-dir-1/**)",
+      "Read(~/protected-dir-2/**)",
+      "Edit(~/protected-dir-2/**)",
+      "Write(~/protected-dir-2/**)",
+      "mcp__*"
+    ]
+  }
+}

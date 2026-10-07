@@ -1,0 +1,31 @@
+;; macOS sandbox profile for Ralph runs. The OS enforces it, not the AI.
+;; HOME is passed with: sandbox-exec -D HOME="$HOME" -f guard.sb ...
+(version 1)
+(allow default)
+
+;; The user's personal system: no reading, no writing.
+(deny file-read* file-write*
+  (subpath (string-append (param "HOME") "/protected-dir-1"))
+  (subpath (string-append (param "HOME") "/protected-dir-2")))
+
+;; Shell, git, ssh config and login items: no writing.
+(deny file-write*
+  (literal (string-append (param "HOME") "/.zshrc"))
+  (literal (string-append (param "HOME") "/.zprofile"))
+  (literal (string-append (param "HOME") "/.zshenv"))
+  (literal (string-append (param "HOME") "/.bashrc"))
+  (literal (string-append (param "HOME") "/.bash_profile"))
+  (literal (string-append (param "HOME") "/.profile"))
+  (literal (string-append (param "HOME") "/.gitconfig"))
+  (subpath (string-append (param "HOME") "/.ssh"))
+  (subpath (string-append (param "HOME") "/Library/LaunchAgents")))
+
+;; Operating system and installed software: no writing.
+(deny file-write*
+  (subpath "/System")
+  (subpath "/Library")
+  (subpath "/Applications")
+  (subpath "/usr")
+  (subpath "/etc")
+  (subpath "/private/etc")
+  (subpath "/opt/homebrew"))

@@ -26,6 +26,7 @@
 | 9 | 自我来信放 v2 可选模块；GitHub 空提交 streak 不进入开源产品 |
 | 10 | v1 只读用户自己写的日记；AI 对话记录（ChatGPT、Claude、Google AI Mode）放 v2 做可选插件 |
 | 11 | 开源协议 MIT；正式名不急，暂用 existence-trace |
+| 12 | Tiger 的系统是量身定做的，绝不迁移。新项目不做任何从 Tiger 系统导入或迁移的工具 |
 
 ## 2. 原则
 
@@ -186,5 +187,12 @@ examples/              虚构人物的 3 天日记与期望输出
 
 ## 7. 还没定、需要 Tiger 决定的
 
-1. Tiger 自己要不要迁到这个新系统上？要的话需要从现有 Notion 和容器导入的工具（建议 v1 先不迁）。
-2. 正式项目名。
+1. 正式项目名。
+
+## 8. 开发安全边界（不可协商）
+
+Tiger 的现有系统（`~/protected-dir-1`、`~/protected-dir-2`、他的 Notion）对本项目的开发过程只读，且 Ralph 运行时连读都不允许。三层强制：
+
+1. macOS 沙盒 `scripts/ralph/guard.sb`：拒绝读写上述目录；拒绝写 shell 配置、`.gitconfig`、`.ssh`、`LaunchAgents` 和系统目录。由操作系统执行。
+2. Claude 权限规则 `scripts/ralph/guard-settings.json` 与 `.claude/settings.json`：拒绝 Read / Edit / Write 上述目录，拒绝所有 MCP 工具。
+3. Ralph 每轮以 `--strict-mcp-config` 加空 MCP 配置启动，碰不到 Notion。`ralph.sh` 不在沙盒里就拒绝运行，必须用 `safe-ralph.sh` 启动。
