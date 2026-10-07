@@ -128,7 +128,8 @@ def ingest_note(data_dir, note_date, entries, now=None, result=None):
     observed_at = _now(now).isoformat()
     known = {r["id"] for r in store.read_all(NAME)}
     present = {entry_id(note_date, t) for t in entries}
-    vanished = [r for r in current(store, note_date) if r["id"] not in present]
+    vanished = [r for r in current(store, note_date)
+                if r.get("source") == "note" and r["id"] not in present]
     seen = set()
     for index, text in enumerate(entries):
         rid = entry_id(note_date, text)

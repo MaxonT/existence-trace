@@ -33,4 +33,7 @@ audit = "Sun 22:15"
 # Paths to files holding secrets. Secrets never go in this file or in logs.
 # Both are unset by default.
 # email = "~/.config/existence-trace/email.toml"
+#   The email file is TOML with: address, password, smtp_host, imap_host
+#   (optional: smtp_port = 465, smtp_security = "ssl" | "starttls", imap_port = 993,
+#   username, user_address, sent_folder = "Sent", inbox = "INBOX", save_to_sent = false).
 # notion = "~/.config/existence-trace/notion.toml"

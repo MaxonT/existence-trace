@@ -27,6 +27,8 @@
 - G predictions/calibration: g.predict(data_dir, date, preset, now) freezes g.latest into predictions.jsonl ('P-YYYYMMDD-N', dedupes same date+revision+rubric_version); g.feedback(data_dir, prediction_id, targets={code: number}, text, expressed_at, now) -> g_feedback.jsonl ('GF-YYYYMMDD-N'), rejected unless prediction created_at < expressed_at. g.calibration(data_dir, preset|version) -> Calibration(.enabled, .reason, .bias, .apply(code, value)); always call .apply, it is a no-op when disabled.
 - XP: etrace.models.xp.score_day(date, levels{dim_id: int 0-4, all six required}, ordinary, events=[{event_id, occurred_on (== date), points>=0, title?}], preset) -> XPDay(.total int half-up, .raw_total); xp.record(data_dir, day, now) -> xp.jsonl 'XP-YYYYMMDD-rN' (rejects event_id booked on another day); xp.week_total(days|data_dir, monday) -> WeekTotal(total, days, missing).
 - Chart: etrace.chart.pad_svg(points, kind='day'|'week', language, preset=None) -> SVG string (data lines are the only <path> elements, class 'pad-line'; grid uses <line>). chart.smooth/local_linear are reusable for the G chart (US-013).
+- Email: etrace.outreach.email.load_credentials(path) -> Credentials (repr/errors never show the password; reasons go through _reason to scrub it). send(data_dir, creds, date, scan_ok, language, kind='questions'|'report'|'audit', now) -> SendResult; notifications.jsonl records have channel 'email' + kind; 'sent' only after IMAP finds the Message-ID in sent_folder. read_replies(data_dir, creds, now) -> ReplyResult, feedback records with source 'email', id 'email:MSGHASH12:QID|general'. Tests patch mail.smtplib.SMTP_SSL/SMTP and mail.imaplib.IMAP4_SSL with in-memory fakes (tests/test_outreach_email.py).
+- feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -188,4 +190,15 @@
   - week totals sum per-day rounded totals (3.5 + 3.5 shows 4 + 4 = 8), so the week matches what the daily reports displayed.
   - A level-0 day is a scored day (total 0), unlike a missing day; daily prompts must still pass all six levels.
   - XPError.errors uses the same 'field: msg' shape as GError/PadError for CLI exit 2.
+---
+
+## 2026-10-07 - US-016
+- Implemented etrace/outreach/email.py: credentials TOML loader (required address/password/smtp_host/imap_host, defaults for ports, ssl|starttls, sent_folder, inbox, user_address, save_to_sent), compose (subject tag '[etrace DATE KIND]' + note.render text only, never journal text), send (dedupe by date+kind on 'sent'; SMTP failure -> 'failed'; not in Sent / IMAP error -> 'unknown' with reason; a retry first looks for the earlier Message-ID in Sent), read_replies (tag, recipient, sender, Date > sent_at filters; strips '>' quotes, 'On ... wrote:'/'在...写道：'/Original Message headers and signatures; splits by [Q-id] lines; dedupe by message_id+question_id).
+- Fixed feedback.ingest_note so note intake never marks email feedback as a vanished/edited note entry.
+- Files: etrace/outreach/email.py, etrace/container/feedback.py, examples/trace.toml, tests/test_outreach_email.py
+- **Learnings for future iterations:**
+  - questions.add_question returns the full record, not the id; use ['id'].
+  - etrace/outreach/email.py shadows nothing: absolute `import email` inside it still gets the stdlib package; import it elsewhere as `from etrace.outreach import email as mail`.
+  - Email and note notifications share the N-YYYYMMDD-N id counter for a date; note.write dedupe only looks at channel 'note'.
+  - read_replies does not call questions.answer; the feedback task (agent/CLI) should do that with the stored feedback id.
 ---
