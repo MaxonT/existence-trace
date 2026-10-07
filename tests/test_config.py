@@ -45,6 +45,7 @@ class LoadConfigTest(unittest.TestCase):
             'preset = "tiger-method"\n'
             'language = "en"\n'
             'outreach = "note+email"\n'
+            'git_remote = "../remote.git"\n'
             '[tasks]\n'
             'calibrate = "08:15"\n'
             'feedback = "13:00"\n'
@@ -58,12 +59,20 @@ class LoadConfigTest(unittest.TestCase):
         self.assertEqual(cfg.preset, "tiger-method")
         self.assertEqual(cfg.language, "en")
         self.assertTrue(cfg.email_enabled)
+        self.assertEqual(cfg.git_remote, "../remote.git")
         self.assertEqual(cfg.tasks["calibrate"], ["08:15"])
         self.assertEqual(cfg.tasks["feedback"], ["13:00"])
         self.assertEqual(cfg.tasks["daily"], ["19:30"])
         self.assertEqual(cfg.tasks["audit"], ["Sat 21:00"])
         self.assertEqual(cfg.credentials["email"], os.path.join(self.dir, "secrets", "email.toml"))
         self.assertEqual(cfg.credentials["notion"], os.path.join(self.dir, "secrets", "notion.toml"))
+
+    def test_git_remote_defaults_to_none_and_must_be_string(self):
+        self.assertIsNone(config.load(self.write("")).git_remote)
+        with self.assertRaisesRegex(ConfigError, "git_remote"):
+            config.load(self.write('git_remote = ""\n'))
+        with self.assertRaisesRegex(ConfigError, "git_remote"):
+            config.load(self.write("git_remote = 3\n"))
 
     def test_unknown_top_level_key_named(self):
         with self.assertRaisesRegex(ConfigError, "'timezon'"):

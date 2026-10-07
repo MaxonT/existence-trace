@@ -29,6 +29,7 @@
 - Chart: etrace.chart.pad_svg(points, kind='day'|'week', language, preset=None) -> SVG string (data lines are the only <path> elements, class 'pad-line'; grid uses <line>). chart.smooth/local_linear are reusable for the G chart (US-013).
 - Email: etrace.outreach.email.load_credentials(path) -> Credentials (repr/errors never show the password; reasons go through _reason to scrub it). send(data_dir, creds, date, scan_ok, language, kind='questions'|'report'|'audit', now) -> SendResult; notifications.jsonl records have channel 'email' + kind; 'sent' only after IMAP finds the Message-ID in sent_folder. read_replies(data_dir, creds, now) -> ReplyResult, feedback records with source 'email', id 'email:MSGHASH12:QID|general'. Tests patch mail.smtplib.SMTP_SSL/SMTP and mail.imaplib.IMAP4_SSL with in-memory fakes (tests/test_outreach_email.py).
 - Audit: etrace.container.audit.weekly(data_dir, as_of, audits_dir, now=None, language) -> report dict (passed, chains[{kind, root, problems, open}], decisions_without_receipt, receipts_without_readback, samples{applied, not_applicable}, reactions{approved, objected, replied, silence}); writes audits_dir/YYYY-Www.{json,md}. Users reply to a decision by naming its D-id in feedback.
+- Checkpoint: etrace.checkpoint.checkpoint(root_dir, message, remote=None) -> CheckpointResult(committed, commit, initialized, pushed, push_error). root_dir is the user data root (holds journal/, data/, audits/), not Store's data/ dir. Pass cfg.git_remote as remote; None never pushes. Raises CheckpointError if git is missing or a local step fails; push failures only set push_error. Git tests patch GIT_CONFIG_GLOBAL/GIT_CONFIG_NOSYSTEM/HOME and skipUnless(shutil.which('git')).
 - feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
 ---
 ## Hard boundary
@@ -211,4 +212,13 @@
   - weekly() needs an explicit audits_dir (data_dir holds the jsonl files; the CLI should pass <root>/audits).
   - Feedback that names a decision id and does not object counts as a reaction, not as feedback needing its own decision; objections must lead to a decision.
   - The 'structural completeness is not a pass' case: a not_applicable-only receipt satisfies validate() but fails the audit.
+---
+
+## 2026-10-07 - US-018
+- Implemented etrace/checkpoint.py: checkpoint() inits a repo if root_dir is not already a repo root (a data dir nested in another repo gets its own), writes a .gitignore (.etrace.lock, .tmp-*) only if none exists, `git add -A`, commits only when `status --porcelain` is non-empty. Fallback identity via `-c user.name/-c user.email` only when none is configured (never written to any config). Push only with an explicit remote: remote 'etrace' is added/updated, plain `git push etrace refs/heads/B:refs/heads/B` (no force, no '+'); diverged/missing remote -> pushed False + push_error. Pushes even when nothing new was committed so a previous failed push catches up.
+- Added config key git_remote (top-level, optional string, not path-resolved) + examples/trace.toml docs.
+- Files: etrace/checkpoint.py, etrace/config.py, examples/trace.toml, tests/test_checkpoint.py, tests/test_config.py
+- **Learnings for future iterations:**
+  - Always isolate git tests from the machine's config (signing/hooks/identity would make them flaky).
+  - The CLI (US-019) `etrace checkpoint` should call checkpoint(os.path.dirname-of-data or cfg.data_dir root, msg, cfg.git_remote) before and after each task; cfg.data_dir is the root that contains data/.
 ---

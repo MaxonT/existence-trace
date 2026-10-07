@@ -24,7 +24,7 @@ DEFAULT_TASKS = {
     "audit": "Sun 22:15",
 }
 
-_TOP_KEYS = ("timezone", "data_dir", "preset", "language", "outreach", "tasks", "credentials")
+_TOP_KEYS = ("timezone", "data_dir", "preset", "language", "outreach", "git_remote", "tasks", "credentials")
 _CREDENTIAL_KEYS = ("email", "notion")
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -40,6 +40,8 @@ class Config:
     preset: str = "default"
     language: str = "zh"
     outreach: str = "note"
+    # Git URL that checkpoints push to. None (default) keeps history local only.
+    git_remote: str | None = None
     # Task name -> list of times. Daily tasks use "HH:MM"; audit uses "Ddd HH:MM".
     tasks: dict = field(default_factory=lambda: {k: _as_list(v) for k, v in DEFAULT_TASKS.items()})
     # Credential name -> file path or None. Secrets live in those files, never here.
@@ -113,6 +115,11 @@ def from_dict(raw, base_dir="."):
     except (ZoneInfoNotFoundError, ValueError):
         raise ConfigError(f"timezone {values['timezone']!r} is not a known IANA zone") from None
     values["data_dir"] = _resolve_path(values["data_dir"], base_dir)
+
+    git_remote = raw.get("git_remote")
+    if git_remote is not None:
+        _check_str("git_remote", git_remote)
+    values["git_remote"] = git_remote
 
     tasks_raw = raw.get("tasks", {})
     if not isinstance(tasks_raw, dict):

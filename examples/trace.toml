@@ -20,6 +20,11 @@ language = "zh"
 #   "note+email"  also send email (requires credentials.email)
 outreach = "note"
 
+# Every task commits data_dir to a private local git repository (no change, no commit).
+# Nothing is pushed unless you set a remote here; pushes are never forced.
+# Unset by default.
+# git_remote = "git@example.com:you/private-trace-data.git"
+
 [tasks]
 # Daily tasks take "HH:MM" (24h) or a list of times.
 calibrate = "09:00"
