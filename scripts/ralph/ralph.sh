@@ -101,6 +101,13 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     OUTPUT=$(claude --dangerously-skip-permissions --strict-mcp-config --mcp-config "$SCRIPT_DIR/no-mcp.json" --settings "$SCRIPT_DIR/guard-settings.json" --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
   fi
   
+  # Stop immediately on API / auth errors instead of burning iterations
+  if echo "$OUTPUT" | grep -qE "API Error: (400|401|403)|Invalid API key|Please run /login"; then
+    echo ""
+    echo "Ralph stopped: API or login error (see above). Fix auth and re-run."
+    exit 2
+  fi
+
   # Check for completion signal
   if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
     echo ""
