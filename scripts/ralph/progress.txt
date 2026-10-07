@@ -21,6 +21,7 @@
 - Decisions/usage: decisions.decide(data_dir, feedback_ids, decision_text, value_source='user'|'agent_decision', rule_changes=[{rule_id, scope, text, expressed_at, source_feedback_id?, reason?}], now) -> 'D-YYYYMMDD-N'; decisions.mark_pending(id, reason). usage.record(data_dir, task, target, rule_version, feedback_ids, decision_ids, before, after, status, verified_readback=True, now) -> 'U-YYYYMMDD-N'. Only usage.applied() (a verified changed/confirmed receipt) means a decision was used; validate.validate(data_dir, now).ok checks the chain.
 - Presets: etrace.presets.load(name, presets_dir=None) -> {'name','pad','g','xp','rules','question_templates'}, validated (ValueError 'NAME/file.json.field: msg'). Labels are {'zh','en'} objects; pick with presets.label(obj, language). Helpers: g_items(p) -> [(code, weight, label)], band(level) 1-5 -> low/mid/high, pad_word(p, P, A, D, language). Preset rules.json = {version, rules:[{id, scope, text:{zh,en}}]}: pass presets.label(rule['text'], lang) to rules.add_rule (it needs a str). xp.json dims ids are the same in both presets (rhythm, learning, boundaries, action, reflection, connection); only labels differ.
 - Note outreach: etrace.outreach.note.write(journal_dir, data_dir, date, scan_ok, language, preset, decision_ids=None, summary=None, now) rewrites ai:questions (creates the note if missing), reads back, then appends notifications.jsonl ('N-YYYYMMDD-N', channel/status/verified_readback/question_ids/decision_ids/daily_status/content_hash). Default decisions = those not reported on an earlier day. Wrap user-facing text with note._wrap (zh 40 / en 72 chars) to stay phone-readable.
+- PAD: etrace.models.pad.PadPoint.from_dict(agent_json) (PadError.errors = ['field: msg'] for CLI exit 2); slot is a SLOTS name or 'HH:MM' (pad.slot_of maps times to slots; SLOT_HOURS gives fixed chart positions for slot-only points). project(p,a,d,preset=None,language) -> 27-table word (values <1 count as level 1). daily_summary(points) -> DailySummary(.P/.A/.D, unknown_durations, equal_weighted). validate_day(points).ok/.problems.
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -126,4 +127,14 @@
   - presets/ lives at repo root (PRESETS_DIR = parent of etrace/); US-019 init should copy from presets.preset_dir(name).
   - The g-self table first cell is now 'CODE label'; parsers should take the first whitespace token as the item code.
   - band() rounds half up (2.5 -> mid); US-010 project() can reuse presets.pad_word.
+---
+
+## 2026-10-07 - US-010
+- Implemented etrace/models/pad.py: frozen PadPoint (date, slot name or HH:MM, P/A/D 0-5, provenance self_report|model_inference, source, confidence, duration_hours, self_value, reason) with field-level PadError; from_dict/to_dict; slot_of; project; daily_summary; validate_day.
+- model_inference requires source + confidence; self_value is stored as given and a differing AI value requires reason.
+- Unknown durations: each point without duration_hours weighs the mean of the known durations (1 if none known); summary.unknown_durations / equal_weighted flag it.
+- Files: etrace/models/__init__.py, etrace/models/pad.py, tests/test_pad.py
+- **Learnings for future iterations:**
+  - AC says PAD values are 0-5 but preset levels/band are 1-5; project() clamps values below 1 to level 1.
+  - Slot hour ranges: early_morning 5-8, morning 8-11, noon 11-14, afternoon 14-18, evening 18-22, late_night 22-5. US-011 should use pad.SLOT_HOURS for slot-only x positions.
 ---
