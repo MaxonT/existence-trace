@@ -61,7 +61,7 @@ Agent 把判断写成 JSON，引擎拒绝不合格的输入（比如缺 provenan
 ### 3.1 目录
 
 ```
-trace/                 Python 包，只用标准库
+etrace/                 Python 包，只用标准库
   config.py            读 trace.toml，时区等
   store.py             追加式 JSONL、原子写、文件锁
   presets.py           加载并校验预设
@@ -74,7 +74,7 @@ trace/                 Python 包，只用标准库
   journal.py           补记页模板、正式化、保护块校验
   prompts/             任务 prompt 模板（zh / en）
   adapters/            scheduler: codex / claude-code / cron；output: notion
-  cli.py               `python3 -m trace ...`
+  cli.py               `python3 -m etrace ...`
 presets/default/       Tiger 方法的去个人化版本（pad.json, g.json, xp.json）
 tests/                 unittest
 ```

@@ -8,7 +8,7 @@
       "title": "Package scaffold and config loader",
       "description": "As a user, I configure the system with one trace.toml file.",
       "acceptanceCriteria": [
-        "trace/__init__.py, trace/__main__.py and trace/config.py exist",
+        "etrace/__init__.py, etrace/__main__.py and etrace/config.py exist",
         "config.load(path) reads TOML via tomllib: timezone (default America/Chicago), data_dir, preset (default 'default'), language ('zh' or 'en'), schedule times for calibrate/daily/g",
         "Unknown keys raise a clear error; missing optional keys get defaults",
         "examples/trace.toml documents every key",
@@ -22,7 +22,7 @@
       "title": "Append-only JSONL store with locking",
       "description": "As the engine, I need safe storage that never loses or rewrites history.",
       "acceptanceCriteria": [
-        "trace/store.py: append(name, record), read_all(name), write_json_atomic(path, obj) using temp file + os.replace",
+        "etrace/store.py: append(name, record), read_all(name), write_json_atomic(path, obj) using temp file + os.replace",
         "A lock file prevents two writers at once; stale locks older than a configurable timeout are reported, not silently removed",
         "append rejects records missing 'id' and rejects a duplicate id in the same file",
         "Tests use tempfile directories only",
@@ -38,7 +38,7 @@
         "presets/default/pad.json: five levels 1-5 per axis with zh+en anchor text; 3x3x3 word table (zh from SYSTEM_DESIGN appendix list in progress.txt, en translations); projection rule 1-2=low, 3=mid, 4-5=high",
         "presets/default/g.json: B items B1-B4 weights .28 .18 .36 .18, E items E1-E4 weights .22 .14 .36 .28, G=(B+E)/2, 0-10 anchors 0/2/5/8/10, zh+en labels",
         "presets/default/xp.json: six daily dimensions with caps 18,16,16,14,14,12 (sum 90), levels 0-4, ordinary outcome cap 10, event bonuses uncapped; generic zh+en descriptions; NO personal events",
-        "trace/presets.py loads a preset by name and validates: weights in each group sum to 1.0 (+/-1e-9), word table has exactly 27 cells, caps are positive",
+        "etrace/presets.py loads a preset by name and validates: weights in each group sum to 1.0 (+/-1e-9), word table has exactly 27 cells, caps are positive",
         "Invalid preset raises ValueError naming the bad field",
         "python3 -m unittest discover -s tests -v passes"
       ],
@@ -49,7 +49,7 @@
       "title": "PAD core model",
       "description": "As the engine, I validate PAD points and summarize a day.",
       "acceptanceCriteria": [
-        "trace/pad.py: PadPoint with date, slot (early_morning|morning|noon|afternoon|evening|late_night) or exact time, P/A/D floats 0-5, provenance (self_report|model_inference), source, confidence (low|medium|high), optional duration_hours",
+        "etrace/pad.py: PadPoint with date, slot (early_morning|morning|noon|afternoon|evening|late_night) or exact time, P/A/D floats 0-5, provenance (self_report|model_inference), source, confidence (low|medium|high), optional duration_hours",
         "model_inference points without a source or confidence are rejected",
         "project(p,a,d) returns the 27-table word via preset projection",
         "daily_summary(points) = per-axis duration-weighted mean; unknown durations use equal weight and the result is flagged estimated_duration=true",
@@ -63,7 +63,7 @@
       "title": "PAD SVG chart",
       "description": "As a user, I see my day's PAD trajectory as one consistent chart.",
       "acceptanceCriteria": [
-        "trace/chart.py: pad_svg(points, kind='day'|'week') returns an SVG string",
+        "etrace/chart.py: pad_svg(points, kind='day'|'week') returns an SVG string",
         "Canvas 1240x590, background #F3F5F7, y axis fixed 0-5 with ticks 1-5 labelled from preset, exactly three smooth solid lines P=#D6336C A=#F08C00 D=#1C7ED6 stroke-width 5, no dots or dashed lines",
         "Smoothing is Gaussian-kernel local linear; bandwidth 2.5 hours for day, 0.75 days for week",
         "Slot-only points are placed at fixed slot positions and the caption says slot positions are not exact clock times",
@@ -77,7 +77,7 @@
       "title": "G score computation",
       "description": "As the engine, I compute B, E and G exactly from item scores.",
       "acceptanceCriteria": [
-        "trace/g.py: compute(items, preset) returns B, E, G using preset weights; no rounding before the final value; display helper rounds to 1 decimal",
+        "etrace/g.py: compute(items, preset) returns B, E, G using preset weights; no rounding before the final value; display helper rounds to 1 decimal",
         "A group is computed only if all four items have values; G only if both B and E exist; otherwise the value is None (never 0)",
         "Every item score carries provenance, source and confidence; items without them are rejected",
         "legend(preset, language) returns the symbol explanation text (G=(B+E)/2, B and E formulas, item names, 0-10 anchors, 'not a clinical scale')",
@@ -117,7 +117,7 @@
       "title": "XP scoring",
       "description": "As a user, my daily XP reflects real growth and big moments are not flattened.",
       "acceptanceCriteria": [
-        "trace/xp.py: score_day(levels, ordinary, events, preset) where each dimension level is 0-4 and points = cap * level / 4",
+        "etrace/xp.py: score_day(levels, ordinary, events, preset) where each dimension level is 0-4 and points = cap * level / 4",
         "ordinary outcome is clamped to 0..10; events each need a unique event_id and occurred_on date; total has no daily cap and is rounded to an integer",
         "An event_id already booked on any earlier day is rejected (single booking)",
         "week_total(days) sums the displayed daily totals only; no weekly bonus; missing days are reported as missing, never counted as 0",
@@ -130,7 +130,7 @@
       "title": "Rule store with scoped supersession",
       "description": "As the system, the newest user instruction wins within the same scope.",
       "acceptanceCriteria": [
-        "trace/rules.py: add_rule(rule_id, scope, text, expressed_at, source_feedback_id) and active_rules()",
+        "etrace/rules.py: add_rule(rule_id, scope, text, expressed_at, source_feedback_id) and active_rules()",
         "A new rule with the same scope and later expressed_at supersedes the old one; the old rule leaves the active set; different scopes coexist",
         "expressed_at is the user's original expression time, not the file write time; an earlier-expressed rule added later does NOT supersede a newer one",
         "Every change appends a decision record to decisions.jsonl (old, new, scope, reason)",
@@ -144,7 +144,7 @@
       "title": "Journal file format and protected blocks",
       "description": "As a user, nothing I write is ever silently changed by the AI.",
       "acceptanceCriteria": [
-        "trace/journal.py parses and writes Markdown with <!-- trace:ai:NAME --> / <!-- trace:user:NAME --> / <!-- trace:verbatim --> block markers as in docs/SYSTEM_DESIGN.md section 3.3",
+        "etrace/journal.py parses and writes Markdown with <!-- trace:ai:NAME --> / <!-- trace:user:NAME --> / <!-- trace:verbatim --> block markers as in docs/SYSTEM_DESIGN.md section 3.3",
         "new_note(date, preset, language) creates the next-day note: empty G self-rating table (8 items), empty PAD self table (morning/noon/afternoon + other), journal zone, feedback zone; empty cells stay empty",
         "replace_ai_block(doc, name, text) only touches ai blocks; save() compares hashes of all user and verbatim blocks before vs after and raises ProtectedBlockChanged on any difference",
         "Round-trip test: parse then save an unmodified file is byte-identical, including Chinese text and trailing spaces",
@@ -157,7 +157,7 @@
       "title": "Feedback zone ingestion",
       "description": "As a user, I give feedback by writing in my note.",
       "acceptanceCriteria": [
-        "trace/feedback.py: ingest(journal_dir) reads every user:feedback block, splits entries by blank line, stores each new entry verbatim in feedback.jsonl with id = note date + block + content hash, observed_at, and the date it refers to",
+        "etrace/feedback.py: ingest(journal_dir) reads every user:feedback block, splits entries by blank line, stores each new entry verbatim in feedback.jsonl with id = note date + block + content hash, observed_at, and the date it refers to",
         "Re-running ingest does not duplicate entries; an edited entry is stored as a new version linked to the previous one",
         "Template placeholder text is never ingested as feedback",
         "python3 -m unittest discover -s tests -v passes"
@@ -169,7 +169,7 @@
       "title": "CLI",
       "description": "As a user or agent, I drive everything from one command.",
       "acceptanceCriteria": [
-        "python3 -m trace with subcommands: init, note new DATE, pad add FILE, pad chart DATE, g predict FILE, g feedback FILE, g report, xp score FILE, feedback ingest, rules list, validate",
+        "python3 -m etrace with subcommands: init, note new DATE, pad add FILE, pad chart DATE, g predict FILE, g feedback FILE, g report, xp score FILE, feedback ingest, rules list, validate",
         "Commands that take FILE accept agent-produced JSON and print a validation error with field names on bad input, exit code 2",
         "validate checks: protected block hashes, store integrity (unique ids), preset validity; exits 1 on any failure",
         "tests/test_cli.py calls cli.main(argv) against a temp data dir",
@@ -182,9 +182,9 @@
       "title": "Agent task prompts (zh/en)",
       "description": "As any coding agent, I get a short task prompt that defers rules to the engine.",
       "acceptanceCriteria": [
-        "trace/prompts/{zh,en}/ contain daily.md, g.md, calibrate.md plus a shared _principles.md (the 8 invariants from SYSTEM_DESIGN 2.2)",
-        "python3 -m trace prompt TASK renders the prompt with values from trace.toml (data_dir, timezone, language, active rules from rules.json); no absolute paths or personal data are hard-coded",
-        "Each prompt tells the agent to output JSON for the matching CLI command and to run 'python3 -m trace validate' at the end",
+        "etrace/prompts/{zh,en}/ contain daily.md, g.md, calibrate.md plus a shared _principles.md (the 8 invariants from SYSTEM_DESIGN 2.2)",
+        "python3 -m etrace prompt TASK renders the prompt with values from trace.toml (data_dir, timezone, language, active rules from rules.json); no absolute paths or personal data are hard-coded",
+        "Each prompt tells the agent to output JSON for the matching CLI command and to run 'python3 -m etrace validate' at the end",
         "Each rendered prompt is under 6000 characters (test enforces)",
         "python3 -m unittest discover -s tests -v passes"
       ],
@@ -195,7 +195,7 @@
       "title": "Scheduler adapters",
       "description": "As a user, I install the daily schedule for my agent of choice.",
       "acceptanceCriteria": [
-        "python3 -m trace schedule --target codex|claude-code|cron --out DIR writes files but never installs them",
+        "python3 -m etrace schedule --target codex|claude-code|cron --out DIR writes files but never installs them",
         "codex target writes one automation.toml per task (kind=cron, rrule from trace.toml times, prompt from US-014 render)",
         "cron target writes a crontab snippet calling the agent CLI with the rendered prompt file; claude-code target writes a shell script using 'claude -p'",
         "Tests check generated times match trace.toml and timezone",
@@ -208,7 +208,7 @@
       "title": "Optional Notion output adapter",
       "description": "As a Notion user, I can mirror my daily report into a Notion page.",
       "acceptanceCriteria": [
-        "trace/adapters/notion.py converts a journal file to Notion block JSON (headings, paragraphs, tables, callouts) and pushes via urllib to the Notion API using a token read from the file path in trace.toml",
+        "etrace/adapters/notion.py converts a journal file to Notion block JSON (headings, paragraphs, tables, callouts) and pushes via urllib to the Notion API using a token read from the file path in trace.toml",
         "Local Markdown stays the source of truth; Notion push never reads back into user blocks",
         "Tests mock the HTTP layer; no network in tests",
         "python3 -m unittest discover -s tests -v passes"
