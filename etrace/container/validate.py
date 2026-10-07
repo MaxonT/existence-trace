@@ -8,6 +8,7 @@ broken link it finds:
 - a decision older than PENDING_AFTER (2 days) with no usage receipt that is
   not marked pending (decisions.mark_pending)
 - a receipt without verified_readback=True
+- a rule that cites feedback but that no decision lists (an interrupted decision)
 
 Only receipts count: reading rules.json never makes a decision "used".
 Passing validate() means the chain is structurally complete, not that the
@@ -17,7 +18,7 @@ decisions were good (that is the weekly audit's job).
 import dataclasses
 import datetime
 
-from etrace.container import decisions, feedback, questions, usage
+from etrace.container import decisions, feedback, questions, rules, usage
 
 PENDING_AFTER = datetime.timedelta(days=2)
 
@@ -57,4 +58,9 @@ def validate(data_dir, now=None):
         age = now - datetime.datetime.fromisoformat(d["decided_at"])
         if age > PENDING_AFTER and d["id"] not in with_receipt and d["pending"] is None:
             problems.append(f"decision {d['id']} is older than 2 days with no usage receipt and is not pending")
+
+    claimed = {c["rule_id"] for d in decisions.all_decisions(data_dir) for c in d.get("rule_changes", [])}
+    for rule in rules.read(data_dir)["rules"]:
+        if rule.get("source_feedback_id") and rule["id"] not in claimed:
+            problems.append(f"rule {rule['id']} has no decision record (an interrupted decision?)")
     return ValidationResult(problems)

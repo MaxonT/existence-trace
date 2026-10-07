@@ -40,8 +40,15 @@ from etrace.store import Store, write_text_atomic
 GRACE = datetime.timedelta(days=2)  # same as validate.PENDING_AFTER
 WINDOW_DAYS = 7
 _DECISION_ID = re.compile(r"\bD-\d{8}-\d+\b")
-_OBJECT = ("不赞成", "不同意", "反对", "不对", "不行", "推翻", "disagree", "object", "reject", "don't agree")
-_APPROVE = ("赞成", "同意", "认可", "没问题", "agree", "approve", "sounds good", "ok", "yes")
+_OBJECT = ("不赞成", "不同意", "不赞同", "不认可", "不认同", "反对", "不对", "不太对", "不行", "推翻",
+           "wrong", "disagree", "object", "reject")
+_IDIOMS = ("没问题", "没有问题", "no problem", "no objection")  # approvals that contain a negation word
+_APPROVE = ("赞成", "同意", "赞同", "认可", "认同", "没问题", "agree", "approve", "sounds good", "ok", "okay", "yes")
+_NEGATED_APPROVE = re.compile(
+    r"(不|没|未|别|无法|不太|不是很|不能)\s*(赞成|同意|赞同|认可|认同)"
+    r"|(?<![a-z])(not|never|no|don't|do not|doesn't|cannot|can't|isn't)\s+(?:really\s+|quite\s+|fully\s+)?"
+    r"(agree|approve|ok|okay|good|fine)(?![a-z])")
+_HEDGE = ("不", "没", "未", "但", "不过", "however", "but", "not", "n't", "never", "unless", "except")
 
 
 class AuditError(Exception):
@@ -85,19 +92,30 @@ def _feedback_at(record):
 
 
 def reaction(text):
-    """'objected', 'approved' or 'replied' for a feedback text that names a decision."""
+    """'objected', 'approved' or 'replied' for a feedback text that names a decision.
+
+    Approval is the dangerous mistake (the system must never think it was
+    approved when it was not), so it needs a clear approving word and no
+    negation or contrast anywhere else; anything hedged is only 'replied' and a
+    person reads it. A negated approval ('do not agree', '不认可') is an objection.
+    """
     low = text.lower()
-    if any(w in low for w in _OBJECT):
+    if any(w in low for w in _OBJECT) or _NEGATED_APPROVE.search(low):
         return "objected"
-    if any(re.search(rf"(?<![a-z]){re.escape(w)}(?![a-z])", low) if w.isascii() else w in low
-           for w in _APPROVE):
+    plain = low
+    for idiom in _IDIOMS:
+        plain = plain.replace(idiom, " ")
+    approving = plain != low or any(
+        re.search(rf"(?<![a-z]){re.escape(w)}(?![a-z])", plain) if w.isascii() else w in plain
+        for w in _APPROVE)
+    if approving and not any(h in plain for h in _HEDGE):
         return "approved"
     return "replied"
 
 
 class _Chain:
     def __init__(self, kind, root, started_at):
-        self.kind = kind          # 'question' | 'feedback' | 'decision'
+        self.kind = kind          # 'question' | 'feedback' | 'decision' | 'rule' | 'receipt'
         self.root = root
         self.started_at = started_at
         self.question_id = None
@@ -244,6 +262,14 @@ def weekly(data_dir, as_of, audits_dir, now=None, language="zh"):
         chain = _Chain("decision", d["id"], d["decided_at"])
         _check_decision(chain, d, ctx)
         chains.append(chain)
+
+    claimed = {c["rule_id"] for d in all_decisions for c in d.get("rule_changes", [])}
+    for rule in ctx["rules"].values():
+        if rule.get("source_feedback_id") and rule["id"] not in claimed:
+            chain = _Chain("rule", rule["id"], rule["expressed_at"])
+            chain.feedback_ids.append(rule["source_feedback_id"])
+            chain.problems.append(f"rule {rule['id']} has no decision record (an interrupted decision?)")
+            chains.append(chain)
 
     def recent(chain):
         stamps = [chain.started_at]

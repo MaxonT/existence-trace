@@ -200,6 +200,30 @@ class WeeklyTest(Base):
         self.assertEqual(audit.reaction("D-20261006-1 同意"), "approved")
         self.assertEqual(audit.reaction("D-20261006-1 我再想想"), "replied")
 
+    def test_negated_or_hedged_approval_is_never_approved(self):
+        for text in ("I do not agree", "not ok", "我不认可", "I don't agree", "不是很赞同", "这个不太对", "这个不行"):
+            self.assertEqual(audit.reaction(f"D-20261006-1 {text}"), "objected", text)
+        for text in ("Yes but no", "同意，不过第二条要改", "同意，不用改了", "what does this mean"):
+            self.assertEqual(audit.reaction(f"D-20261006-1 {text}"), "replied", text)
+        for text in ("我同意", "没问题", "OK", "sounds good", "approve"):
+            self.assertEqual(audit.reaction(f"D-20261006-1 {text}"), "approved", text)
+
+    def test_rule_without_decision_record_is_broken_in_audit_and_validate(self):
+        q, fid, d, u = self.chain()
+        rules.add_rule(self.data, "R-orphan", "pad.orphan", "an interrupted decision left this",
+                       at(7, 12).isoformat(), source_feedback_id=fid)
+        report = self.run_audit()
+        self.assertFalse(report["passed"])
+        self.assertTrue(any("R-orphan" in p and "no decision record" in p for p in self.problems(report)))
+        result = validate.validate(self.data, now=NOW)
+        self.assertFalse(result.ok)
+        self.assertTrue(any("R-orphan" in p for p in result.problems))
+
+    def test_starter_rules_without_source_are_not_orphans(self):
+        rules.add_rule(self.data, "base-1", "principle:verbatim", "starter rule", at(5).isoformat())
+        self.assertTrue(validate.validate(self.data, now=NOW).ok)
+        self.assertTrue(self.run_audit()["passed"])
+
     def test_bad_input(self):
         with self.assertRaises(AuditError):
             audit.weekly(self.data, "2026-13-01", self.audits)
