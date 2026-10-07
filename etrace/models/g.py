@@ -20,6 +20,11 @@ neighbor dates/values; such a day has explicit_gap_fill and is never a
 training label (training_eligible). record()/refill() keep day revisions in
 g.jsonl: a fill that changes (e.g. a later real value turns carry-forward into
 a bridge) is appended as a new revision and old revisions stay.
+
+Frozen predictions (principle 5): predict() snapshots a day's latest revision
+into predictions.jsonl, feedback() links later user numbers/text to it
+(g_feedback.jsonl), and calibration() gates a numeric correction behind
+10 training + 10 later test days per rubric version.
 """
 
 import dataclasses
@@ -390,3 +395,190 @@ def revisions(data_dir, date):
     date = _date(date).isoformat()
     recs = [r for r in _store(data_dir).read_all(STORE_NAME) if r["date"] == date]
     return sorted(recs, key=lambda r: r["revision"])
+
+
+# --- frozen predictions and calibration gate -----------------------------
+#
+# Principle 5: freeze first, train later. predict() snapshots the latest g.jsonl
+# revision of a day into predictions.jsonl before any feedback exists.
+# feedback() links user feedback to such a snapshot; it is rejected unless the
+# prediction was created strictly before the feedback was expressed. Only
+# numbers the user explicitly gave become labels (targets); free text is kept
+# as evidence with targets={}. calibration() fits a per-item mean-bias
+# correction on the first TRAIN_DAYS labelled days and enables it only when the
+# later TEST_DAYS+ days have a lower MAE with the correction than without.
+# Labels from other rubric versions and gap-filled days are never used.
+
+PREDICTIONS = "predictions"
+G_FEEDBACK = "g_feedback"
+TRAIN_DAYS = 10
+TEST_DAYS = 10
+
+
+def rubric_version(preset=None):
+    """The preset's g.json version; labels are only comparable within one version."""
+    if preset is None:
+        preset = presets.load("default")
+    return str(preset["g"]["version"])
+
+
+def _aware(value, field):
+    if isinstance(value, str):
+        try:
+            value = datetime.datetime.fromisoformat(value)
+        except ValueError:
+            raise GError([f"{field}: must be an ISO datetime, got {value!r}"]) from None
+    if not isinstance(value, datetime.datetime) or value.utcoffset() is None:
+        raise GError([f"{field}: must be a timezone-aware datetime"])
+    return value
+
+
+def _next_id(records, prefix, stamp):
+    n = sum(1 for r in records if r["id"].startswith(f"{prefix}-{stamp}-")) + 1
+    return f"{prefix}-{stamp}-{n}"
+
+
+def predict(data_dir, date, preset=None, now=None):
+    """Freeze DATE's latest G revision into predictions.jsonl; returns the snapshot.
+
+    Re-predicting the same revision under the same rubric returns the existing
+    snapshot unchanged. Snapshots are never edited.
+    """
+    store, now = _store(data_dir), _now(now)
+    date = _date(date).isoformat()
+    version = rubric_version(preset)
+    with store.lock():
+        rec = _latest_by_date(store.read_all(STORE_NAME)).get(date)
+        if rec is None:
+            raise GError([f"date: no G record for {date}; run g.record first"])
+        snaps = store.read_all(PREDICTIONS)
+        for snap in snaps:
+            if (snap["date"], snap["revision"], snap["rubric_version"]) == (
+                    date, rec["revision"], version):
+                return snap
+        snap = {"id": _next_id(snaps, "P", date.replace("-", "")), "date": date,
+                "revision": rec["revision"], "g_record_id": rec["id"],
+                "rubric_version": version, "items": rec["items"],
+                "training_eligible": training_eligible(rec),
+                "created_at": now.isoformat()}
+        store.append_locked(PREDICTIONS, snap)
+    return snap
+
+
+def predictions(data_dir, date=None):
+    """Prediction snapshots, optionally only for DATE."""
+    snaps = _store(data_dir).read_all(PREDICTIONS)
+    if date is not None:
+        date = _date(date).isoformat()
+        snaps = [s for s in snaps if s["date"] == date]
+    return snaps
+
+
+def feedback(data_dir, prediction_id, targets=None, text=None, expressed_at=None, now=None):
+    """Store feedback on a frozen prediction; returns the record.
+
+    TARGETS maps item codes to numbers the user explicitly gave (the only
+    training labels). TEXT is stored as evidence and never parsed into labels.
+    EXPRESSED_AT (default now) must be after the prediction's created_at.
+    """
+    store, now = _store(data_dir), _now(now)
+    expressed_at = now if expressed_at is None else _aware(expressed_at, "expressed_at")
+    targets = {} if targets is None else targets
+    errors = []
+    if not isinstance(targets, dict):
+        errors.append("targets: must be an object {code: number}")
+    else:
+        for code, value in targets.items():
+            if code not in CODES:
+                errors.append(f"targets.{code}: unknown item code")
+            else:
+                _check_value(value, f"targets.{code}", errors)
+    if text is not None:
+        _check_text(text, "text", errors)
+    if not targets and text is None:
+        errors.append("feedback: needs targets or text")
+    if expressed_at > now:
+        errors.append("expressed_at: must not be in the future")
+    if errors:
+        raise GError(errors)
+    with store.lock():
+        snap = next((s for s in store.read_all(PREDICTIONS) if s["id"] == prediction_id), None)
+        if snap is None:
+            raise GError([f"prediction_id: unknown prediction {prediction_id!r}"])
+        if not _aware(snap["created_at"], "created_at") < expressed_at:
+            raise GError([f"prediction_id: {prediction_id} was not created before the feedback"])
+        records = store.read_all(G_FEEDBACK)
+        rec = {"id": _next_id(records, "GF", snap["date"].replace("-", "")),
+               "prediction_id": prediction_id, "date": snap["date"],
+               "rubric_version": snap["rubric_version"],
+               "targets": {c: targets[c] for c in CODES if c in targets},
+               "text": text, "expressed_at": expressed_at.isoformat(),
+               "created_at": now.isoformat()}
+        store.append_locked(G_FEEDBACK, rec)
+    return rec
+
+
+@dataclasses.dataclass(frozen=True)
+class Calibration:
+    enabled: bool
+    reason: str
+    rubric_version: str
+    train_days: list
+    test_days: list
+    bias: dict          # code -> mean (label - prediction) on the training days
+    mae_raw: float = None
+    mae_corrected: float = None
+
+    def apply(self, code, value):
+        """VALUE corrected for CODE when enabled (clamped 0-10), else unchanged."""
+        if not self.enabled:
+            return value
+        return min(MAX_VALUE, max(MIN_VALUE, value + self.bias.get(code, 0.0)))
+
+
+def _label_pairs(data_dir, version):
+    """{date: {code: (predicted, label)}} from the latest feedback per date+code."""
+    store = _store(data_dir)
+    snaps = {s["id"]: s for s in store.read_all(PREDICTIONS)}
+    days = {}
+    fbs = sorted(store.read_all(G_FEEDBACK), key=lambda r: _aware(r["expressed_at"], "expressed_at"))
+    for fb in fbs:
+        snap = snaps.get(fb["prediction_id"])
+        if (snap is None or snap["rubric_version"] != version or fb["rubric_version"] != version
+                or not snap.get("training_eligible") or not training_eligible(snap)):
+            continue
+        predicted = {i["code"]: i["value"] for i in snap["items"]}
+        for code, label in fb["targets"].items():
+            if code in predicted:
+                days.setdefault(snap["date"], {})[code] = (predicted[code], label)
+    return days
+
+
+def _mae(pairs):
+    return sum(abs(label - pred) for pred, label in pairs) / len(pairs)
+
+
+def calibration(data_dir, preset=None, version=None):
+    """Calibration gate for one rubric version (default: the preset's)."""
+    version = rubric_version(preset) if version is None else str(version)
+    days = _label_pairs(data_dir, version)
+    dates = sorted(days)
+    train, test = dates[:TRAIN_DAYS], dates[TRAIN_DAYS:]
+    off = lambda reason, **kw: Calibration(False, reason, version, train, test, {}, **kw)
+    if len(train) < TRAIN_DAYS or len(test) < TEST_DAYS:
+        return off(f"need {TRAIN_DAYS} training + {TEST_DAYS} later test days, "
+                   f"have {len(train)} + {len(test)}")
+    sums = {}
+    for d in train:
+        for code, (pred, label) in days[d].items():
+            sums.setdefault(code, []).append(label - pred)
+    bias = {code: sum(v) / len(v) for code, v in sums.items()}
+    probe = Calibration(True, "", version, train, test, bias)
+    raw = [pair for d in test for pair in days[d].values()]
+    corrected = [(probe.apply(code, pred), label)
+                 for d in test for code, (pred, label) in days[d].items()]
+    mae_raw, mae_corr = _mae(raw), _mae(corrected)
+    if mae_corr < mae_raw:
+        return Calibration(True, "correction lowers test MAE", version, train, test, bias,
+                           mae_raw, mae_corr)
+    return off("correction does not lower test MAE", mae_raw=mae_raw, mae_corrected=mae_corr)

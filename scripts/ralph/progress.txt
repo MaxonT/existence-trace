@@ -24,6 +24,7 @@
 - PAD: etrace.models.pad.PadPoint.from_dict(agent_json) (PadError.errors = ['field: msg'] for CLI exit 2); slot is a SLOTS name or 'HH:MM' (pad.slot_of maps times to slots; SLOT_HOURS gives fixed chart positions for slot-only points). project(p,a,d,preset=None,language) -> 27-table word (values <1 count as level 1). daily_summary(points) -> DailySummary(.P/.A/.D, unknown_durations, equal_weighted). validate_day(points).ok/.problems.
 - G: etrace.models.g.compute(items, preset=None) -> GResult(B, E, G, items{code: GItem}, .missing); items are GItem or dicts (GItem.from_dict, GError.errors = ['items[i].field: msg']). Values unrounded; use g.display(v, lang) ('6.3', None -> 缺/n/a) for people. g.legend(preset, lang) is the symbol explanation.
 - G gap fill: g.gap_fill(date, real_items, history{date: items}) -> GDay(items all 8, explicit_gap_fill, .filled); filled GItems have provenance 'gap_fill', confidence low, method, neighbors [{date,value}]. Persisted day revisions live in g.jsonl via g.record(data_dir, date, items, now) / g.refill / g.latest / g.revisions (id 'G-YYYYMMDD-rN', supersedes). g.training_eligible(day) must gate every training/calibration use.
+- G predictions/calibration: g.predict(data_dir, date, preset, now) freezes g.latest into predictions.jsonl ('P-YYYYMMDD-N', dedupes same date+revision+rubric_version); g.feedback(data_dir, prediction_id, targets={code: number}, text, expressed_at, now) -> g_feedback.jsonl ('GF-YYYYMMDD-N'), rejected unless prediction created_at < expressed_at. g.calibration(data_dir, preset|version) -> Calibration(.enabled, .reason, .bias, .apply(code, value)); always call .apply, it is a no-op when disabled.
 - Chart: etrace.chart.pad_svg(points, kind='day'|'week', language, preset=None) -> SVG string (data lines are the only <path> elements, class 'pad-line'; grid uses <line>). chart.smooth/local_linear are reusable for the G chart (US-013).
 ---
 ## Hard boundary
@@ -168,4 +169,13 @@
   - Only real (non gap_fill) values from the latest revision of other days count as neighbors; a value only to the right gives scale_prior (spec order), not carry-backward.
   - gap_fill() rejects input items with provenance gap_fill: agents give real items only; the engine fills.
   - US-014 predictions should snapshot g.latest(...) items and use training_eligible to exclude filled days from labels/MAE.
+---
+
+## 2026-10-07 - US-014
+- Added to etrace/models/g.py: rubric_version(preset) (= g.json version), predict (immutable snapshot with id/date/revision/g_record_id/rubric_version/items/training_eligible/created_at), predictions, feedback (targets only from explicit numbers, text stored with targets={}, prediction must predate expressed_at, expressed_at not in the future), Calibration + calibration (per-item mean bias from the first 10 labelled days, enabled only if the >=10 later days have lower MAE corrected than raw).
+- Files: etrace/models/g.py, tests/test_g_calibration.py
+- **Learnings for future iterations:**
+  - Labels = latest feedback per (date, code), filtered to one rubric_version and to training-eligible (no gap_fill) snapshots.
+  - g.feedback is a function inside etrace.models.g; it is unrelated to etrace.container.feedback (user note feedback). The CLI (US-019) should not confuse the two.
+  - Test days are all labelled days after the first 10; there is no rolling window yet.
 ---
