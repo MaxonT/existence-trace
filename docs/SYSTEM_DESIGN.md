@@ -162,7 +162,7 @@ examples/              虚构人物的 3 天日记与期望输出
 <!-- trace:user:journal -->       这里更接近真实的我（保护）
 <!-- trace:user:feedback -->      给 AI 的反馈（保护）
 <!-- trace:ai:narrative -->       我今天经历了什么
-<!-- trace:verbatim -->           原版本（逐字，写入后锁定 hash）
+<!-- trace:verbatim -->           原版本（逐字；只能在末尾追加「补写于」段落，已有内容永不改变）
 ```
 
 引擎在每次写入前后比对所有 `user:*` 和 `verbatim` 块的 hash，任何改动都让写入失败。
