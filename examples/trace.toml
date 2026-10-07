@@ -1,0 +1,36 @@
+# trace.toml — the single configuration file for existence-trace.
+# Every key is optional; the values below are the defaults unless noted.
+# Unknown keys are an error, so typos are caught early.
+
+# IANA time zone used for task times and journal dates.
+timezone = "America/Chicago"
+
+# Where your private data lives (journal, data/*.jsonl, audits, charts).
+# "~" expands to your home directory; relative paths resolve against this file's directory.
+data_dir = "~/existence-trace-data"
+
+# Starting rules and models: "default" (general) or "tiger-method".
+preset = "default"
+
+# Language for prompts, labels and templates: "zh" or "en".
+language = "zh"
+
+# How the system reaches you when it has questions or decisions:
+#   "note"        write into today's journal note only
+#   "note+email"  also send email (requires credentials.email)
+outreach = "note"
+
+[tasks]
+# Daily tasks take "HH:MM" (24h) or a list of times.
+calibrate = "09:00"
+feedback = ["12:30", "20:30"]
+daily = "19:30"
+g = "20:30"
+# Weekly audit takes "Ddd HH:MM" (Mon Tue Wed Thu Fri Sat Sun).
+audit = "Sun 22:15"
+
+[credentials]
+# Paths to files holding secrets. Secrets never go in this file or in logs.
+# Both are unset by default.
+# email = "~/.config/existence-trace/email.toml"
+# notion = "~/.config/existence-trace/notion.toml"

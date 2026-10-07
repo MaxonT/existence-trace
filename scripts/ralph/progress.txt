@@ -3,6 +3,7 @@
 - Python 3 standard library only (tomllib, json, unittest, xml.etree, urllib). No pip installs; pytest is NOT available.
 - Run tests: python3 -m unittest discover -s tests -v
 - Package name is `etrace` (not `trace`, which shadows the stdlib module). Core module is etrace/container (the preference container); see docs/SYSTEM_DESIGN.md section 3. Root CLAUDE.md repeats the hard boundary.
+- Config: etrace.config.load(path) -> frozen Config; ConfigError for every invalid input. Relative paths resolve against trace.toml's dir. tasks values are always lists (audit is 'Ddd HH:MM'). When adding a config key, update _TOP_KEYS/defaults AND examples/trace.toml (a test checks every key is documented).
 - Tests must use tempfile dirs; never write outside the repo or touch the network.
 - NEVER add real personal data, real emails, Notion IDs or absolute /Users/ paths. Example data is fictional.
 - Bilingual: code/README in English; preset labels, prompts and templates have zh and en.
@@ -14,4 +15,13 @@
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
 - v1 reads only the user's own journal notes. Do NOT build readers for ChatGPT / Claude / Google AI Mode conversation logs.
+---
+
+## 2026-10-07 - US-001
+- Implemented etrace package scaffold (__init__, __main__ placeholder) and etrace/config.py (tomllib loader, strict unknown-key errors, defaults, validation of preset/language/outreach/timezone/task times; note+email requires credentials.email).
+- Files: etrace/__init__.py, etrace/__main__.py, etrace/config.py, examples/trace.toml, tests/__init__.py, tests/test_config.py
+- **Learnings for future iterations:**
+  - Python here is 3.14; tomllib and zoneinfo are available.
+  - feedback task defaults to two times (12:30, 20:30), so all task times are stored as lists.
+  - Empty `trace/` dir at repo root is a leftover; the package is `etrace/`.
 ---
