@@ -37,15 +37,14 @@ class StaleLockError(StoreError):
     """A lock older than the stale timeout exists. It is never removed silently."""
 
 
-def write_json_atomic(path, obj):
-    """Write obj as JSON to path through a temp file in the same dir + os.replace."""
+def write_text_atomic(path, text):
+    """Write text to path byte-for-byte (no newline translation) via temp file + os.replace."""
     directory = os.path.dirname(os.path.abspath(path))
     os.makedirs(directory, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=".tmp-", suffix=".json", dir=directory)
+    fd, tmp = tempfile.mkstemp(prefix=".tmp-", dir=directory)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(obj, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+            fh.write(text)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
@@ -53,6 +52,11 @@ def write_json_atomic(path, obj):
         if os.path.exists(tmp):
             os.unlink(tmp)
         raise
+
+
+def write_json_atomic(path, obj):
+    """Write obj as JSON to path through a temp file in the same dir + os.replace."""
+    write_text_atomic(path, json.dumps(obj, ensure_ascii=False, indent=2) + "\n")
 
 
 class Store:

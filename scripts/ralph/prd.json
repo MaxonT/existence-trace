@@ -46,7 +46,7 @@
         "python3 -m unittest discover -s tests -v passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
