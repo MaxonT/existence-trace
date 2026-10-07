@@ -25,6 +25,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 from etrace import chart, checkpoint, config, journal, presets, prompts
+from etrace.adapters import scheduler
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
 from etrace.outreach import email as mail
@@ -528,6 +529,13 @@ def cmd_validate(ctx, args):
     return out
 
 
+def cmd_schedule(ctx, args):
+    files = scheduler.write(args.target, ctx.cfg, args.out)
+    tasks = {task: ctx.cfg.tasks[task] for task in config.TASKS}
+    return {"target": args.target, "timezone": ctx.cfg.timezone, "tasks": tasks,
+            "files": files, "installed": False}
+
+
 # --- parser ----------------------------------------------------------------------
 
 def build_parser():
@@ -631,6 +639,11 @@ def build_parser():
     s.add_argument("--raw", action="store_true", help="print the prompt text instead of JSON")
     s.set_defaults(func=cmd_prompt)
 
+    s = sub.add_parser("schedule", help="write scheduler files for an agent runner (never installs them)")
+    s.add_argument("--target", required=True, choices=scheduler.TARGETS)
+    s.add_argument("--out", required=True, help="directory to write the files into")
+    s.set_defaults(func=cmd_schedule)
+
     s = sub.add_parser("validate", help="check the data chain and notes; exit 1 on any failure")
     s.set_defaults(func=cmd_validate)
     return p
@@ -640,7 +653,7 @@ def build_parser():
 _INPUT_ERRORS = (questions.QuestionError, decisions.DecisionError, usage.UsageError,
                  rules.RuleError, g.GError, pad.PadError, xp.XPError, journal.JournalError,
                  note.OutreachError, mail.EmailError, audit.AuditError, config.ConfigError,
-                 prompts.PromptError, ValueError)
+                 prompts.PromptError, scheduler.SchedulerError, ValueError)
 
 
 def _print(obj, stream):

@@ -33,6 +33,7 @@
 - CLI: etrace/cli.py main(argv) -> exit code; every command prints one JSON object on stdout, errors go to stderr as 'error: field: msg'. Exit 0 ok, 1 ran-but-failed (validate problems, email not sent, push error; raise cli.Failure(msg, result)), 2 bad input (raise cli.InputError(list) or a module error listed in cli._INPUT_ERRORS). Config lookup: --config, $ETRACE_CONFIG, ./trace.toml, ~/existence-trace-data/trace.toml. Data root layout: ROOT/{trace.toml, journal, data, audits, charts, presets/NAME}; cli.load_preset prefers ROOT/presets copy. New subcommands: add a cmd_* function + parser entry in build_parser (FILE commands use read_json + check_fields).
 - PAD persistence: pad.record(data_dir, points, now) -> pad.jsonl 'PAD-YYYYMMDD-N' (unchanged points skipped, same date+slot supersedes); pad.points_for(data_dir, date) -> current PadPoints in time order.
 - Prompts: etrace.prompts.render(task, cfg, data_dir, language=None) -> text < 6000 chars; templates are etrace/prompts/{zh,en}/TASK.md (string.Template: $name, $$ literal; $principles inlines _principles.md, $rules lists active rules and truncates with a `rules list` pointer). Never put cfg.data_dir or any path into a prompt. CLI: `prompt TASK [--language] [--raw]` (--raw returns cli.RawText, printed as plain text, for scheduler scripts). When a CLI command or JSON shape changes, update both languages' prompt files (tests/test_prompts.py checks each task names its commands).
+- Scheduler: etrace.adapters.scheduler.render(target, cfg) -> {relpath: text}; write(target, cfg, out_dir) only writes files (never installs). Generated runs render prompts at run time via env_command(cfg) (cd ROOT && export ETRACE_CONFIG/PYTHONPATH, so the spawned agent inherits them) + `python3 -m etrace prompt TASK --raw`. CLI: `schedule --target codex|claude-code|cron --out DIR`.
 - feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
 ---
 ## Hard boundary
@@ -246,4 +247,17 @@
   - Rules are shown in the stored language (seeded at init), even when the prompt is rendered in the other language.
   - US-021 claude-code adapter can use `python3 -m etrace prompt TASK --raw` at run time instead of baking prompt text into the script.
   - The engine has no CLI for decisions.mark_pending or journal.append_verbatim yet; prompts do not mention them.
+---
+
+## 2026-10-07 - US-021
+- Implemented etrace/adapters/scheduler.py + CLI `schedule --target codex|claude-code|cron --out DIR` (writes only; JSON result has installed: false).
+  - codex: DIR/etrace-TASK/automation.toml (id, name, kind="cron", rrule, timezone, cwd, prompt, status). RRULE is FREQ=DAILY (or WEEKLY;BYDAY=XX for audit);BYHOUR=..;BYMINUTE=..; times are grouped by (weekday, minute), so default feedback 12:30/20:30 is one rule. Times with different minutes cannot share one RRULE and get etrace-TASK-1, -2 files.
+  - claude-code: DIR/etrace-TASK.sh (0755) with '# schedule:' / '# timezone:' header; exports env, PROMPT=$(python3 -m etrace prompt TASK --raw), runs "${CLAUDE:-claude}" -p ${ETRACE_CLAUDE_FLAGS:-} "$PROMPT".
+  - cron: DIR/etrace.crontab with CRON_TZ=<timezone> and one line per time piping the prompt into `claude -p`; '%' escaped.
+- Files: etrace/adapters/__init__.py, etrace/adapters/scheduler.py, etrace/cli.py, tests/test_scheduler.py
+- **Learnings for future iterations:**
+  - Generated files hold absolute paths (data root, repo dir for PYTHONPATH); fine because they are written to the user's out dir, never into the repo. Tests only use temp dirs.
+  - An env prefix (`VAR=x cmd`) does not reach the agent spawned later; use `export`, and test it with a subprocess run from `/`.
+  - The codex automation.toml field set is our own guess at the format (we may not read ~/protected-dir-1); keep it simple TOML that tomllib parses.
+  - US-022 (Notion) goes in etrace/adapters/notion.py next to scheduler.py.
 ---
