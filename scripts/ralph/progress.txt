@@ -22,6 +22,7 @@
 - Presets: etrace.presets.load(name, presets_dir=None) -> {'name','pad','g','xp','rules','question_templates'}, validated (ValueError 'NAME/file.json.field: msg'). Labels are {'zh','en'} objects; pick with presets.label(obj, language). Helpers: g_items(p) -> [(code, weight, label)], band(level) 1-5 -> low/mid/high, pad_word(p, P, A, D, language). Preset rules.json = {version, rules:[{id, scope, text:{zh,en}}]}: pass presets.label(rule['text'], lang) to rules.add_rule (it needs a str). xp.json dims ids are the same in both presets (rhythm, learning, boundaries, action, reflection, connection); only labels differ.
 - Note outreach: etrace.outreach.note.write(journal_dir, data_dir, date, scan_ok, language, preset, decision_ids=None, summary=None, now) rewrites ai:questions (creates the note if missing), reads back, then appends notifications.jsonl ('N-YYYYMMDD-N', channel/status/verified_readback/question_ids/decision_ids/daily_status/content_hash). Default decisions = those not reported on an earlier day. Wrap user-facing text with note._wrap (zh 40 / en 72 chars) to stay phone-readable.
 - PAD: etrace.models.pad.PadPoint.from_dict(agent_json) (PadError.errors = ['field: msg'] for CLI exit 2); slot is a SLOTS name or 'HH:MM' (pad.slot_of maps times to slots; SLOT_HOURS gives fixed chart positions for slot-only points). project(p,a,d,preset=None,language) -> 27-table word (values <1 count as level 1). daily_summary(points) -> DailySummary(.P/.A/.D, unknown_durations, equal_weighted). validate_day(points).ok/.problems.
+- G: etrace.models.g.compute(items, preset=None) -> GResult(B, E, G, items{code: GItem}, .missing); items are GItem or dicts (GItem.from_dict, GError.errors = ['items[i].field: msg']). Values unrounded; use g.display(v, lang) ('6.3', None -> 缺/n/a) for people. g.legend(preset, lang) is the symbol explanation.
 - Chart: etrace.chart.pad_svg(points, kind='day'|'week', language, preset=None) -> SVG string (data lines are the only <path> elements, class 'pad-line'; grid uses <line>). chart.smooth/local_linear are reusable for the G chart (US-013).
 ---
 ## Hard boundary
@@ -148,4 +149,12 @@
   - Lines are drawn only over the readings' span (no extrapolation to the chart edges).
   - Day charts raise PadError for several dates; empty input / bad kind raise ValueError.
   - Tests parse with ET namespace {'svg': 'http://www.w3.org/2000/svg'}.
+---
+
+## 2026-10-07 - US-012
+- Implemented etrace/models/g.py: frozen GItem (code B1..E4, value 0-10, provenance self_report|model_inference, source, confidence all required; self_value stored unchanged, a differing value needs reason), from_dict/to_dict; compute (preset weights, no rounding, group only with all 4 items, G only with B and E, else None); display (Decimal ROUND_HALF_UP to 1 decimal); legend (formula, groups with item names + weights, anchors, missing-is-not-0 line, notice).
+- Files: etrace/models/g.py, tests/test_g.py
+- **Learnings for future iterations:**
+  - GItem has no gap-fill fields yet; US-013 should add method/neighbor fields (and probably a provenance or flag for filled items) to GItem and keep compute() unchanged.
+  - display() uses repr(float) into Decimal so 6.25 -> 6.3 (plain round() would give 6.2).
 ---
