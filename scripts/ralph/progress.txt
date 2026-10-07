@@ -4,6 +4,7 @@
 - Run tests: python3 -m unittest discover -s tests -v
 - Package name is `etrace` (not `trace`, which shadows the stdlib module). Core module is etrace/container (the preference container); see docs/SYSTEM_DESIGN.md section 3. Root CLAUDE.md repeats the hard boundary.
 - Config: etrace.config.load(path) -> frozen Config; ConfigError for every invalid input. Relative paths resolve against trace.toml's dir. tasks values are always lists (audit is 'Ddd HH:MM'). When adding a config key, update _TOP_KEYS/defaults AND examples/trace.toml (a test checks every key is documented).
+- Storage: use etrace.store.Store(data_dir).append(name, record)/read_all(name) for every *.jsonl (name 'feedback' -> feedback.jsonl); records need a unique string 'id' per file. Whole JSON files (rules.json) go through Store.write_json / store.write_json_atomic. Never rewrite JSONL history; express edits as new records linking the old id.
 - Tests must use tempfile dirs; never write outside the repo or touch the network.
 - NEVER add real personal data, real emails, Notion IDs or absolute /Users/ paths. Example data is fictional.
 - Bilingual: code/README in English; preset labels, prompts and templates have zh and en.
@@ -24,4 +25,15 @@
   - Python here is 3.14; tomllib and zoneinfo are available.
   - feedback task defaults to two times (12:30, 20:30), so all task times are stored as lists.
   - Empty `trace/` dir at repo root is a leftover; the package is `etrace/`.
+---
+
+## 2026-10-07 - US-002
+- Implemented etrace/store.py: Store(data_dir, lock_timeout, stale_after) with append/read_all/write_json/lock, module-level write_json_atomic (mkstemp in same dir + fsync + os.replace, temp removed on failure).
+- Lock: .etrace.lock created with O_CREAT|O_EXCL; waits up to lock_timeout (LockTimeout); a lock older than stale_after raises StaleLockError and is left in place.
+- append rejects non-dict records, missing/empty/non-string id, duplicate id in the same file (checked under the lock). Corrupt lines raise CorruptFile with file:line.
+- Files: etrace/store.py, tests/test_store.py
+- **Learnings for future iterations:**
+  - Store names must match [A-Za-z0-9_-]+ (optional .jsonl suffix); path traversal is rejected.
+  - Duplicate check reads the whole file per append: fine for v1 sizes.
+  - JSONL lines are written with ensure_ascii=False so Chinese stays readable.
 ---
