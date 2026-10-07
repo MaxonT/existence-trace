@@ -1,0 +1,61 @@
+{
+  "date": "2026-03-03",
+  "items": [
+    {
+      "code": "B1",
+      "value": 4,
+      "provenance": "model_inference",
+      "source": "journal: stood in the rain for forty minutes (self-rating 5 kept as reference)",
+      "confidence": "medium"
+    },
+    {
+      "code": "B2",
+      "value": 6,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "B3",
+      "value": 6,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "B4",
+      "value": 4,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E1",
+      "value": 6,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E2",
+      "value": 5,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E3",
+      "value": 5,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E4",
+      "value": 6,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "date": "2026-03-02",
+  "items": [
+    {
+      "code": "B1",
+      "value": 7,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "B2",
+      "value": 6,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "B3",
+      "value": 7,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "B4",
+      "value": 6,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E1",
+      "value": 7,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E2",
+      "value": 6,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E3",
+      "value": 7,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    {
+      "code": "E4",
+      "value": 7,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    }
+  ]
+}

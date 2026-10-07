@@ -1,0 +1,20 @@
+{
+  "points": [
+    {
+      "date": "2026-03-04",
+      "slot": "morning",
+      "P": 4,
+      "A": 3,
+      "D": 3,
+      "provenance": "self_report"
+    },
+    {
+      "date": "2026-03-04",
+      "slot": "afternoon",
+      "P": 4,
+      "A": 4,
+      "D": 4,
+      "provenance": "self_report"
+    }
+  ]
+}

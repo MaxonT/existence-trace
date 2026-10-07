@@ -1,0 +1,17 @@
+{
+  "question_id": "Q-20260303-1",
+  "feedback_ids": [
+    "2026-03-02:feedback:f3fd8d34072d",
+    "2026-03-04:feedback:775b204a9b49",
+    "2026-03-04:feedback:87d36d398b24"
+  ],
+  "new_rules": ["commute-first", "narrative-length", "pad-word-hint"],
+  "pad_problems": {
+    "2026-03-02": [],
+    "2026-03-03": [],
+    "2026-03-04": ["missing noon reading"]
+  },
+  "G": {"2026-03-02": 6.75, "2026-03-03": 5.29, "2026-03-04": 7.25},
+  "xp": {"2026-03-02": 62, "2026-03-03": 37, "2026-03-04": 89},
+  "xp_week": 188
+}

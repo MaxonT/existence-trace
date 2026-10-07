@@ -1,0 +1,20 @@
+{
+  "date": "2026-03-04",
+  "levels": {
+    "rhythm": 4,
+    "learning": 2,
+    "boundaries": 3,
+    "action": 4,
+    "reflection": 3,
+    "connection": 3
+  },
+  "ordinary": 7,
+  "events": [
+    {
+      "event_id": "first-paid-cake-order",
+      "occurred_on": "2026-03-04",
+      "points": 10,
+      "title": "First paid cake order"
+    }
+  ]
+}

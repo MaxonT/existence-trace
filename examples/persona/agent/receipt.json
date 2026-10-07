@@ -1,0 +1,10 @@
+{
+  "task": "daily",
+  "target": "journal/2026-03-04.md",
+  "rule_version": "filled in from `rules list` (the version after `decide`)",
+  "decision_ids": ["filled in from the `decide` output"],
+  "before": "narrative rule: none (the agent wrote a free-length narrative)",
+  "after": "ai:narrative for 2026-03-04 has three sentences",
+  "status": "changed",
+  "verified_readback": true
+}

@@ -1,0 +1,19 @@
+{
+  "source": "note",
+  "date": "2026-03-03",
+  "evidence": {
+    "kind": "quote",
+    "text": "Felt flat all afternoon and did the bare minimum."
+  },
+  "candidates": [
+    "the wait in the rain drained her",
+    "the shift itself was heavy"
+  ],
+  "uncertainty": "Was the flat afternoon about the commute or about work?",
+  "dimensions": [
+    "P",
+    "A",
+    "B1"
+  ],
+  "dedupe_key": "flat-afternoon-2026-03-03"
+}

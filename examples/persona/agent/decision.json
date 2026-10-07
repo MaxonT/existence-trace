@@ -1,0 +1,26 @@
+{
+  "feedback_ids": [
+    "2026-03-02:feedback:f3fd8d34072d",
+    "2026-03-04:feedback:775b204a9b49",
+    "2026-03-04:feedback:87d36d398b24"
+  ],
+  "decision_text": "Keep the narrative to three or four sentences; when an afternoon goes flat, ask about the commute before the work; treat a word in the PAD self table as a hint.",
+  "value_source": "user",
+  "rule_changes": [
+    {"rule_id": "narrative-length", "scope": "narrative:length",
+     "text": "Keep the daily narrative to three or four sentences.",
+     "expressed_at": "2026-03-02T21:00:00+00:00",
+     "source_feedback_id": "2026-03-02:feedback:f3fd8d34072d",
+     "reason": "Juniper asked for a short narrative"},
+    {"rule_id": "commute-first", "scope": "questions:low-energy",
+     "text": "Waiting outside on a commute drains more than a busy shift; when energy drops, ask about the commute first.",
+     "expressed_at": "2026-03-04T21:00:00+00:00",
+     "source_feedback_id": "2026-03-04:feedback:775b204a9b49",
+     "reason": "her answer to Q-20260303-1"},
+    {"rule_id": "pad-word-hint", "scope": "pad:self-word",
+     "text": "A word written in the PAD self table is a hint: project the word from P/A/D and say why when it differs.",
+     "expressed_at": "2026-03-04T21:00:00+00:00",
+     "source_feedback_id": "2026-03-04:feedback:87d36d398b24",
+     "reason": "she said her word is a hint, not the final word"}
+  ]
+}

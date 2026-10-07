@@ -1,0 +1,38 @@
+{
+  "points": [
+    {
+      "date": "2026-03-03",
+      "slot": "morning",
+      "P": 3,
+      "A": 3,
+      "D": 3,
+      "provenance": "self_report"
+    },
+    {
+      "date": "2026-03-03",
+      "slot": "noon",
+      "P": 2,
+      "A": 2,
+      "D": 2,
+      "provenance": "self_report"
+    },
+    {
+      "date": "2026-03-03",
+      "slot": "afternoon",
+      "P": 2,
+      "A": 2,
+      "D": 3,
+      "provenance": "self_report"
+    },
+    {
+      "date": "2026-03-03",
+      "slot": "21:00",
+      "P": 3,
+      "A": 2,
+      "D": 3,
+      "provenance": "model_inference",
+      "source": "journal: no entry after the shift, assumed a quiet evening",
+      "confidence": "low"
+    }
+  ]
+}

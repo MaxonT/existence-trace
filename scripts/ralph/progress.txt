@@ -36,6 +36,8 @@
 - Scheduler: etrace.adapters.scheduler.render(target, cfg) -> {relpath: text}; write(target, cfg, out_dir) only writes files (never installs). Generated runs render prompts at run time via env_command(cfg) (cd ROOT && export ETRACE_CONFIG/PYTHONPATH, so the spawned agent inherits them) + `python3 -m etrace prompt TASK --raw`. CLI: `schedule --target codex|claude-code|cron --out DIR`.
 - feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
 - Notion: etrace.adapters.notion.load_credentials(cfg.credentials['notion']) (TOML token + parent_page_id) and push(data_dir, creds, journal_dir, date, now, transport=None) -> PushResult; notion.jsonl 'NO-YYYYMMDD-N' (pushed only after the child-block count reads back; unchanged note = no push; changed note = new page, then archive the old one). HTTP goes through transport(method, url, headers, body) -> dict; tests pass a fake (tests/test_notion.py FakeNotion) or patch notion.urllib_transport. Notion is write-only: never read page content back into notes. CLI: `notion push [--date]`.
+- Privacy: tests/test_privacy.py scans git tracked + untracked (non-ignored) files, except docs/SYSTEM_DESIGN.md, for emails (only example.com/.org/.net allowed), 32-hex or UUID ids and '/Users/<name>' paths. In tests, build fake real-looking values by string concatenation so the scan does not flag the test itself.
+- Example persona: examples/persona/{journal,agent,expected.json}; tests/test_example.py runs the full CLI loop on it. If a CLI command, JSON shape, note template or score formula changes, regenerate/adjust these files and expected.json (feedback ids are DATE:feedback:sha12 of the entry text, so editing feedback text changes them).
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -271,4 +273,17 @@
   - Test ids must not look like real Notion ids (32 hex): US-023's privacy scan would flag them. Tests use 'parent-page-example' / 'page-N'.
   - Local chart SVGs cannot be uploaded via the public API; they become a paragraph naming the file. Only http(s) images become image blocks.
   - Prompt placeholders that may be empty: append them to an existing step line so step numbering stays intact.
+---
+
+## 2026-10-07 - US-023
+- tests/test_privacy.py: scans repo files (git ls-files --cached --others --exclude-standard; os.walk fallback) except docs/SYSTEM_DESIGN.md for non-reserved emails, 32-hex/UUID ids and '/Users/<name>' paths; a second test checks the scanner catches each kind.
+- examples/persona: fictional baker 'Juniper' with 3 en notes (generated from journal.new_note + append_verbatim), agent/ JSON + Markdown outputs (question, decision with 3 rule changes, PAD/G/XP per day, headlines, narratives, receipt template), expected.json, README walk-through.
+- tests/test_example.py: init -> copy notes -> question add -> feedback ingest -> decide -> pad add/chart, g predict/report, xp score, note write, outreach send -> usage add -> validate -> audit weekly; checks protected hashes never change.
+- README.md / README.zh.md: loop first, then the 9 principles, quickstart, task table, presets, layout, not-a-clinical-tool notice, privacy.
+- Files: README.md, README.zh.md, examples/persona/**, tests/test_privacy.py, tests/test_example.py
+- **Learnings for future iterations:**
+  - The bare text '/Users/' appears in rules (CLAUDE.md, progress, prompt tests); only a prefix followed by a name is treated as a path.
+  - Decision reasons are joined with '; ' in the decision report, so write them without trailing periods.
+  - The receipt needs rule_version and the decision id, which only exist at run time; receipt.json is a template the test fills in.
+  - Audit timestamps are the real 'now', so the e2e test audits the current week (default --as-of), even though the notes are dated in March.
 ---
