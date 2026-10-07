@@ -2,7 +2,7 @@
 - Read docs/SYSTEM_DESIGN.md before every story. It is the source of truth.
 - Python 3 standard library only (tomllib, json, unittest, xml.etree, urllib). No pip installs; pytest is NOT available.
 - Run tests: python3 -m unittest discover -s tests -v
-- Package name is `etrace` (not `trace`, which shadows the stdlib module). Core module is etrace/container (the preference container); see docs/SYSTEM_DESIGN.md section 3.
+- Package name is `etrace` (not `trace`, which shadows the stdlib module). Core module is etrace/container (the preference container); see docs/SYSTEM_DESIGN.md section 3. Root CLAUDE.md repeats the hard boundary.
 - Tests must use tempfile dirs; never write outside the repo or touch the network.
 - NEVER add real personal data, real emails, Notion IDs or absolute /Users/ paths. Example data is fictional.
 - Bilingual: code/README in English; preset labels, prompts and templates have zh and en.
