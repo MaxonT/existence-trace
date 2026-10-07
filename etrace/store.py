@@ -98,15 +98,24 @@ class Store:
         rid = record.get("id")
         if not isinstance(rid, str) or not rid.strip():
             raise InvalidRecord("record needs a non-empty string 'id'")
+        with self.lock():
+            return self.append_locked(name, record)
+
+    def append_locked(self, name, record):
+        """Same as append, for callers that already hold self.lock() (check-then-append)."""
+        if not isinstance(record, dict):
+            raise InvalidRecord("record must be a JSON object")
+        rid = record.get("id")
+        if not isinstance(rid, str) or not rid.strip():
+            raise InvalidRecord("record needs a non-empty string 'id'")
         line = json.dumps(record, ensure_ascii=False)
         path = self.path(name)
-        with self.lock():
-            if any(r.get("id") == rid for r in self.read_all(name)):
-                raise InvalidRecord(f"duplicate id {rid!r} in {os.path.basename(path)}")
-            with open(path, "a", encoding="utf-8") as fh:
-                fh.write(line + "\n")
-                fh.flush()
-                os.fsync(fh.fileno())
+        if any(r.get("id") == rid for r in self.read_all(name)):
+            raise InvalidRecord(f"duplicate id {rid!r} in {os.path.basename(path)}")
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
         return record
 
     def write_json(self, filename, obj):

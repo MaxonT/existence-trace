@@ -16,6 +16,8 @@
 - Verbatim block is append-only: write it only via journal.append_verbatim(doc, text, written_on, happened_on, language). First fill has no header; later additions get a '补写于 …｜实际发生于 …' header. Never assign verbatim Block.body directly; save() only accepts the exact hash produced by append_verbatim on top of the on-disk body.
 - Rules: etrace.container.rules.add_rule(data_dir, rule_id, scope, text, expressed_at, source_feedback_id=None, reason=None); active_rules(data_dir, scope=None); history(data_dir, rule_id); get(); version(). data_dir may be a path or Store. expressed_at must be a timezone-aware ISO datetime. Store.lock() is NOT reentrant: for read-modify-write use `with store.lock():` + store.write_json_atomic, not Store.write_json.
 - Feedback: etrace.container.feedback.ingest_notes(journal_dir, data_dir, now=None) -> IngestResult(added, unchanged, errors, ok). Entry id = 'DATE:feedback:sha12'. feedback.current(data_dir, note_date=None) gives latest versions (records not referenced by a later 'supersedes'). Use feedback ids from these records as source_feedback_id / answered feedback_id.
+- Questions: etrace.container.questions.add_question(data_dir, source, date, evidence={'kind': 'quote'|'behavior', 'text'}, candidates=[a, b], uncertainty, dimensions=[...], dedupe_key, now=None) -> id 'Q-YYYYMMDD-N'. follow_up/answer(feedback_id must exist in feedback.jsonl)/skip append event records; get/all_questions/open_questions replay them. daily_status(data_dir, date, scan_ok) -> list or questions.NO_QUESTIONS / SCAN_FAILED.
+- Check-then-append on a JSONL file: `with store.lock():` read_all + validate + store.append_locked(name, record) (Store.append would deadlock on the non-reentrant lock).
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -81,4 +83,14 @@
   - ingest_notes takes data_dir as well as journal_dir (the AC lists only journal_dir); now must be tz-aware.
   - Tests simulate user edits by writing the note file directly (the user is allowed to; journal.save would refuse).
   - result.ok / result.errors can feed US-006 daily_status scan_ok.
+---
+
+## 2026-10-07 - US-006
+- Implemented etrace/container/questions.py: add_question validates all seven fields (evidence kind quote|behavior, exactly two distinct candidates, non-empty dimensions), rejects a dedupe_key that is open or answered (skipped may be re-asked), ids Q-YYYYMMDD-N. Lifecycle via append-only event records (follow_up once while open, answered with an existing feedback_id, skipped). daily_status returns open questions dated on/before date, 'no new important questions' only when scan_ok is True, else 'scan failed, cannot judge'.
+- Added Store.append_locked for check-then-append under one lock.
+- Files: etrace/container/questions.py, etrace/store.py, tests/test_questions.py
+- **Learnings for future iterations:**
+  - Question status is never stored on the question record; always use questions.get/all_questions (replayed), not raw read_all.
+  - Status strings are English constants; US-008 should map NO_QUESTIONS/SCAN_FAILED to zh/en display text.
+  - answer() checks feedback.jsonl, so tests must ingest a feedback entry first (feedback.ingest_note(dir, date, [text], now=...)).
 ---
