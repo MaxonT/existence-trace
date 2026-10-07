@@ -22,6 +22,7 @@
 - Presets: etrace.presets.load(name, presets_dir=None) -> {'name','pad','g','xp','rules','question_templates'}, validated (ValueError 'NAME/file.json.field: msg'). Labels are {'zh','en'} objects; pick with presets.label(obj, language). Helpers: g_items(p) -> [(code, weight, label)], band(level) 1-5 -> low/mid/high, pad_word(p, P, A, D, language). Preset rules.json = {version, rules:[{id, scope, text:{zh,en}}]}: pass presets.label(rule['text'], lang) to rules.add_rule (it needs a str). xp.json dims ids are the same in both presets (rhythm, learning, boundaries, action, reflection, connection); only labels differ.
 - Note outreach: etrace.outreach.note.write(journal_dir, data_dir, date, scan_ok, language, preset, decision_ids=None, summary=None, now) rewrites ai:questions (creates the note if missing), reads back, then appends notifications.jsonl ('N-YYYYMMDD-N', channel/status/verified_readback/question_ids/decision_ids/daily_status/content_hash). Default decisions = those not reported on an earlier day. Wrap user-facing text with note._wrap (zh 40 / en 72 chars) to stay phone-readable.
 - PAD: etrace.models.pad.PadPoint.from_dict(agent_json) (PadError.errors = ['field: msg'] for CLI exit 2); slot is a SLOTS name or 'HH:MM' (pad.slot_of maps times to slots; SLOT_HOURS gives fixed chart positions for slot-only points). project(p,a,d,preset=None,language) -> 27-table word (values <1 count as level 1). daily_summary(points) -> DailySummary(.P/.A/.D, unknown_durations, equal_weighted). validate_day(points).ok/.problems.
+- Chart: etrace.chart.pad_svg(points, kind='day'|'week', language, preset=None) -> SVG string (data lines are the only <path> elements, class 'pad-line'; grid uses <line>). chart.smooth/local_linear are reusable for the G chart (US-013).
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -137,4 +138,14 @@
 - **Learnings for future iterations:**
   - AC says PAD values are 0-5 but preset levels/band are 1-5; project() clamps values below 1 to level 1.
   - Slot hour ranges: early_morning 5-8, morning 8-11, noon 11-14, afternoon 14-18, evening 18-22, late_night 22-5. US-011 should use pad.SLOT_HOURS for slot-only x positions.
+---
+
+## 2026-10-07 - US-011
+- Implemented etrace/chart.py: pad_svg builds the SVG with xml.etree (1240x590, #F3F5F7, y 0-5 with tick labels 1-5, legend from preset pad.json axis labels, title with date/range). Three <path> lines P/A/D (colors per AC, width 5, round caps), no dots/dashes. local_linear (Gaussian kernel, falls back to local mean when only one x, nearest reading if all weights underflow) and smooth (240-sample grid over the readings' span, clamped 0-5; a single position gets a short flat stroke).
+- Day x axis fixed 05:00-29:00 (times before 05:00 belong to the previous evening); week x axis = day index + hour/24 over max(7, span) days. Slot-only readings use pad.SLOT_HOURS and add a zh/en caption (class 'caption').
+- Files: etrace/chart.py, tests/test_chart.py
+- **Learnings for future iterations:**
+  - Lines are drawn only over the readings' span (no extrapolation to the chart edges).
+  - Day charts raise PadError for several dates; empty input / bad kind raise ValueError.
+  - Tests parse with ET namespace {'svg': 'http://www.w3.org/2000/svg'}.
 ---
