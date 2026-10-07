@@ -25,6 +25,7 @@
 - G: etrace.models.g.compute(items, preset=None) -> GResult(B, E, G, items{code: GItem}, .missing); items are GItem or dicts (GItem.from_dict, GError.errors = ['items[i].field: msg']). Values unrounded; use g.display(v, lang) ('6.3', None -> 缺/n/a) for people. g.legend(preset, lang) is the symbol explanation.
 - G gap fill: g.gap_fill(date, real_items, history{date: items}) -> GDay(items all 8, explicit_gap_fill, .filled); filled GItems have provenance 'gap_fill', confidence low, method, neighbors [{date,value}]. Persisted day revisions live in g.jsonl via g.record(data_dir, date, items, now) / g.refill / g.latest / g.revisions (id 'G-YYYYMMDD-rN', supersedes). g.training_eligible(day) must gate every training/calibration use.
 - G predictions/calibration: g.predict(data_dir, date, preset, now) freezes g.latest into predictions.jsonl ('P-YYYYMMDD-N', dedupes same date+revision+rubric_version); g.feedback(data_dir, prediction_id, targets={code: number}, text, expressed_at, now) -> g_feedback.jsonl ('GF-YYYYMMDD-N'), rejected unless prediction created_at < expressed_at. g.calibration(data_dir, preset|version) -> Calibration(.enabled, .reason, .bias, .apply(code, value)); always call .apply, it is a no-op when disabled.
+- XP: etrace.models.xp.score_day(date, levels{dim_id: int 0-4, all six required}, ordinary, events=[{event_id, occurred_on (== date), points>=0, title?}], preset) -> XPDay(.total int half-up, .raw_total); xp.record(data_dir, day, now) -> xp.jsonl 'XP-YYYYMMDD-rN' (rejects event_id booked on another day); xp.week_total(days|data_dir, monday) -> WeekTotal(total, days, missing).
 - Chart: etrace.chart.pad_svg(points, kind='day'|'week', language, preset=None) -> SVG string (data lines are the only <path> elements, class 'pad-line'; grid uses <line>). chart.smooth/local_linear are reusable for the G chart (US-013).
 ---
 ## Hard boundary
@@ -178,4 +179,13 @@
   - Labels = latest feedback per (date, code), filtered to one rubric_version and to training-eligible (no gap_fill) snapshots.
   - g.feedback is a function inside etrace.models.g; it is unrelated to etrace.container.feedback (user note feedback). The CLI (US-019) should not confuse the two.
   - Test days are all labelled days after the first 10; there is no rolling window yet.
+---
+
+## 2026-10-07 - US-015
+- Implemented etrace/models/xp.py: score_day (points = cap*level/4, all six dimensions required with integer level 0-4, ordinary clamped to xp.json min/max, events need unique event_id + occurred_on equal to the scored date + non-negative points, no daily cap, integer total rounded half up), record/latest/booked_events (xp.jsonl revisions with supersedes; same content is a no-op; event_id booked on another day's latest revision raises XPError), week_total (Monday start, sums displayed daily totals, no bonus, missing dates listed separately).
+- Files: etrace/models/xp.py, tests/test_xp.py
+- **Learnings for future iterations:**
+  - week totals sum per-day rounded totals (3.5 + 3.5 shows 4 + 4 = 8), so the week matches what the daily reports displayed.
+  - A level-0 day is a scored day (total 0), unlike a missing day; daily prompts must still pass all six levels.
+  - XPError.errors uses the same 'field: msg' shape as GError/PadError for CLI exit 2.
 ---
