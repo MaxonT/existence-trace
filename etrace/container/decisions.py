@@ -135,7 +135,7 @@ def decide(data_dir, feedback_ids, decision_text, value_source, rule_changes=Non
         rule = rules.add_rule(store, c["rule_id"], c["scope"], c["text"], c["expressed_at"],
                               source_feedback_id=c["source_feedback_id"], reason=c.get("reason"))
         applied.append({"rule_id": rule["id"], "scope": rule["scope"], "status": rule["status"],
-                        "superseded_by": rule["superseded_by"]})
+                        "superseded_by": rule["superseded_by"], "reason": c.get("reason")})
 
     record = {
         "type": "decision",

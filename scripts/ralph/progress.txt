@@ -19,6 +19,7 @@
 - Questions: etrace.container.questions.add_question(data_dir, source, date, evidence={'kind': 'quote'|'behavior', 'text'}, candidates=[a, b], uncertainty, dimensions=[...], dedupe_key, now=None) -> id 'Q-YYYYMMDD-N'. follow_up/answer(feedback_id must exist in feedback.jsonl)/skip append event records; get/all_questions/open_questions replay them. daily_status(data_dir, date, scan_ok) -> list or questions.NO_QUESTIONS / SCAN_FAILED.
 - Check-then-append on a JSONL file: `with store.lock():` read_all + validate + store.append_locked(name, record) (Store.append would deadlock on the non-reentrant lock).
 - Decisions/usage: decisions.decide(data_dir, feedback_ids, decision_text, value_source='user'|'agent_decision', rule_changes=[{rule_id, scope, text, expressed_at, source_feedback_id?, reason?}], now) -> 'D-YYYYMMDD-N'; decisions.mark_pending(id, reason). usage.record(data_dir, task, target, rule_version, feedback_ids, decision_ids, before, after, status, verified_readback=True, now) -> 'U-YYYYMMDD-N'. Only usage.applied() (a verified changed/confirmed receipt) means a decision was used; validate.validate(data_dir, now).ok checks the chain.
+- Note outreach: etrace.outreach.note.write(journal_dir, data_dir, date, scan_ok, language, preset, decision_ids=None, summary=None, now) rewrites ai:questions (creates the note if missing), reads back, then appends notifications.jsonl ('N-YYYYMMDD-N', channel/status/verified_readback/question_ids/decision_ids/daily_status/content_hash). Default decisions = those not reported on an earlier day. Wrap user-facing text with note._wrap (zh 40 / en 72 chars) to stay phone-readable.
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -103,4 +104,14 @@
   - decide() cannot hold the store lock while calling rules.add_rule (non-reentrant lock); rules are applied first, then the decision is appended under the lock.
   - Any verified receipt (even no_match/blocked) closes the 2-day validate check; only changed/confirmed count as applied. US-017 audit should use usage.applied for "really used".
   - Tests simulate tampered/legacy data by appending raw JSON lines to *.jsonl.
+---
+
+## 2026-10-07 - US-008
+- Implemented etrace/outreach/note.py: render_questions (numbered '1. [Q-id] uncertainty' + candidates + evidence + follow-up, or the zh/en daily status sentence; SCAN_FAILED never claims no questions), render_report ('### 决定报告' / '### Decision report', summary (auto or given), per decision what/why/feedback quotes/rules/pending, closing invitation), render, write (notification only after read-back finds the text; identical same-day rerun records nothing).
+- decisions.decide now keeps each rule change's 'reason' in the decision record's rule_changes (used as the report's "why", plus the value_source sentence).
+- Files: etrace/outreach/__init__.py, etrace/outreach/note.py, etrace/container/decisions.py, tests/test_outreach_note.py
+- **Learnings for future iterations:**
+  - US-016 email should reuse note.render / render_questions / render_report for the text and append its own notifications record with channel 'email' (records are per channel; ids N-YYYYMMDD-N count all channels per day).
+  - journal.save looks up load() as a module global, so mocking journal.load in tests also affects save; mock journal.save instead to simulate a bad write.
+  - textwrap breaks CJK text by character count, which is fine for the 120-char limit.
 ---
