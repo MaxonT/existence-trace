@@ -62,7 +62,7 @@
         "python3 -m unittest discover -s tests -v passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Matches the owner's 回溯补记 rule: later additions are appended, existing original text never changes."
     },
     {

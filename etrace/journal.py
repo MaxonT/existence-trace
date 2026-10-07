@@ -12,8 +12,10 @@ rewrites only what follows it.
 
 save() hashes every user and verbatim block of the file on disk and of the new
 text, and refuses to write (ProtectedBlockChanged) on any difference. The only
-exception is fill_verbatim(): an empty verbatim block may be filled exactly once,
-after which its hash is locked like every other protected block.
+exception is append_verbatim(): the verbatim block is append-only. Its first fill
+adds the original text; later additions are new sections that start with a
+'补写于 ...｜实际发生于 ...' header. The bytes already on disk must stay an exact
+prefix of the new block.
 
 Files are read and written with newline='' so parse -> render is byte-identical.
 """
@@ -34,6 +36,14 @@ _MARKER = re.compile(
 _ANY_MARKER = re.compile(r"<!--\s*trace:", re.IGNORECASE)
 _HINT = re.compile(r"<!-- hint:.*?-->[ \t]*(?:\r?\n)?", re.DOTALL)
 _HEADING = re.compile(r"^#{1,6} ")
+_ADDED_HEADER = {
+    "zh": "补写于 {written}｜实际发生于 {happened}",
+    "en": "Added on {written} | happened on {happened}",
+}
+_ADDED_LINE = re.compile(
+    r"^(?:补写于 \d{4}-\d{2}-\d{2}｜实际发生于 (?P<zh>\d{4}-\d{2}-\d{2})"
+    r"|Added on \d{4}-\d{2}-\d{2} \| happened on (?P<en>\d{4}-\d{2}-\d{2}))[ \t]*\r?$"
+)
 
 
 class JournalError(Exception):
@@ -79,7 +89,7 @@ class Document:
     def __init__(self, preamble, blocks):
         self.preamble = preamble
         self.blocks = blocks
-        self._verbatim_fill = None
+        self._verbatim_append = None  # (hash before first append, hash now)
 
     def block(self, key):
         for b in self.blocks:
@@ -154,16 +164,69 @@ def replace_ai_block(doc, name, text):
     return doc
 
 
-def fill_verbatim(doc, text):
-    """Fill an empty verbatim block once; afterwards it is locked by save()."""
+def _verbatim_sections(content):
+    """[(happened_on or None, sha256 of text)] for each section of verbatim content.
+
+    The first section (before any '补写于' header) is the original version and
+    has happened_on None.
+    """
+    sections = [[None, []]]
+    for line in content.splitlines():
+        m = _ADDED_LINE.match(line)
+        if m:
+            sections.append([m.group("zh") or m.group("en"), []])
+        else:
+            sections[-1][1].append(line)
+    out = []
+    for happened, lines in sections:
+        text = "\n".join(lines).strip("\n")
+        if happened or text.strip():
+            out.append((happened, _hash(text)))
+    return out
+
+
+def append_verbatim(doc, text, written_on=None, happened_on=None, language="zh"):
+    """Append TEXT to the verbatim block; existing bytes never change. Returns doc.
+
+    An empty block gets TEXT as the original version, without a header. A filled
+    block gets a new section headed '补写于 WRITTEN_ON｜实际发生于 HAPPENED_ON'
+    (en: 'Added on ... | happened on ...'). Appending text that is already there
+    for the same happened_on (or as the original version) is a no-op.
+    """
     block = doc.block("verbatim")
-    if block.content().strip():
-        raise ProtectedBlockChanged("verbatim block is already filled and locked")
+    if not isinstance(text, str) or not text.strip():
+        raise JournalFormatError("verbatim text must be a non-empty string")
     if _ANY_MARKER.search(text):
         raise JournalFormatError("verbatim text must not contain trace markers")
-    before = _hash(block.body)
-    block.body = block.title() + "\n" + text.strip("\n") + "\n"
-    doc._verbatim_fill = (before, _hash(block.body))
+    if language not in LANGUAGES:
+        raise JournalError(f"unknown language {language!r}; expected one of {', '.join(LANGUAGES)}")
+    text = text.strip("\n")
+    filled = bool(block.content().strip())
+    if filled:
+        if written_on is None or happened_on is None:
+            raise JournalError("written_on and happened_on are required for a late addition")
+        happened_on = _iso(happened_on)
+        header = _ADDED_HEADER[language].format(written=_iso(written_on), happened=happened_on)
+        digest = _hash(text)
+        for happened, h in _verbatim_sections(block.content()):
+            if h == digest and happened in (None, happened_on):
+                return doc
+        addition = header + "\n\n" + text + "\n"
+    else:
+        addition = text + "\n"
+    if not block.body and not block.marker.endswith("\n"):
+        block.marker += "\n"  # marker was the last line without a newline
+    # keep one blank line between the existing text and the addition
+    if block.body.endswith("\n\n") or not block.body:
+        pass
+    elif block.body.endswith("\n"):
+        addition = "\n" + addition
+    else:
+        addition = "\n\n" + addition
+    if doc._verbatim_append is None:
+        doc._verbatim_append = (_hash(block.body), None)
+    block.body += addition
+    doc._verbatim_append = (doc._verbatim_append[0], _hash(block.body))
     return doc
 
 
@@ -178,21 +241,21 @@ def save(doc, path):
     after = protected_hashes(parse(text))
     if os.path.exists(path):
         before = protected_hashes(load(path))
-        _check(before, after, doc._verbatim_fill)
+        _check(before, after, doc._verbatim_append)
     write_text_atomic(path, text)
     with open(path, encoding="utf-8", newline="") as fh:
         if fh.read() != text:
             raise JournalError(f"read-back mismatch after writing {path}")
-    doc._verbatim_fill = None
+    doc._verbatim_append = None
     return path
 
 
-def _check(before, after, verbatim_fill):
+def _check(before, after, verbatim_append):
     changed = []
     for key in sorted(set(before) | set(after)):
         if before.get(key) == after.get(key):
             continue
-        if key == "verbatim" and verbatim_fill and (before.get(key), after.get(key)) == verbatim_fill:
+        if key == "verbatim" and verbatim_append and (before.get(key), after.get(key)) == verbatim_append:
             continue
         if key not in after:
             changed.append(f"{key} (removed)")

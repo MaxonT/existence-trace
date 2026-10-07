@@ -49,7 +49,10 @@ class JournalTest(unittest.TestCase):
             fh.write(text)
 
     def _read(self):
-        with open(self.path, "rb") as fh:
+        return self._read_path(self.path)
+
+    def _read_path(self, path):
+        with open(path, "rb") as fh:
             return fh.read()
 
     # --- parsing ---------------------------------------------------------
@@ -153,26 +156,124 @@ class JournalTest(unittest.TestCase):
             journal.save(doc, self.path)
         self.assertEqual(self._read().decode("utf-8"), edited)
 
-    def test_fill_verbatim_once_then_locked(self):
+    def test_append_verbatim_first_fill_has_no_header(self):
         path = journal.create_note(self.dir, "2026-10-08")
+        empty = journal.load(path).block("verbatim").body
         doc = journal.load(path)
-        journal.fill_verbatim(doc, "今天的原话  ")
+        journal.append_verbatim(doc, "今天的原话  ")
         journal.save(doc, path)
-        self.assertIn("今天的原话  ", journal.load(path).block("verbatim").body)
-        doc = journal.load(path)
-        with self.assertRaises(ProtectedBlockChanged):
-            journal.fill_verbatim(doc, "second")
-        doc.block("verbatim").body = "## 原版本\n\nchanged\n"
-        with self.assertRaises(ProtectedBlockChanged):
-            journal.save(doc, path)
+        body = journal.load(path).block("verbatim").body
+        self.assertTrue(body.startswith(empty))
+        self.assertEqual(body, "## 原版本\n\n今天的原话  \n")
+        self.assertNotIn("补写于", body)
 
-    def test_fill_verbatim_authorizes_only_verbatim(self):
+    def test_append_verbatim_late_addition_keeps_prefix(self):
         path = journal.create_note(self.dir, "2026-10-08")
         doc = journal.load(path)
-        journal.fill_verbatim(doc, "原话")
+        journal.append_verbatim(doc, "原话")
+        journal.save(doc, path)
+        before = journal.load(path).block("verbatim").body
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "后来想起的事", "2026-10-10", datetime.date(2026, 10, 8))
+        journal.save(doc, path)
+        after = journal.load(path).block("verbatim").body
+        self.assertTrue(after.startswith(before))
+        self.assertEqual(after[len(before):], "\n补写于 2026-10-10｜实际发生于 2026-10-08\n\n后来想起的事\n")
+        # several additions in one session, then one save
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "第二段", "2026-10-11", "2026-10-08")
+        journal.append_verbatim(doc, "第三段", "2026-10-11", "2026-10-09")
+        journal.save(doc, path)
+        final = journal.load(path).block("verbatim").body
+        self.assertTrue(final.startswith(after))
+        self.assertEqual(final.count("补写于"), 3)
+
+    def test_append_verbatim_english_header(self):
+        path = journal.create_note(self.dir, "2026-10-08", language="en")
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "original")
+        journal.append_verbatim(doc, "later", "2026-10-09", "2026-10-08", language="en")
+        journal.save(doc, path)
+        body = journal.load(path).block("verbatim").body
+        self.assertIn("\nAdded on 2026-10-09 | happened on 2026-10-08\n\nlater\n", body)
+
+    def test_append_verbatim_to_body_without_trailing_newline(self):
+        self._write(SAMPLE)
+        doc = journal.load(self.path)
+        journal.append_verbatim(doc, "补充", "2026-10-08", "2026-10-07")
+        journal.save(doc, self.path)
+        text = self._read().decode("utf-8")
+        self.assertTrue(text.startswith(SAMPLE))
+        self.assertTrue(text.endswith("今天早上很累，  \n\n补写于 2026-10-08｜实际发生于 2026-10-07\n\n补充\n"))
+
+    def test_append_verbatim_dedupes_same_text_and_day(self):
+        path = journal.create_note(self.dir, "2026-10-08")
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "原话")
+        journal.append_verbatim(doc, "补充", "2026-10-09", "2026-10-08")
+        journal.save(doc, path)
+        saved = self._read_path(path)
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "补充\n", "2026-10-12", "2026-10-08")  # same text, same day
+        journal.append_verbatim(doc, "原话", "2026-10-12", "2026-10-08")  # already the original
+        journal.save(doc, path)
+        self.assertEqual(self._read_path(path), saved)
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "补充", "2026-10-12", "2026-10-07")  # other day: kept
+        journal.save(doc, path)
+        self.assertEqual(journal.load(path).block("verbatim").body.count("补充"), 2)
+
+    def test_save_rejects_changed_removed_or_reordered_verbatim_bytes(self):
+        path = journal.create_note(self.dir, "2026-10-08")
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "第一句\n第二句")
+        journal.save(doc, path)
+        saved = self._read_path(path)
+        edits = (
+            lambda b: b.replace("第一句", "第一局"),  # changed
+            lambda b: b.replace("第一句\n", ""),  # removed
+            lambda b: b.replace("第一句\n第二句", "第二句\n第一句"),  # reordered
+        )
+        for edit in edits:
+            doc = journal.load(path)
+            journal.append_verbatim(doc, "补充", "2026-10-09", "2026-10-08")
+            block = doc.block("verbatim")
+            block.body = edit(block.body)
+            with self.assertRaises(ProtectedBlockChanged):
+                journal.save(doc, path)
+            self.assertEqual(self._read_path(path), saved)
+
+    def test_append_verbatim_authorizes_only_verbatim(self):
+        path = journal.create_note(self.dir, "2026-10-08")
+        doc = journal.load(path)
+        journal.append_verbatim(doc, "原话")
         doc.block("user:journal").body += "sneaky\n"
         with self.assertRaises(ProtectedBlockChanged):
             journal.save(doc, path)
+
+    def test_append_verbatim_rejects_verbatim_edited_on_disk_after_load(self):
+        self._write(SAMPLE)
+        doc = journal.load(self.path)
+        edited = SAMPLE + "x"
+        self._write(edited)
+        journal.append_verbatim(doc, "补充", "2026-10-08", "2026-10-07")
+        with self.assertRaises(ProtectedBlockChanged):
+            journal.save(doc, self.path)
+        self.assertEqual(self._read().decode("utf-8"), edited)
+
+    def test_append_verbatim_rejects_bad_input(self):
+        doc = journal.parse(SAMPLE)
+        with self.assertRaises(JournalFormatError):
+            journal.append_verbatim(doc, "  \n", "2026-10-08", "2026-10-07")
+        with self.assertRaises(JournalFormatError):
+            journal.append_verbatim(doc, "<!-- trace:ai:x -->", "2026-10-08", "2026-10-07")
+        with self.assertRaises(JournalError):
+            journal.append_verbatim(doc, "late")  # dates required once filled
+        with self.assertRaises(JournalError):
+            journal.append_verbatim(doc, "late", "2026-13-01", "2026-10-07")
+        with self.assertRaises(JournalError):
+            journal.append_verbatim(doc, "late", "2026-10-08", "2026-10-07", language="fr")
+        self.assertEqual(doc.render(), SAMPLE)
 
     # --- new note --------------------------------------------------------
 

@@ -13,6 +13,7 @@
   P中A低: 茫然|平静|淡定   P中A中: 困惑|专注|笃定   P中A高: 震惊|惊讶|警觉
   P高A低: 依恋|满足|惬意   P高A中: 感动|开心|自豪   P高A高: 惊喜|兴奋|豪迈
 - Journal notes: etrace.journal.load/parse -> Document; change AI text only via replace_ai_block(doc, name, text) (keeps the block's '## title' line) and write via journal.save(doc, path), which raises ProtectedBlockChanged if any user:*/verbatim block differs from the file on disk. Never write note files directly. Template hints are '<!-- hint: ... -->' comments; strip them with journal.strip_hints before ingesting user text.
+- Verbatim block is append-only: write it only via journal.append_verbatim(doc, text, written_on, happened_on, language). First fill has no header; later additions get a '补写于 …｜实际发生于 …' header. Never assign verbatim Block.body directly; save() only accepts the exact hash produced by append_verbatim on top of the on-disk body.
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -48,4 +49,14 @@
   - "Before" in save() is the file on disk, so user edits made between load and save are never overwritten.
   - new_note's G table uses item codes B1..E4 only and the preset arg is only validated; when presets exist (US-009), item labels can be added from g.json.
   - US-005 should read the user:feedback block via Block.content() + strip_hints() so the title and hint are never ingested.
+---
+
+## 2026-10-07 - US-024
+- Replaced fill_verbatim with journal.append_verbatim(doc, text, written_on=None, happened_on=None, language="zh"). Empty block: text appended with no header. Filled block: appends '\n补写于 W｜实际发生于 H\n\ntext\n' (en: 'Added on W | happened on H'); keeps exactly one blank line before the addition and never touches existing bytes (even a body without a trailing newline).
+- Dedupe: verbatim content is split into sections by header lines; same text hash for the same happened_on, or equal to the original (headerless) section, is a no-op.
+- save() allows a verbatim change only when (disk hash, new hash) equals doc._verbatim_append = (hash before the first append, hash after the last append), so several appends per session work and any other edit (changed/removed/reordered bytes, edits on disk after load) raises ProtectedBlockChanged.
+- Files: etrace/journal.py, tests/test_journal.py
+- **Learnings for future iterations:**
+  - written_on/happened_on are required only once the block is filled; dates go through journal._iso (date or 'YYYY-MM-DD').
+  - fill_verbatim is gone; callers ingesting a day's original text should call append_verbatim and rely on its dedupe for reruns.
 ---
