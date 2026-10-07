@@ -133,6 +133,7 @@
         "xp.json: six dims with caps 18,16,16,14,14,12 (names differ per preset), levels 0-4, ordinary cap 10, uncapped unique-id events; NO personal events anywhere",
         "etrace/presets.py validates: weights per group sum to 1.0, exactly 27 word cells, positive caps, every rule has scope and text; invalid preset raises ValueError naming the field",
         "presets/tiger-method/README.md explains how the XP dimensions were grown from real difficulties and how to grow your own",
+        "journal.new_note uses the chosen preset's G item names and PAD labels (not just codes B1-E4); update tests/test_journal.py accordingly",
         "python3 -m unittest discover -s tests -v passes"
       ],
       "priority": 9,
