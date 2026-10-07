@@ -14,7 +14,7 @@ $rules
 4. XP: write `{"date": "YYYY-MM-DD", "levels": {"rhythm": 0, "learning": 0, "boundaries": 0, "action": 0, "reflection": 0, "connection": 0}, "ordinary": 0, "events": [{"event_id": "unique-id", "occurred_on": "YYYY-MM-DD", "points": 5, "title": "..."}]}` (levels 0-4, ordinary 0-10) and run `python3 -m etrace xp score FILE`.
 5. Write the text blocks: `python3 -m etrace note write YYYY-MM-DD xp FILE`, then `headline`, then `narrative` (FILE holds plain Markdown; the command reads it back).
 6. For each rule you applied that came from a decision or feedback, after the write is read back, write `{"task": "daily", "target": "journal/YYYY-MM-DD.md#ai:pad", "rule_version": $rules_version, "before": "...", "after": "...", "status": "changed", "verified_readback": true, "decision_ids": ["D-..."], "feedback_ids": []}` and run `python3 -m etrace usage add FILE`. status: changed / confirmed / no_match / not_applicable / blocked.
-7. Create tomorrow's page: `python3 -m etrace note new YYYY-MM-DD` (tomorrow).
+7. Create tomorrow's page: `python3 -m etrace note new YYYY-MM-DD` (tomorrow).$notion
 8. `python3 -m etrace checkpoint "daily: after"`
 9. `python3 -m etrace validate`
 

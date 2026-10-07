@@ -35,6 +35,7 @@
 - Prompts: etrace.prompts.render(task, cfg, data_dir, language=None) -> text < 6000 chars; templates are etrace/prompts/{zh,en}/TASK.md (string.Template: $name, $$ literal; $principles inlines _principles.md, $rules lists active rules and truncates with a `rules list` pointer). Never put cfg.data_dir or any path into a prompt. CLI: `prompt TASK [--language] [--raw]` (--raw returns cli.RawText, printed as plain text, for scheduler scripts). When a CLI command or JSON shape changes, update both languages' prompt files (tests/test_prompts.py checks each task names its commands).
 - Scheduler: etrace.adapters.scheduler.render(target, cfg) -> {relpath: text}; write(target, cfg, out_dir) only writes files (never installs). Generated runs render prompts at run time via env_command(cfg) (cd ROOT && export ETRACE_CONFIG/PYTHONPATH, so the spawned agent inherits them) + `python3 -m etrace prompt TASK --raw`. CLI: `schedule --target codex|claude-code|cron --out DIR`.
 - feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
+- Notion: etrace.adapters.notion.load_credentials(cfg.credentials['notion']) (TOML token + parent_page_id) and push(data_dir, creds, journal_dir, date, now, transport=None) -> PushResult; notion.jsonl 'NO-YYYYMMDD-N' (pushed only after the child-block count reads back; unchanged note = no push; changed note = new page, then archive the old one). HTTP goes through transport(method, url, headers, body) -> dict; tests pass a fake (tests/test_notion.py FakeNotion) or patch notion.urllib_transport. Notion is write-only: never read page content back into notes. CLI: `notion push [--date]`.
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -260,4 +261,14 @@
   - An env prefix (`VAR=x cmd`) does not reach the agent spawned later; use `export`, and test it with a subprocess run from `/`.
   - The codex automation.toml field set is our own guess at the format (we may not read ~/protected-dir-1); keep it simple TOML that tomllib parses.
   - US-022 (Notion) goes in etrace/adapters/notion.py next to scheduler.py.
+---
+
+## 2026-10-07 - US-022
+- Implemented etrace/adapters/notion.py: credentials TOML (token, parent_page_id, optional api_version/api_url; repr and errors never show the token), to_blocks (Markdown -> Notion blocks: headings, lists, quotes, code, pipe tables, images, dividers, paragraphs; HTML comments dropped; rich text split at 2000 chars), push (POST /pages with the first 100 blocks, PATCH /blocks/ID/children for the rest, GET child count as read-back, archive the previous page only after the new one is complete; half-written pages are archived on failure), urllib_transport.
+- CLI `notion push [--date]` (exit 1 when not pushed, 2 when credentials are missing/bad). daily and g prompts add a push step only when credentials.notion is set ($notion placeholder). examples/trace.toml documents the notion file.
+- Files: etrace/adapters/notion.py, etrace/cli.py, etrace/prompts/__init__.py, etrace/prompts/{zh,en}/{daily,g}.md, examples/trace.toml, tests/test_notion.py
+- **Learnings for future iterations:**
+  - Test ids must not look like real Notion ids (32 hex): US-023's privacy scan would flag them. Tests use 'parent-page-example' / 'page-N'.
+  - Local chart SVGs cannot be uploaded via the public API; they become a paragraph naming the file. Only http(s) images become image blocks.
+  - Prompt placeholders that may be empty: append them to an existing step line so step numbering stays intact.
 ---

@@ -21,6 +21,11 @@ _MORE = {
     "zh": "……另有 {n} 条生效规则未列出：运行 `python3 -m etrace rules list` 查看全部。",
     "en": "...{n} more active rules not shown: run `python3 -m etrace rules list` for all of them.",
 }
+# Appended to the last writing step of daily/g when credentials.notion is set.
+_NOTION = {
+    "zh": " 然后把今天的笔记镜像到 Notion：`python3 -m etrace notion push --date YYYY-MM-DD`（今天的日期；失败不影响本地结果，照实汇报）。",
+    "en": " Then mirror today's note to Notion: `python3 -m etrace notion push --date YYYY-MM-DD` (today's date; a failure there leaves local work intact, report it).",
+}
 _NO_RULES = {"zh": "（还没有生效规则）", "en": "(no active rules yet)"}
 _OUTREACH = {
     "zh": {"note": "只写进当天笔记", "note+email": "写进当天笔记并发邮件"},
@@ -66,6 +71,7 @@ def render(task, cfg, data_dir, language=None, max_chars=MAX_CHARS):
         "language": lang,
         "outreach": _OUTREACH[lang][cfg.outreach],
         "rules_version": rules_mod.version(data_dir),
+        "notion": _NOTION[lang] if cfg.credentials.get("notion") else "",
     }
     values["principles"] = _fill(template("_principles", lang), values, "").strip()
 

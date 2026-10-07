@@ -25,7 +25,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 from etrace import chart, checkpoint, config, journal, presets, prompts
-from etrace.adapters import scheduler
+from etrace.adapters import notion, scheduler
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
 from etrace.outreach import email as mail
@@ -529,6 +529,19 @@ def cmd_validate(ctx, args):
     return out
 
 
+def cmd_notion_push(ctx, args):
+    day = ctx.day(args.date)
+    creds = notion.load_credentials(ctx.cfg.credentials["notion"])
+    res = notion.push(ctx.store, creds, ctx.journal, day)
+    rec = res.record
+    out = {"date": day, "status": rec["status"], "recorded": res.recorded, "record": rec["id"],
+           "page_id": rec["page_id"], "url": rec["url"], "blocks": rec["blocks"],
+           "reason": rec.get("reason"), "archive_error": rec.get("archive_error")}
+    if rec["status"] != notion.PUSHED:
+        raise Failure(f"notion {rec['status']}: {rec.get('reason')}", out)
+    return out
+
+
 def cmd_schedule(ctx, args):
     files = scheduler.write(args.target, ctx.cfg, args.out)
     tasks = {task: ctx.cfg.tasks[task] for task in config.TASKS}
@@ -639,6 +652,11 @@ def build_parser():
     s.add_argument("--raw", action="store_true", help="print the prompt text instead of JSON")
     s.set_defaults(func=cmd_prompt)
 
+    nt = group("notion", "optional Notion mirror (local Markdown stays the source of truth)")
+    s = nt.add_parser("push", help="mirror a day's note into Notion")
+    s.add_argument("--date")
+    s.set_defaults(func=cmd_notion_push)
+
     s = sub.add_parser("schedule", help="write scheduler files for an agent runner (never installs them)")
     s.add_argument("--target", required=True, choices=scheduler.TARGETS)
     s.add_argument("--out", required=True, help="directory to write the files into")
@@ -653,7 +671,7 @@ def build_parser():
 _INPUT_ERRORS = (questions.QuestionError, decisions.DecisionError, usage.UsageError,
                  rules.RuleError, g.GError, pad.PadError, xp.XPError, journal.JournalError,
                  note.OutreachError, mail.EmailError, audit.AuditError, config.ConfigError,
-                 prompts.PromptError, scheduler.SchedulerError, ValueError)
+                 prompts.PromptError, scheduler.SchedulerError, notion.NotionError, ValueError)
 
 
 def _print(obj, stream):

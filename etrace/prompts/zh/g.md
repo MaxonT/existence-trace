@@ -13,7 +13,7 @@ $rules
 3. 写 `{"date": "YYYY-MM-DD", "items": [{"code": "B1", "value": 6.5, "provenance": "model_inference", "source": "原话或区块", "confidence": "medium", "reason": "...", "self_value": 7}]}`，B1–B4、E1–E4 中有证据的每项一条（0–10）。没有证据的项不写：引擎会按低置信度补值。只有用户自评了才写 self_value。
 4. `python3 -m etrace g predict FILE`，然后 `python3 -m etrace g report --date YYYY-MM-DD`（写入 ai:g 并读回）。
 5. 如果用户对之前的预测给了 G 反馈，写 `{"prediction_id": "P-...", "targets": {"B1": 7}, "text": "用户原话", "expressed_at": "带时区的 ISO 时间"}`，运行 `python3 -m etrace g feedback FILE`。
-6. 每条来自决定或反馈、并且真的用上的规则，写 `{"task": "g", "target": "journal/YYYY-MM-DD.md#ai:g", "rule_version": $rules_version, "before": "...", "after": "...", "status": "changed", "verified_readback": true, "decision_ids": ["D-..."], "feedback_ids": []}`，运行 `python3 -m etrace usage add FILE`。
+6. 每条来自决定或反馈、并且真的用上的规则，写 `{"task": "g", "target": "journal/YYYY-MM-DD.md#ai:g", "rule_version": $rules_version, "before": "...", "after": "...", "status": "changed", "verified_readback": true, "decision_ids": ["D-..."], "feedback_ids": []}`，运行 `python3 -m etrace usage add FILE`。$notion
 7. `python3 -m etrace checkpoint "g: after"`
 8. `python3 -m etrace validate`
 

@@ -14,7 +14,7 @@ $rules
 4. XP：写 `{"date": "YYYY-MM-DD", "levels": {"rhythm": 0, "learning": 0, "boundaries": 0, "action": 0, "reflection": 0, "connection": 0}, "ordinary": 0, "events": [{"event_id": "唯一 id", "occurred_on": "YYYY-MM-DD", "points": 5, "title": "..."}]}`（levels 0–4，ordinary 0–10），运行 `python3 -m etrace xp score FILE`。
 5. 写文字区：`python3 -m etrace note write YYYY-MM-DD xp FILE`，然后是 `headline`、`narrative`（FILE 是纯 Markdown；命令会自己读回核验）。
 6. 每条来自决定或反馈、并且真的用上的规则，在写入读回之后，写 `{"task": "daily", "target": "journal/YYYY-MM-DD.md#ai:pad", "rule_version": $rules_version, "before": "...", "after": "...", "status": "changed", "verified_readback": true, "decision_ids": ["D-..."], "feedback_ids": []}`，运行 `python3 -m etrace usage add FILE`。status：changed / confirmed / no_match / not_applicable / blocked。
-7. 建明天的补记页：`python3 -m etrace note new YYYY-MM-DD`（明天的日期）。
+7. 建明天的补记页：`python3 -m etrace note new YYYY-MM-DD`（明天的日期）。$notion
 8. `python3 -m etrace checkpoint "daily: after"`
 9. `python3 -m etrace validate`
 
