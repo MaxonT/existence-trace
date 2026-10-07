@@ -14,6 +14,7 @@
   P高A低: 依恋|满足|惬意   P高A中: 感动|开心|自豪   P高A高: 惊喜|兴奋|豪迈
 - Journal notes: etrace.journal.load/parse -> Document; change AI text only via replace_ai_block(doc, name, text) (keeps the block's '## title' line) and write via journal.save(doc, path), which raises ProtectedBlockChanged if any user:*/verbatim block differs from the file on disk. Never write note files directly. Template hints are '<!-- hint: ... -->' comments; strip them with journal.strip_hints before ingesting user text.
 - Verbatim block is append-only: write it only via journal.append_verbatim(doc, text, written_on, happened_on, language). First fill has no header; later additions get a '补写于 …｜实际发生于 …' header. Never assign verbatim Block.body directly; save() only accepts the exact hash produced by append_verbatim on top of the on-disk body.
+- Rules: etrace.container.rules.add_rule(data_dir, rule_id, scope, text, expressed_at, source_feedback_id=None, reason=None); active_rules(data_dir, scope=None); history(data_dir, rule_id); get(); version(). data_dir may be a path or Store. expressed_at must be a timezone-aware ISO datetime. Store.lock() is NOT reentrant: for read-modify-write use `with store.lock():` + store.write_json_atomic, not Store.write_json.
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -59,4 +60,13 @@
 - **Learnings for future iterations:**
   - written_on/happened_on are required only once the block is filled; dates go through journal._iso (date or 'YYYY-MM-DD').
   - fill_verbatim is gone; callers ingesting a day's original text should call append_verbatim and rely on its dedupe for reruns.
+---
+
+## 2026-10-07 - US-004
+- Implemented etrace/container/rules.py (rules.json = {version, rules[]}): add_rule applies scoped supersession by expressed_at (tz-aware; ties go to the newly added rule), superseded rules keep status/superseded_by/superseded_reason/superseded_in_version; an earlier-expressed rule added later is stored already superseded by the active one. Each change bumps version and is written atomically under the store lock. Identical re-add is a no-op; same id with different content raises RuleError.
+- Files: etrace/container/__init__.py, etrace/container/rules.py, tests/test_rules.py
+- **Learnings for future iterations:**
+  - history(rule_id) returns the whole scope chain (active + superseded), oldest expression first.
+  - source_feedback_id may be None (preset base rules); US-007 decisions should pass the feedback id and may pass reason.
+  - No retire/remove API yet; if decisions need to drop a rule without replacement, add it in rules.py with a version bump.
 ---
