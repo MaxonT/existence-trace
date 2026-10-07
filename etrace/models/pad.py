@@ -16,6 +16,9 @@ is the per-axis duration-weighted mean; points without duration_hours are
 equal-weighted (each counts as the mean known duration, or 1 when none is
 known) and the summary flags them. validate_day() requires morning, noon and
 afternoon readings (exact times count for the slot they fall in).
+
+record() keeps points in pad.jsonl ('PAD-YYYYMMDD-N'); a later point for the
+same date and slot replaces the earlier one in points_for(), history stays.
 """
 
 import dataclasses
@@ -23,6 +26,7 @@ import datetime
 import re
 
 from etrace import presets
+from etrace.store import Store
 
 AXES = ("P", "A", "D")
 SLOTS = ("early_morning", "morning", "noon", "afternoon", "evening", "late_night")
@@ -237,3 +241,60 @@ def validate_day(points):
         if slot not in present:
             problems.append(f"missing {slot} reading")
     return DayValidation(problems)
+
+
+STORE_NAME = "pad"
+
+
+def _store(data_dir):
+    return data_dir if isinstance(data_dir, Store) else Store(data_dir)
+
+
+def _sort_key(pt):
+    if pt.exact_time:
+        h, m = map(int, pt.slot.split(":"))
+        hours = h + m / 60
+        return hours + 24 if hours < 5 else hours  # before 05:00 belongs to the previous evening
+    return SLOT_HOURS[pt.slot]
+
+
+def _latest(records, date=None):
+    latest = {}
+    for rec in records:
+        if date is None or rec["date"] == date:
+            latest[(rec["date"], rec["point"]["slot"])] = rec
+    return latest
+
+
+def record(data_dir, points, now=None):
+    """Append PadPoints to pad.jsonl; returns the new records (unchanged points are skipped)."""
+    points = list(points)
+    if not all(isinstance(pt, PadPoint) for pt in points):
+        raise PadError(["points: must be PadPoint instances"])
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise PadError(["now: must be timezone-aware"])
+    store = _store(data_dir)
+    added = []
+    with store.lock():
+        records = store.read_all(STORE_NAME)
+        for pt in points:
+            body = pt.to_dict()
+            prev = _latest(records).get((pt.date, pt.slot))
+            if prev and prev["point"] == body:
+                continue
+            stamp = pt.date.replace("-", "")
+            n = sum(1 for r in records if r["id"].startswith(f"PAD-{stamp}-")) + 1
+            rec = {"id": f"PAD-{stamp}-{n}", "date": pt.date, "point": body,
+                   "supersedes": prev["id"] if prev else None, "recorded_at": now.isoformat()}
+            store.append_locked(STORE_NAME, rec)
+            records.append(rec)
+            added.append(rec)
+    return added
+
+
+def points_for(data_dir, date):
+    """DATE's current points (latest per slot), in time order."""
+    date = date.isoformat() if isinstance(date, datetime.date) else date
+    recs = _latest(_store(data_dir).read_all(STORE_NAME), date).values()
+    return sorted((PadPoint.from_dict(r["point"]) for r in recs), key=_sort_key)

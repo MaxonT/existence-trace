@@ -30,6 +30,8 @@
 - Email: etrace.outreach.email.load_credentials(path) -> Credentials (repr/errors never show the password; reasons go through _reason to scrub it). send(data_dir, creds, date, scan_ok, language, kind='questions'|'report'|'audit', now) -> SendResult; notifications.jsonl records have channel 'email' + kind; 'sent' only after IMAP finds the Message-ID in sent_folder. read_replies(data_dir, creds, now) -> ReplyResult, feedback records with source 'email', id 'email:MSGHASH12:QID|general'. Tests patch mail.smtplib.SMTP_SSL/SMTP and mail.imaplib.IMAP4_SSL with in-memory fakes (tests/test_outreach_email.py).
 - Audit: etrace.container.audit.weekly(data_dir, as_of, audits_dir, now=None, language) -> report dict (passed, chains[{kind, root, problems, open}], decisions_without_receipt, receipts_without_readback, samples{applied, not_applicable}, reactions{approved, objected, replied, silence}); writes audits_dir/YYYY-Www.{json,md}. Users reply to a decision by naming its D-id in feedback.
 - Checkpoint: etrace.checkpoint.checkpoint(root_dir, message, remote=None) -> CheckpointResult(committed, commit, initialized, pushed, push_error). root_dir is the user data root (holds journal/, data/, audits/), not Store's data/ dir. Pass cfg.git_remote as remote; None never pushes. Raises CheckpointError if git is missing or a local step fails; push failures only set push_error. Git tests patch GIT_CONFIG_GLOBAL/GIT_CONFIG_NOSYSTEM/HOME and skipUnless(shutil.which('git')).
+- CLI: etrace/cli.py main(argv) -> exit code; every command prints one JSON object on stdout, errors go to stderr as 'error: field: msg'. Exit 0 ok, 1 ran-but-failed (validate problems, email not sent, push error; raise cli.Failure(msg, result)), 2 bad input (raise cli.InputError(list) or a module error listed in cli._INPUT_ERRORS). Config lookup: --config, $ETRACE_CONFIG, ./trace.toml, ~/existence-trace-data/trace.toml. Data root layout: ROOT/{trace.toml, journal, data, audits, charts, presets/NAME}; cli.load_preset prefers ROOT/presets copy. New subcommands: add a cmd_* function + parser entry in build_parser (FILE commands use read_json + check_fields).
+- PAD persistence: pad.record(data_dir, points, now) -> pad.jsonl 'PAD-YYYYMMDD-N' (unchanged points skipped, same date+slot supersedes); pad.points_for(data_dir, date) -> current PadPoints in time order.
 - feedback.jsonl holds both note (source 'note') and email (source 'email') records; note intake only treats source 'note' records as editable/vanishable.
 ---
 ## Hard boundary
@@ -221,4 +223,15 @@
 - **Learnings for future iterations:**
   - Always isolate git tests from the machine's config (signing/hooks/identity would make them flaky).
   - The CLI (US-019) `etrace checkpoint` should call checkpoint(os.path.dirname-of-data or cfg.data_dir root, msg, cfg.git_remote) before and after each task; cfg.data_dir is the root that contains data/.
+---
+
+## 2026-10-07 - US-019
+- Implemented etrace/cli.py (argparse, all 17 commands from the AC) and wired etrace/__main__.py to it. init copies presets/NAME into ROOT/presets, writes a minimal trace.toml (data_dir = "."), seeds the preset rules into rules.json and creates today's note (date in the configured timezone). feedback ingest also marks open questions answered when the entry starts with [Q-id] (and reads email replies when outreach is note+email). outreach send needs --scan ok|failed explicitly. pad chart writes charts/DATE-pad.svg (or YYYY-Www-pad.svg with --week) and replaces the note's ai:pad block with the chart link + slot table; g report replaces ai:g with the item table, B/E/G, calibration status and legend.
+- Added pad.record / pad.points_for (pad.jsonl) since PAD points had no store yet.
+- Files: etrace/cli.py, etrace/__main__.py, etrace/models/pad.py, tests/test_cli.py
+- **Learnings for future iterations:**
+  - In zsh, `E="python3 -m etrace"; $E ...` does not word-split; run smoke scripts with bash.
+  - argparse errors are routed through _Parser.error -> InputError so they exit 2 without SystemExit; --help still returns 0.
+  - cmd_validate turns config/input errors into exit 1 (the AC: validate exits 1 on any failure).
+  - US-020 prompts should tell agents the exact JSON shapes: question add (7 fields), decide {feedback_ids, decision_text, value_source, rule_changes?}, usage add {task, target, rule_version, before, after, status, verified_readback, feedback_ids?, decision_ids?}, pad add {points:[...]}, g predict {date, items}, g feedback {prediction_id, targets?, text?, expressed_at?}, xp score {date, levels, ordinary, events?}.
 ---
