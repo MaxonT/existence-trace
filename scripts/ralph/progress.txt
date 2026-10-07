@@ -18,6 +18,7 @@
 - Feedback: etrace.container.feedback.ingest_notes(journal_dir, data_dir, now=None) -> IngestResult(added, unchanged, errors, ok). Entry id = 'DATE:feedback:sha12'. feedback.current(data_dir, note_date=None) gives latest versions (records not referenced by a later 'supersedes'). Use feedback ids from these records as source_feedback_id / answered feedback_id.
 - Questions: etrace.container.questions.add_question(data_dir, source, date, evidence={'kind': 'quote'|'behavior', 'text'}, candidates=[a, b], uncertainty, dimensions=[...], dedupe_key, now=None) -> id 'Q-YYYYMMDD-N'. follow_up/answer(feedback_id must exist in feedback.jsonl)/skip append event records; get/all_questions/open_questions replay them. daily_status(data_dir, date, scan_ok) -> list or questions.NO_QUESTIONS / SCAN_FAILED.
 - Check-then-append on a JSONL file: `with store.lock():` read_all + validate + store.append_locked(name, record) (Store.append would deadlock on the non-reentrant lock).
+- Decisions/usage: decisions.decide(data_dir, feedback_ids, decision_text, value_source='user'|'agent_decision', rule_changes=[{rule_id, scope, text, expressed_at, source_feedback_id?, reason?}], now) -> 'D-YYYYMMDD-N'; decisions.mark_pending(id, reason). usage.record(data_dir, task, target, rule_version, feedback_ids, decision_ids, before, after, status, verified_readback=True, now) -> 'U-YYYYMMDD-N'. Only usage.applied() (a verified changed/confirmed receipt) means a decision was used; validate.validate(data_dir, now).ok checks the chain.
 ---
 ## Hard boundary
 - NEVER read from or write to ~/protected-dir-1, ~/protected-dir-2, or any Notion workspace while building this project. Work only inside this repository.
@@ -93,4 +94,13 @@
   - Question status is never stored on the question record; always use questions.get/all_questions (replayed), not raw read_all.
   - Status strings are English constants; US-008 should map NO_QUESTIONS/SCAN_FAILED to zh/en display text.
   - answer() checks feedback.jsonl, so tests must ingest a feedback entry first (feedback.ingest_note(dir, date, [text], now=...)).
+---
+
+## 2026-10-07 - US-007
+- Implemented etrace/container/decisions.py (decide validates feedback ids exist, value_source, rule change shape; pre-checks rule id conflicts so a bad change applies nothing, then applies via rules.add_rule and records rule statuses + rules_version; mark_pending appends a 'pending' event), usage.py (record requires verified_readback is True, status in 5 values, changed needs before != after, rule_version <= rules.json version, ids must exist and at least one given; applied() = verified changed|confirmed receipt), validate.py (ValidationResult.problems/ok: answered question w/o stored feedback, decision w/o stored feedback, decision > 2 days old w/o receipt and not pending, unverified receipt on disk).
+- Files: etrace/container/decisions.py, etrace/container/usage.py, etrace/container/validate.py, tests/test_decisions.py
+- **Learnings for future iterations:**
+  - decide() cannot hold the store lock while calling rules.add_rule (non-reentrant lock); rules are applied first, then the decision is appended under the lock.
+  - Any verified receipt (even no_match/blocked) closes the 2-day validate check; only changed/confirmed count as applied. US-017 audit should use usage.applied for "really used".
+  - Tests simulate tampered/legacy data by appending raw JSON lines to *.jsonl.
 ---
