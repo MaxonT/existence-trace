@@ -23,3 +23,16 @@
 - `Ctrl+C` stops the run; commits already made are kept.
 - Check progress with `git log --oneline` or `scripts/ralph/progress.txt`.
 - Never put a real API key in the repo; keep placeholders only.
+
+## Evaluating a token-saving plugin (before and after checklist)
+Run on the owner's local machine. A plugin that cannot show a measured saving stays off.
+1. Read the source first. Check for network calls, `eval`, which paths it writes, and whether it rewrites or blocks tool results (for example Read). Run its own tests if it has any.
+2. Baseline: with the plugin disabled, run `./scripts/ralph/safe-ralph.sh 2` and record the cost of the two rounds (use ccusage or the plan usage page).
+3. Install the plugin, run the same `safe-ralph.sh 2` again from a clean working tree and record the cost.
+4. Compare. Keep the plugin only if all of these hold:
+   - cost per round drops in a clear way, not by noise (repeat once if the gap is small)
+   - both runs finish the same stories with tests passing
+   - no round stalls on a blocked or rewritten read, and the sandbox does not break any hook
+5. If a hook misbehaves under the sandbox, or Ralph needs the full content of a file such as `prd.json`, disable the plugin for Ralph. Keep it for interactive use only.
+6. Install one hook-based plugin at a time. Never stack several that change context.
+7. Never paste real keys into prompts while a plugin that logs prompts is on.
