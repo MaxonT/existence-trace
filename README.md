@@ -21,6 +21,8 @@ The report itself is not the main thing. The **preference container** (`etrace/c
 The system notices where it is unsure, asks you, turns your answer into a rule, uses that rule in
 the next real report, and checks every week that it actually did.
 
+<p align="center"><img src="docs/assets/how-it-works.gif" alt="How existence-trace works: journal, read through PAD/G/XP, ask, decide into a rule, audit weekly" width="100%"></p>
+
 ```
  notice doubt ──> ask you ──> your feedback ──> decide ──> change a rule
       ^                                                         │

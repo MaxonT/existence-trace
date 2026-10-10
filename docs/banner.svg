@@ -2,23 +2,66 @@
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d1117"/><stop offset="1" stop-color="#0a0e14"/></linearGradient>
     <linearGradient id="word" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d9f99d"/><stop offset="0.6" stop-color="#84cc16"/><stop offset="1" stop-color="#4d7c0f"/></linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#84cc16" stop-opacity="0.9"/><stop offset="1" stop-color="#4d7c0f" stop-opacity="0"/></linearGradient>
   </defs>
   <rect width="1280" height="340" fill="url(#bg)"/>
-  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <g stroke="#ffffff" stroke-opacity="0.06" stroke-width="2">
-      <line x1="50" y1="60" x2="50" y2="236"/><line x1="78" y1="60" x2="78" y2="236"/><line x1="106" y1="60" x2="106" y2="236"/><line x1="134" y1="60" x2="134" y2="236"/><line x1="162" y1="60" x2="162" y2="236"/><line x1="190" y1="60" x2="190" y2="236"/><line x1="218" y1="60" x2="218" y2="236"/>
-    </g>
-    <line x1="40" y1="240" x2="228" y2="240" stroke="#30363d" stroke-width="2"/>
-    <polyline points="50,220 78,212 106,203 134,190 162,178 190,162 218,150" stroke="#a371f7" stroke-width="6"/>
-    <polyline points="50,175 78,160 106,165 134,140 162,145 190,125 218,118" stroke="#84cc16" stroke-width="6"/>
-    <polyline points="50,140 78,110 106,125 134,85 162,98 190,70 218,78" stroke="#d9f99d" stroke-width="6"/>
+  <g opacity="0.9">
+<polyline points="1203,26 1222,33 1240,26" fill="none" stroke="#a3e635" stroke-width="3" stroke-opacity="0.55"/>
+<polyline points="1216,41 1228,48 1240,41" fill="none" stroke="#a3e635" stroke-width="3" stroke-opacity="0.55"/>
+<polyline points="1207,56 1224,63 1240,56" fill="none" stroke="#a3e635" stroke-width="3" stroke-opacity="0.55"/>
+<polyline points="1208,71 1224,78 1240,71" fill="none" stroke="#bef264" stroke-width="3" stroke-opacity="0.55"/>
+<polyline points="1215,86 1228,93 1240,86" fill="none" stroke="#d9f99d" stroke-width="3" stroke-opacity="0.55"/>
+<polyline points="1205,101 1223,108 1240,101" fill="none" stroke="#365314" stroke-width="3" stroke-opacity="0.55"/>
+<rect x="60" y="310" width="22" height="3" rx="1.5" fill="#bef264" fill-opacity="0.29"/>
+<rect x="98" y="310" width="22" height="3" rx="1.5" fill="#d9f99d" fill-opacity="0.23"/>
+<rect x="136" y="310" width="22" height="3" rx="1.5" fill="#365314" fill-opacity="0.20"/>
+<rect x="174" y="310" width="22" height="3" rx="1.5" fill="#d9f99d" fill-opacity="0.22"/>
+<rect x="212" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.35"/>
+<rect x="250" y="310" width="22" height="3" rx="1.5" fill="#84cc16" fill-opacity="0.28"/>
+<rect x="288" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.23"/>
+<rect x="326" y="310" width="22" height="3" rx="1.5" fill="#365314" fill-opacity="0.30"/>
+<rect x="364" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.24"/>
+<rect x="402" y="310" width="22" height="3" rx="1.5" fill="#4d7c0f" fill-opacity="0.33"/>
+<rect x="440" y="310" width="22" height="3" rx="1.5" fill="#bef264" fill-opacity="0.22"/>
+<rect x="478" y="310" width="22" height="3" rx="1.5" fill="#4d7c0f" fill-opacity="0.20"/>
+<rect x="516" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.40"/>
+<rect x="554" y="310" width="22" height="3" rx="1.5" fill="#d9f99d" fill-opacity="0.29"/>
+<rect x="592" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.39"/>
+<rect x="630" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.21"/>
+<rect x="668" y="310" width="22" height="3" rx="1.5" fill="#84cc16" fill-opacity="0.27"/>
+<rect x="706" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.27"/>
+<rect x="744" y="310" width="22" height="3" rx="1.5" fill="#4d7c0f" fill-opacity="0.28"/>
+<rect x="782" y="310" width="22" height="3" rx="1.5" fill="#d9f99d" fill-opacity="0.20"/>
+<rect x="820" y="310" width="22" height="3" rx="1.5" fill="#4d7c0f" fill-opacity="0.25"/>
+<rect x="858" y="310" width="22" height="3" rx="1.5" fill="#84cc16" fill-opacity="0.25"/>
+<rect x="896" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.30"/>
+<rect x="934" y="310" width="22" height="3" rx="1.5" fill="#4d7c0f" fill-opacity="0.35"/>
+<rect x="972" y="310" width="22" height="3" rx="1.5" fill="#84cc16" fill-opacity="0.19"/>
+<rect x="1010" y="310" width="22" height="3" rx="1.5" fill="#d9f99d" fill-opacity="0.35"/>
+<rect x="1048" y="310" width="22" height="3" rx="1.5" fill="#84cc16" fill-opacity="0.26"/>
+<rect x="1086" y="310" width="22" height="3" rx="1.5" fill="#d9f99d" fill-opacity="0.37"/>
+<rect x="1124" y="310" width="22" height="3" rx="1.5" fill="#bef264" fill-opacity="0.30"/>
+<rect x="1162" y="310" width="22" height="3" rx="1.5" fill="#a3e635" fill-opacity="0.38"/>
   </g>
   <g>
-    <circle cx="218" cy="78" r="13" fill="#d9f99d" fill-opacity="0.25"/><circle cx="218" cy="78" r="7" fill="#d9f99d"/>
-    <circle cx="218" cy="118" r="13" fill="#84cc16" fill-opacity="0.25"/><circle cx="218" cy="118" r="7" fill="#84cc16"/>
-    <circle cx="218" cy="150" r="13" fill="#a371f7" fill-opacity="0.25"/><circle cx="218" cy="150" r="7" fill="#a371f7"/>
+<polygon points="70,60 90,80 70,100 50,80" fill="#d9f99d"/>
+<polygon points="70,114 90,134 70,154 50,134" fill="#bef264"/>
+<polygon points="70,168 90,188 70,208 50,188" fill="#a3e635"/>
+<polygon points="124,60 144,80 124,100 104,80" fill="#a3e635"/>
+<polygon points="124,114 144,134 124,154 104,134" fill="#bef264"/>
+<polygon points="124,168 144,188 124,208 104,188" fill="#d9f99d"/>
+<polygon points="124,222 144,242 124,262 104,242" fill="#365314"/>
+<polygon points="178,60 198,80 178,100 158,80" fill="#d9f99d"/>
+<polygon points="178,114 198,134 178,154 158,134" fill="#a3e635"/>
+<polygon points="178,168 198,188 178,208 158,188" fill="#84cc16"/>
+<polygon points="178,222 198,242 178,262 158,242" fill="#a3e635"/>
+<polygon points="232,60 252,80 232,100 212,80" fill="#365314"/>
+<polygon points="232,114 252,134 232,154 212,134" fill="#a3e635"/>
+<polygon points="232,168 252,188 232,208 212,188" fill="#4d7c0f"/>
+<polygon points="232,222 252,242 232,262 212,242" fill="#bef264"/>
   </g>
-  <text x="264" y="180" font-family="'Segoe UI',system-ui,-apple-system,sans-serif" font-size="92" font-weight="800" fill="url(#word)" letter-spacing="-1">existence-trace</text>
-  <text x="267" y="228" font-family="'Segoe UI',system-ui,sans-serif" font-size="26" font-weight="600" fill="#c9d1d9">Asks for your feedback. Gets better at being yours every day.</text>
-  <text x="267" y="270" font-family="'SF Mono',ui-monospace,monospace" font-size="20" fill="#a371f7">PAD · G · XP  —  Python stdlib only  —  MIT</text>
+  <text x="340" y="180" font-family="'Segoe UI',system-ui,-apple-system,sans-serif" font-size="92" font-weight="800" fill="url(#word)" letter-spacing="-1">existence-trace</text>
+  <rect x="343" y="194" width="420" height="3" rx="1.5" fill="url(#rule)"/>
+  <text x="343" y="228" font-family="'Segoe UI',system-ui,sans-serif" font-size="26" font-weight="600" fill="#c9d1d9">AI agents that learn to read your journal</text>
+  <text x="343" y="270" font-family="'SF Mono',ui-monospace,monospace" font-size="20" fill="#a371f7">PAD · G · XP · stdlib only · MIT</text>
 </svg>
