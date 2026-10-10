@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" role="img" aria-label="existence-trace">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d1117"/><stop offset="1" stop-color="#0a0e14"/></linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d9f99d"/><stop offset="0.6" stop-color="#84cc16"/><stop offset="1" stop-color="#4d7c0f"/></linearGradient>
+  </defs>
+  <rect width="1280" height="340" fill="url(#bg)"/>
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <g stroke="#ffffff" stroke-opacity="0.06" stroke-width="2">
+      <line x1="50" y1="60" x2="50" y2="236"/><line x1="78" y1="60" x2="78" y2="236"/><line x1="106" y1="60" x2="106" y2="236"/><line x1="134" y1="60" x2="134" y2="236"/><line x1="162" y1="60" x2="162" y2="236"/><line x1="190" y1="60" x2="190" y2="236"/><line x1="218" y1="60" x2="218" y2="236"/>
+    </g>
+    <line x1="40" y1="240" x2="228" y2="240" stroke="#30363d" stroke-width="2"/>
+    <polyline points="50,220 78,212 106,203 134,190 162,178 190,162 218,150" stroke="#a371f7" stroke-width="6"/>
+    <polyline points="50,175 78,160 106,165 134,140 162,145 190,125 218,118" stroke="#84cc16" stroke-width="6"/>
+    <polyline points="50,140 78,110 106,125 134,85 162,98 190,70 218,78" stroke="#d9f99d" stroke-width="6"/>
+  </g>
+  <g>
+    <circle cx="218" cy="78" r="13" fill="#d9f99d" fill-opacity="0.25"/><circle cx="218" cy="78" r="7" fill="#d9f99d"/>
+    <circle cx="218" cy="118" r="13" fill="#84cc16" fill-opacity="0.25"/><circle cx="218" cy="118" r="7" fill="#84cc16"/>
+    <circle cx="218" cy="150" r="13" fill="#a371f7" fill-opacity="0.25"/><circle cx="218" cy="150" r="7" fill="#a371f7"/>
+  </g>
+  <text x="264" y="180" font-family="'Segoe UI',system-ui,-apple-system,sans-serif" font-size="92" font-weight="800" fill="url(#word)" letter-spacing="-1">existence-trace</text>
+  <text x="267" y="228" font-family="'Segoe UI',system-ui,sans-serif" font-size="26" font-weight="600" fill="#c9d1d9">Asks for your feedback. Gets better at being yours every day.</text>
+  <text x="267" y="270" font-family="'SF Mono',ui-monospace,monospace" font-size="20" fill="#a371f7">PAD · G · XP  —  Python stdlib only  —  MIT</text>
+</svg>
