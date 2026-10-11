@@ -24,7 +24,7 @@ import shutil
 import sys
 from zoneinfo import ZoneInfo
 
-from etrace import chart, checkpoint, config, journal, presets, prompts
+from etrace import __version__, chart, checkpoint, config, journal, presets, prompts
 from etrace.adapters import notion, scheduler
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
@@ -552,7 +552,10 @@ def cmd_schedule(ctx, args):
 # --- parser ----------------------------------------------------------------------
 
 def build_parser():
-    p = _Parser(prog="python3 -m etrace", description="existence-trace: a self-improving preference loop.")
+    p = _Parser(prog="etrace", description="existence-trace: record your traces of existence, "
+                                           "with a self-improving preference loop. "
+                                           "(also runs as `python3 -m etrace`)")
+    p.add_argument("--version", action="version", version=f"etrace {__version__}")
     p.add_argument("--config", help="path to trace.toml")
     sub = p.add_subparsers(dest="command", required=True, parser_class=_Parser)
 

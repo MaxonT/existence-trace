@@ -3,6 +3,8 @@
 - Ralph files: PRD is `scripts/ralph/prd.json`, progress log is `scripts/ralph/progress.txt`. Read the Codebase Patterns and Hard boundary sections of the progress log first.
 - Design source of truth: `docs/SYSTEM_DESIGN.md`.
 - Python 3 standard library only. Package: `etrace`. Tests: `python3 -m unittest discover -s tests -v`.
+- Packaging: `pyproject.toml` ships the `etrace` console script. Presets live in `etrace/preset_data/` (inside the package) so they install with it.
+- Website (GitHub Pages from `/docs` on main): `docs/index.html` (everyone), `docs/developers.html`, `docs/install/index.html` (the "give it to your AI" page), `docs/install.sh`. README images are in `docs/img/`. Keep these files free of real emails and `/Users/` paths; `tests/test_privacy.py` scans them.
 
 ## Hard boundary (non-negotiable)
 - Work only inside this repository.

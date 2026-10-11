@@ -13,7 +13,7 @@ import os
 NAMES = ("default", "tiger-method")
 FILES = ("pad.json", "g.json", "xp.json", "rules.json", "question_templates.json")
 LANGUAGES = ("zh", "en")
-PRESETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "presets")
+PRESETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "preset_data")
 
 PAD_AXES = ("P", "A", "D")
 PAD_BANDS = ("low", "mid", "high")

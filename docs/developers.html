@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>existence-trace for developers: architecture and internals</title>
+<link rel="canonical" href="https://maxont.github.io/existence-trace/developers.html">
+<meta name="description" content="How the existence-trace repository implements a self-correcting personal state system. existence-trace 仓库如何实现一个会自我纠正的个人状态系统。">
+<script>
+(function(){
+  var l='zh';
+  try{var s=localStorage.getItem('et_lang'); if(s==='zh'||s==='en') l=s; else if(!/^zh/i.test(navigator.language||'')) l='en';}
+  catch(e){ if(!/^zh/i.test(navigator.language||'')) l='en'; }
+  document.documentElement.setAttribute('data-lang',l);
+  document.documentElement.lang=l==='zh'?'zh-CN':'en';
+})();
+</script>
+<style>
+:root{
+  --bg:#fbf8f3; --card:#ffffff; --ink:#2a2522; --muted:#6d655f; --line:#e7dfd5; --soft:#f4eee5;
+  --p:#d6336c; --a:#e08600; --d:#1c7ed6; --g:#2b9a66; --accent:#d6336c;
+  --shadow:0 1px 2px rgba(60,40,20,.06),0 8px 24px rgba(60,40,20,.07);
+  --code:#1e1b19; --codeink:#f2ece4;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#161418; --card:#211e25; --ink:#eee9e4; --muted:#a69da0; --line:#38333d; --soft:#1c1a20;
+    --p:#f06595; --a:#ffa94d; --d:#5aa9ff; --g:#51cf9a; --accent:#f06595;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+    --code:#0f0e11; --codeink:#efe9e2;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161418; --card:#211e25; --ink:#eee9e4; --muted:#a69da0; --line:#38333d; --soft:#1c1a20;
+  --p:#f06595; --a:#ffa94d; --d:#5aa9ff; --g:#51cf9a; --accent:#f06595;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+  --code:#0f0e11; --codeink:#efe9e2;
+}
+html[data-lang="zh"] [lang="en"]{display:none!important}
+html[data-lang="en"] [lang="zh"]{display:none!important}
+*{box-sizing:border-box}
+body{overflow-x:clip}
+.big-step>div,.paper,.card,.tool,.day>*{min-width:0}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--ink); line-height:1.7; font-size:16px;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Segoe UI",Roboto,sans-serif;
+}
+a{color:var(--accent)}
+.wrap{max-width:1040px; margin:0 auto; padding:0 20px}
+nav{
+  position:sticky; top:0; z-index:30; backdrop-filter:blur(10px);
+  background:color-mix(in srgb,var(--bg) 82%,transparent); border-bottom:1px solid var(--line);
+}
+nav .wrap{display:flex; align-items:center; gap:14px; height:56px}
+nav b{font-size:15px; white-space:nowrap}
+nav .links{display:flex; gap:16px; flex:1; overflow:auto; scrollbar-width:none}
+nav .links a{color:var(--muted); text-decoration:none; font-size:14px; white-space:nowrap}
+nav .links a:hover{color:var(--ink)}
+.pill{
+  font:inherit; font-size:13px; padding:5px 12px; border-radius:99px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink); text-decoration:none; white-space:nowrap; cursor:pointer;
+}
+.pill:hover{border-color:var(--accent)}
+.pill.lang{font-weight:700}
+header.hero{padding:72px 0 40px; position:relative; overflow:hidden}
+.eyebrow{font-size:13px; letter-spacing:.14em; color:var(--muted); text-transform:uppercase}
+h1{font-size:clamp(30px,5.2vw,54px); line-height:1.18; margin:12px 0 18px; letter-spacing:-.01em}
+h1 em{font-style:normal; background:linear-gradient(100deg,var(--p),var(--a),var(--d)); -webkit-background-clip:text; background-clip:text; color:transparent}
+.lead{font-size:clamp(16px,2.1vw,20px); color:var(--muted); max-width:720px}
+.cta{display:flex; gap:10px; flex-wrap:wrap; margin:26px 0 18px}
+.btn{
+  display:inline-block; padding:11px 20px; border-radius:12px; text-decoration:none; font-weight:600; font-size:15px;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+}
+.btn.main{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.chips{display:flex; gap:8px; flex-wrap:wrap}
+.chip{font-size:13px; padding:4px 11px; border-radius:99px; background:var(--soft); color:var(--muted); border:1px solid var(--line)}
+.hero svg.deco{position:absolute; right:-40px; top:30px; width:min(560px,60vw); opacity:.55; pointer-events:none}
+section{padding:54px 0}
+section h2{font-size:clamp(24px,3.4vw,34px); margin:0 0 8px; letter-spacing:-.005em}
+section .sub{color:var(--muted); margin:0 0 26px; max-width:720px}
+.grid{display:grid; gap:16px}
+.g3{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 22px; box-shadow:var(--shadow)}
+.card h3{margin:0 0 6px; font-size:18px}
+.card p{margin:6px 0; color:var(--muted); font-size:15px}
+.tag{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.04em; padding:2px 9px; border-radius:99px; color:#fff; margin-bottom:10px}
+.ring{display:flex; flex-wrap:wrap; gap:10px; counter-reset:s}
+.step{
+  flex:1 1 130px; min-width:128px; background:var(--card); border:1px solid var(--line); border-radius:16px;
+  padding:14px; position:relative; box-shadow:var(--shadow); counter-increment:s;
+}
+.step::before{
+  content:counter(s); display:inline-flex; width:24px; height:24px; border-radius:50%; align-items:center; justify-content:center;
+  background:var(--accent); color:#fff; font-size:13px; font-weight:700; margin-bottom:6px;
+}
+.step b{display:block; font-size:15px}
+.step span.d{font-size:13.5px; color:var(--muted)}
+.notbox{border:1px dashed var(--line); border-radius:16px; padding:16px 20px; margin-top:20px; color:var(--muted); background:var(--soft)}
+.notbox b{color:var(--ink)}
+.tabs{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap}
+.tabs button{font:inherit; padding:8px 16px; border-radius:99px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; font-weight:600}
+.tabs button[aria-selected="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.day{display:grid; gap:16px; grid-template-columns:minmax(0,5fr) minmax(0,7fr)}
+@media (max-width:860px){.day{grid-template-columns:1fr}}
+.paper{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 22px; box-shadow:var(--shadow)}
+.paper h4{margin:0 0 10px; font-size:13px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase}
+.quote{border-left:4px solid var(--p); padding:4px 0 4px 14px; margin:8px 0; color:var(--ink); white-space:pre-line}
+.chart{background:#f3f5f7; border-radius:12px; overflow:hidden; border:1px solid var(--line)}
+.chart svg{display:block; width:100%; height:auto}
+.kpis{display:flex; gap:10px; flex-wrap:wrap; margin:12px 0}
+.kpi{flex:1 1 110px; background:var(--soft); border:1px solid var(--line); border-radius:14px; padding:10px 14px}
+.kpi small{display:block; color:var(--muted); font-size:12px}
+.kpi b{font-size:26px; line-height:1.2}
+table.t{border-collapse:collapse; width:100%; font-size:14px; margin:8px 0}
+table.t th,table.t td{border-bottom:1px solid var(--line); padding:6px 8px; text-align:left}
+table.t th{color:var(--muted); font-weight:600; font-size:12.5px}
+.note{font-size:13.5px; color:var(--muted); margin:8px 0 0}
+.callout{border-radius:14px; padding:12px 16px; margin-top:12px; background:color-mix(in srgb,var(--a) 12%,var(--card)); border:1px solid color-mix(in srgb,var(--a) 40%,var(--line)); font-size:14.5px}
+.story{margin-top:26px; border-left:3px solid var(--line); padding-left:22px; display:grid; gap:16px}
+.beat{position:relative}
+.beat::before{content:""; position:absolute; left:-30px; top:6px; width:13px; height:13px; border-radius:50%; background:var(--accent); border:3px solid var(--bg)}
+.beat time{font-size:12.5px; color:var(--muted); letter-spacing:.06em}
+.beat b{display:block}
+.beat p{margin:3px 0; color:var(--muted); font-size:14.5px; white-space:pre-line}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.beat code,.card code,.big-step code,.callout code,p code{background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:13px}
+.clock{display:grid; gap:10px}
+.slot{display:grid; grid-template-columns:104px 1fr; gap:14px; align-items:start; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 16px}
+.slot .tm{font-weight:700; font-size:18px}
+.slot .tm small{display:block; font-size:12px; color:var(--muted); font-weight:500}
+.slot p{margin:0; color:var(--muted); font-size:14.5px}
+.slot b{color:var(--ink)}
+.play{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(310px,1fr))}
+.tool{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px 20px; box-shadow:var(--shadow)}
+.tool h3{margin:0 0 4px; font-size:17px}
+.tool .hint{font-size:13px; color:var(--muted); margin:0 0 12px}
+.row{display:grid; grid-template-columns:132px 1fr 36px; gap:8px; align-items:center; font-size:14px; margin:5px 0}
+.row.g{grid-template-columns:140px 1fr 28px 58px}
+.row output{text-align:right; font-weight:700}
+.row label.blank{font-size:12px; color:var(--muted); display:flex; align-items:center; gap:3px; justify-self:end}
+input[type=range]{width:100%; accent-color:var(--accent)}
+.result{margin-top:12px; padding:12px 14px; border-radius:14px; background:var(--soft); border:1px solid var(--line)}
+.result .big{font-size:32px; font-weight:800; line-height:1.15}
+.result small{color:var(--muted)}
+.word{font-size:36px; font-weight:800; letter-spacing:.03em}
+.num{width:70px; padding:4px 6px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit}
+.codebox{position:relative; background:var(--code); color:var(--codeink); border-radius:14px; padding:14px 16px; margin:10px 0; overflow:auto}
+.codebox pre{margin:0; font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre}
+.codebox button{position:absolute; top:8px; right:8px; font:12px inherit; font-family:inherit; padding:3px 9px; border-radius:7px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:inherit; cursor:pointer}
+.codebox button .ok{display:none}
+.codebox button.done .ok{display:inline}
+.codebox button.done span:not(.ok){display:none!important}
+.steps{display:grid; gap:18px}
+.big-step{display:grid; grid-template-columns:44px 1fr; gap:14px}
+.big-step .n{width:40px; height:40px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:18px}
+.big-step h3{margin:2px 0 4px; font-size:19px}
+.big-step p{margin:4px 0; color:var(--muted)}
+.zones{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); margin:10px 0}
+.zone{border:1px solid var(--line); border-radius:14px; padding:10px 14px; background:var(--card)}
+.zone b{display:block; font-size:14.5px}
+.zone span.d{font-size:13px; color:var(--muted)}
+details{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:2px 18px; margin:8px 0}
+details summary{cursor:pointer; padding:12px 0; font-weight:600; list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+"; float:right; color:var(--muted)}
+details[open] summary::after{content:"\2212"}
+details p{margin:0 0 14px; color:var(--muted)}
+.promise{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.promise .card h3{font-size:16.5px}
+.warn{border-radius:16px; padding:16px 20px; background:color-mix(in srgb,var(--d) 9%,var(--card)); border:1px solid color-mix(in srgb,var(--d) 35%,var(--line)); color:var(--ink); font-size:15px}
+footer{padding:36px 0 60px; border-top:1px solid var(--line); color:var(--muted); font-size:14px}
+footer .wrap{display:flex; gap:16px; flex-wrap:wrap; justify-content:space-between; align-items:center}
+@media (max-width:640px){
+  nav .links{display:none}
+  nav .wrap{gap:8px}
+  nav b{font-size:14px}
+  nav .pill{padding:4px 9px;font-size:12px}
+  nav .pill.dev{display:none}
+  .codebox pre{font-size:12px}
+  nav .wrap{justify-content:space-between}
+  header.hero{padding-top:44px}
+  .slot{grid-template-columns:1fr}
+  .row{grid-template-columns:104px 1fr 30px}
+  .row.g{grid-template-columns:112px 1fr 24px 52px}
+}
+
+section{padding:46px 0}
+.sec-n{font:700 12px ui-monospace,Menlo,monospace; letter-spacing:.12em; color:var(--accent); margin-bottom:4px}
+.stats{display:flex; gap:12px; flex-wrap:wrap; margin:24px 0 8px}
+.stat{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 16px; min-width:120px}
+.stat b{display:block; font-size:26px; line-height:1.15}
+.stat small{color:var(--muted)}
+.tbl{width:100%; border-collapse:collapse; font-size:14px}
+.tbl th,.tbl td{border-bottom:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+.tbl th{font-size:12.5px; color:var(--muted); font-weight:600; position:sticky; top:56px; background:var(--bg)}
+.tbl td:first-child{white-space:nowrap}
+.scroll{overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:var(--card)}
+.scroll .tbl th{background:var(--card)}
+code.k{font:12.5px ui-monospace,Menlo,Consolas,monospace; background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:1px 6px}
+.lay{display:inline-block; font-size:11.5px; font-weight:700; padding:1px 8px; border-radius:99px; color:#fff; white-space:nowrap}
+.bar{height:10px; border-radius:6px; background:var(--accent); display:block}
+.barrow{display:grid; grid-template-columns:150px 1fr 34px; gap:10px; align-items:center; font-size:13px; margin:4px 0}
+.barrow span.n{text-align:right; font-weight:700}
+.diagram{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px; box-shadow:var(--shadow); overflow-x:auto}
+.diagram svg{display:block; width:100%; min-width:760px; height:auto}
+.diagram .box{fill:var(--soft); stroke:var(--line); stroke-width:1.3}
+.diagram .agent{fill:color-mix(in srgb,var(--a) 14%,var(--card)); stroke:var(--a)}
+.diagram .cli{fill:color-mix(in srgb,var(--p) 12%,var(--card)); stroke:var(--p)}
+.diagram .dom{fill:color-mix(in srgb,var(--d) 10%,var(--card)); stroke:var(--d)}
+.diagram .core{fill:color-mix(in srgb,var(--g) 12%,var(--card)); stroke:var(--g)}
+.diagram .disk{fill:var(--code); stroke:var(--code)}
+.diagram text{fill:var(--ink); font:13px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+.diagram text.t{font-weight:700; font-size:14px}
+.diagram text.s{fill:var(--muted); font-size:11.5px}
+.diagram text.m{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11.5px}
+.diagram .disk-t{fill:var(--codeink)}
+.diagram line,.diagram path.ar{stroke:var(--muted); stroke-width:1.6; fill:none; marker-end:url(#arr)}
+.diagram marker path{fill:var(--muted)}
+.tabbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px}
+.tabbar button{font:inherit; font-size:14px; padding:6px 14px; border-radius:99px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer}
+.tabbar button[aria-selected="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.pane{display:none}
+.pane.on{display:block}
+.two{display:grid; gap:16px; grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+.codebox pre{font-size:12.5px}
+.codebox .cap{font:11px ui-monospace,Menlo,monospace; color:#9a9096; margin-bottom:6px; display:block}
+.err pre{color:#ffb4b4}
+.ok pre{color:#b7f0c9}
+ol.life{counter-reset:l; list-style:none; padding:0; margin:0; display:grid; gap:10px}
+ol.life li{counter-increment:l; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 16px 12px 54px; position:relative}
+ol.life li::before{content:counter(l); position:absolute; left:14px; top:12px; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; font-size:14px}
+ol.life li b{display:block}
+ol.life li span{color:var(--muted); font-size:14px}
+.prin td:first-child{font-weight:700; text-align:center}
+.filters{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; align-items:center}
+.filters input{font:inherit; padding:7px 12px; border-radius:99px; border:1px solid var(--line); background:var(--card); color:var(--ink); min-width:220px}
+.layers{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.layers .card h3{font-size:16px}
+.fine{font-size:13px; color:var(--muted)}
+.two>*,.layers>*{min-width:0}
+code.k{overflow-wrap:anywhere}
+ol.life li{min-width:0}
+.codebox{max-width:100%}
+@media (max-width:640px){
+  nav .links{display:none}
+  nav .wrap{gap:8px; justify-content:space-between}
+  nav b{font-size:14px}
+  nav .pill{padding:4px 9px; font-size:12px}
+  nav .pill.dev{display:none}
+  header.hero{padding-top:44px}
+  .barrow{grid-template-columns:104px 1fr 30px}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <b>existence-trace</b>
+    <div class="links">
+      <a href="#arch"><span lang="zh">架构</span><span lang="en">Architecture</span></a><a href="#cli">CLI</a><a href="#data"><span lang="zh">数据</span><span lang="en">Data</span></a><a href="#journal"><span lang="zh">日记保护</span><span lang="en">Journal guard</span></a><a href="#principles"><span lang="zh">九条原则</span><span lang="en">Principles</span></a><a href="#models">PAD · G · XP</a><a href="#chain"><span lang="zh">偏好容器</span><span lang="en">Container</span></a><a href="#agent"><span lang="zh">代理契约</span><span lang="en">Agent contract</span></a><a href="#tests"><span lang="zh">测试</span><span lang="en">Tests</span></a><a href="#extend"><span lang="zh">扩展</span><span lang="en">Extend</span></a><a href="#ralph">Ralph</a>
+    </div>
+    <a class="pill" href="install/"><span lang="zh">安装</span><span lang="en">Install</span></a>
+    <a class="pill dev" href="index.html"><span lang="zh">大众版</span><span lang="en">For everyone</span></a>
+    <button class="pill lang" id="lang" aria-label="language"><span lang="zh">English</span><span lang="en">中文</span></button>
+    <button class="pill" id="theme"><span lang="zh">深浅色</span><span lang="en">Light/Dark</span></button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">existence-trace · <span lang="zh">开发者版</span><span lang="en">developer guide</span></div>
+    <h1><span lang="zh">这个仓库如何实现<br><em>「让系统学会读懂你，并证明它学会了」</em></span><span lang="en">How the repository implements<br><em>"a system that learns to read you, and proves it"</em></span></h1>
+    <p class="lead"><span lang="zh">核心想法只有一句：让 LLM 去判断，让确定性的引擎去计算、校验、去重、拒绝坏输入。仓库里的每个模块都是在把某个承诺变成代码，并且让测试能抓住它被违反的瞬间。</span><span lang="en">The core idea fits in one sentence: let the LLM judge, and let a deterministic engine compute, validate, de-duplicate and reject bad input. Every module in the repository turns one promise into code, so that a test can catch the moment it is broken.</span></p>
+    <div class="stats">
+      <div class="stat"><b>5,883</b><small><span lang="zh">行 Python（etrace 包）</span><span lang="en">lines of Python (etrace)</span></small></div>
+      <div class="stat"><b>0</b><small><span lang="zh">第三方依赖</span><span lang="en">third-party dependencies</span></small></div>
+      <div class="stat"><b>17 / 22</b><small><span lang="zh">顶层命令 / 子命令</span><span lang="en">top-level / sub-commands</span></small></div>
+      <div class="stat"><b>372</b><small><span lang="zh">个测试，分布在 24 个文件</span><span lang="en">tests across 24 files</span></small></div>
+      <div class="stat"><b>24</b><small><span lang="zh">条 PRD 用户故事，全部通过</span><span lang="en">PRD user stories, all passing</span></small></div>
+    </div>
+    <div class="chips"><span class="chip">Python 3.11+ stdlib</span><span class="chip">unittest</span><span class="chip">JSONL + Markdown + TOML</span><span class="chip">argparse CLI</span><span class="chip"><span lang="zh">本页的所有输出都来自真实运行</span><span lang="en">every output on this page is a real run</span></span></div>
+  </div>
+</header>
+
+<section id="arch" style="background:var(--soft)">
+  <div class="wrap">
+    <div class="sec-n">01</div>
+    <h2><span lang="zh">架构：谁判断，谁把关</span><span lang="en">Architecture: who judges, who guards</span></h2>
+    <p class="sub"><span lang="zh">代理（Codex、Claude Code 或 cron 调起的 claude）只通过 <code class="k">python3 -m etrace</code> 与系统交互，不直接改数据文件。引擎一旦发现 JSON 不合格就以 <code class="k">field: message</code> 的形式退回，代理据此重试。</span><span lang="en">The agent (Codex, Claude Code, or claude started by cron) talks to the system only through <code class="k">python3 -m etrace</code> and never edits data files directly. When the engine finds invalid JSON it sends it back as <code class="k">field: message</code> lines, and the agent retries from them.</span></p>
+    <div class="diagram">
+<svg viewBox="0 0 900 600" role="img" aria-label="architecture">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="box agent" x="20" y="14" width="860" height="72" rx="14"/>
+<text class="t" x="40" y="40" lang="zh">代理层：只做判断</text><text class="t" x="40" y="40" lang="en">Agent layer: judgement only</text>
+<text class="s" x="40" y="62" lang="zh">Codex / Claude Code / cron，每个任务一段短提示词（prompts/，zh/en，不超过 6000 字符）</text><text class="s" x="40" y="62" lang="en">Codex / Claude Code / cron, one short prompt per task (prompts/, zh/en, at most 6000 characters)</text>
+<text class="m" x="560" y="40">python3 -m etrace prompt daily --raw</text>
+<line x1="450" y1="86" x2="450" y2="116"/>
+<text class="s" x="462" y="106" lang="zh">JSON 进 / JSON 出 / 退出码 0·1·2</text><text class="s" x="462" y="106" lang="en">JSON in / JSON out / exit code 0·1·2</text>
+<rect class="box cli" x="20" y="118" width="860" height="62" rx="14"/>
+<text class="t" x="40" y="144">cli.py (719)</text>
+<text class="s" x="40" y="164" lang="zh">argparse 子命令，Context（配置、存储、预设、时钟），把领域异常统一翻译成退出码</text><text class="s" x="40" y="164" lang="en">argparse sub-commands, Context (config, store, preset, clock), maps domain exceptions to exit codes</text>
+<line x1="450" y1="180" x2="450" y2="206"/>
+<rect class="box dom" x="20" y="208" width="205" height="168" rx="14"/>
+<text class="t" x="36" y="232">models/</text>
+<text class="m" x="36" y="254">pad.py (300)</text><text class="m" x="36" y="272">g.py (584)</text><text class="m" x="36" y="290">xp.py (237)</text><text class="m" x="36" y="308">chart.py (181)</text>
+<text class="s" x="36" y="334" lang="zh">PAD · G · XP 的计算</text><text class="s" x="36" y="334" lang="en">PAD, G, XP maths</text>
+<text class="s" x="36" y="352" lang="zh">与 SVG 图</text><text class="s" x="36" y="352" lang="en">and the SVG chart</text>
+<rect class="box dom" x="238" y="208" width="215" height="168" rx="14"/>
+<text class="t" x="254" y="232">container/</text>
+<text class="m" x="254" y="252">questions · feedback</text><text class="m" x="254" y="270">decisions · rules</text><text class="m" x="254" y="288">usage · validate</text><text class="m" x="254" y="306">audit (402)</text>
+<text class="s" x="254" y="334" lang="zh">偏好容器：</text><text class="s" x="254" y="334" lang="en">preference container:</text>
+<text class="s" x="254" y="352" lang="zh">提问到审计的整条链</text><text class="s" x="254" y="352" lang="en">question to audit chain</text>
+<rect class="box dom" x="466" y="208" width="200" height="168" rx="14"/>
+<text class="t" x="482" y="232">outreach/</text>
+<text class="m" x="482" y="254">note.py (265)</text><text class="m" x="482" y="272">email.py (502)</text>
+<text class="s" x="482" y="300" lang="zh">把问题与决定报告</text><text class="s" x="482" y="300" lang="en">puts questions and the</text>
+<text class="s" x="482" y="318" lang="zh">写进笔记，可选发邮件</text><text class="s" x="482" y="318" lang="en">decision report in the note</text>
+<text class="s" x="482" y="336" lang="zh">并读回复</text><text class="s" x="482" y="336" lang="en">optionally by email</text>
+<rect class="box dom" x="679" y="208" width="201" height="168" rx="14"/>
+<text class="t" x="695" y="232">adapters/ + misc</text>
+<text class="m" x="695" y="254">scheduler.py (193)</text><text class="m" x="695" y="272">notion.py (370)</text><text class="m" x="695" y="290">checkpoint.py (136)</text><text class="m" x="695" y="308">presets.py (260)</text><text class="m" x="695" y="326">config.py (167)</text>
+<text class="s" x="695" y="352" lang="zh">只写文件，不安装</text><text class="s" x="695" y="352" lang="en">write files, never install</text>
+<line x1="450" y1="376" x2="450" y2="410"/>
+<rect class="box core" x="20" y="412" width="860" height="84" rx="14"/>
+<text class="t" x="40" y="438" lang="zh">地基：两个把关者</text><text class="t" x="40" y="438" lang="en">Foundation: two gatekeepers</text>
+<text class="m" x="40" y="462">journal.py (389)</text><text class="s" x="170" y="462" lang="zh">受保护块的哈希比对，保存后读回</text><text class="s" x="170" y="462" lang="en">protected block hashing, read back after save</text>
+<text class="m" x="40" y="482">store.py (164)</text><text class="s" x="170" y="482" lang="zh">只追加的 JSONL，锁文件，原子替换</text><text class="s" x="170" y="482" lang="en">append-only JSONL, lock file, atomic replace</text>
+<line x1="450" y1="496" x2="450" y2="524"/>
+<rect class="box disk" x="20" y="526" width="860" height="62" rx="14"/>
+<text class="t disk-t" x="40" y="552" lang="zh">用户数据目录（在仓库之外）</text><text class="t disk-t" x="40" y="552" lang="en">The user's data directory (outside the repo)</text>
+<text class="m disk-t" x="40" y="574">journal/*.md   data/*.jsonl   data/rules.json   charts/*.svg   audits/*.md|json   .git (local)</text>
+</svg>
+    </div>
+    <div class="layers" style="margin-top:18px">
+      <div class="card"><h3><span lang="zh">为什么这样分层</span><span lang="en">Why these layers</span></h3><p><span lang="zh">代理会犯错，所以每一条写入都要穿过引擎的校验。引擎不懂语义，但懂结构、来源、去重和时间顺序，这些恰好是 LLM 最容易悄悄违反的东西。</span><span lang="en">Agents make mistakes, so every write passes through the engine's validation. The engine knows no semantics, but it knows structure, provenance, de-duplication and ordering, which are exactly what an LLM breaks most quietly.</span></p></div>
+      <div class="card"><h3><span lang="zh">统一的函数形状</span><span lang="en">One shape for every module</span></h3><p><span lang="zh">几乎每个模块都接受 <code class="k">data_dir</code>（路径或 Store），内部用 <code class="k">with store.lock()</code> 读改写，错误统一成带 <code class="k">.errors</code> 列表的异常类，每个文件头的 docstring 就是这个模块的规格书。</span><span lang="en">Nearly every module takes <code class="k">data_dir</code> (a path or a Store), does read-modify-write inside <code class="k">with store.lock()</code>, and raises an exception class carrying an <code class="k">.errors</code> list. The docstring at the top of each file is that module's specification.</span></p></div>
+      <div class="card"><h3><span lang="zh">依赖方向</span><span lang="en">Dependency direction</span></h3><p><span lang="zh">只允许向下依赖：cli 依赖领域模块，领域模块依赖 presets、journal 与 store，store 不依赖任何东西。适配器（邮件、Notion、调度器）都是可选的叶子，不装它们核心照样运行。</span><span lang="en">Dependencies point only downwards: cli depends on domain modules, domain modules on presets, journal and store, and store on nothing. Adapters (email, Notion, scheduler) are optional leaves; the core runs without them.</span></p></div>
+    </div>
+    <h3 style="margin:34px 0 10px"><span lang="zh">模块地图</span><span lang="en">Module map</span></h3>
+    <div class="filters"><input id="mq" placeholder="filter / 筛选…"><span id="mchips"></span></div>
+    <div class="scroll"><table class="tbl"><thead><tr><th><span lang="zh">文件</span><span lang="en">File</span></th><th><span lang="zh">行数</span><span lang="en">Lines</span></th><th><span lang="zh">层</span><span lang="en">Layer</span></th><th><span lang="zh">职责</span><span lang="en">Responsibility</span></th></tr></thead><tbody id="mbody"></tbody></table></div>
+  </div>
+</section>
+
+<section id="cli">
+  <div class="wrap">
+    <div class="sec-n">02</div>
+    <h2><span lang="zh">一次 CLI 调用的一生</span><span lang="en">Life of one CLI call</span></h2>
+    <p class="sub"><span lang="zh">退出码是代理与引擎之间最重要的契约：<b>2 表示你的输入错了</b>（按 <code class="k">error:</code> 行修，最多重试两次），<b>1 表示命令跑了但失败了</b>（不要掩盖），<b>0 才是成功</b>。<code class="k">validate</code> 是例外：它把一切失败都归为 1。</span><span lang="en">The exit code is the most important contract between agent and engine: <b>2 means your input was wrong</b> (fix it from the <code class="k">error:</code> lines, at most two retries), <b>1 means the command ran but failed</b> (do not hide it), and <b>0 is success</b>. <code class="k">validate</code> is the exception: it maps every failure to 1.</span></p>
+    <div class="two">
+      <ol class="life">
+        <li><b>build_parser().parse_args(argv)</b><span><span lang="zh">argparse 的错误被改写成 InputError，列出每个 <code class="k">error:</code> 行，退出码 2。</span><span lang="en">argparse errors are rewritten as InputError and printed as <code class="k">error:</code> lines, exit 2.</span></span></li>
+        <li><b>config.load(find_config(...))</b><span><span lang="zh">按 <code class="k">--config</code>、<code class="k">$ETRACE_CONFIG</code>、当前目录的顺序找 trace.toml；未知键直接报错，不静默回退。</span><span lang="en">trace.toml is found via <code class="k">--config</code>, <code class="k">$ETRACE_CONFIG</code>, then the current directory; an unknown key is an error, never a silent default.</span></span></li>
+        <li><b>Context(cfg)</b><span><span lang="zh">懒加载 Store、预设和时钟，所有命令共用，测试里可以注入固定时间。</span><span lang="en">Lazily builds the Store, the preset and the clock for all commands; tests can inject a fixed time.</span></span></li>
+        <li><b>cmd_*(ctx, args)</b><span><span lang="zh">读代理给的 JSON 文件，<code class="k">check_fields</code> 先挡住缺字段和多余字段，再交给领域模块。</span><span lang="en">Reads the agent's JSON file; <code class="k">check_fields</code> stops missing and unknown fields before the domain module sees them.</span></span></li>
+        <li><b><span lang="zh">异常归类</span><span lang="en">Exception mapping</span></b><span><span lang="zh">领域异常（PadError、XPError、DecisionError...）全部带 <code class="k">.errors</code>，统一成退出码 2；<code class="k">StoreError</code>、<code class="k">OSError</code>、<code class="k">CheckpointError</code> 则是 1。</span><span lang="en">Domain exceptions (PadError, XPError, DecisionError...) all carry <code class="k">.errors</code> and become exit 2; <code class="k">StoreError</code>, <code class="k">OSError</code> and <code class="k">CheckpointError</code> become exit 1.</span></span></li>
+        <li><b>_print(result)</b><span><span lang="zh">成功时只向 stdout 打印一个 JSON 对象，便于代理解析。</span><span lang="en">On success exactly one JSON object goes to stdout, easy for the agent to parse.</span></span></li>
+      </ol>
+      <div>
+        <div class="codebox err"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><span class="cap">$ python3 -m etrace pad add bad_pad.json   # exit 2</span><pre>error: points[0].P: must be within 0-5, got 9
+error: points[0].source: required for model_inference
+error: points[0].confidence: required for model_inference
+error: points[1].bogus: unknown field</pre></div>
+        <div class="codebox ok"><span class="cap">$ python3 -m etrace validate   # exit 0</span><pre>{
+  "ok": true,
+  "problems": []
+}</pre></div>
+        <div class="codebox"><span class="cap">cli.py main(), trimmed</span><pre>except InputError as exc:
+    for line in exc.errors:
+        err.write(f"error: {line}\n")
+    return 1 if is_validate else 2
+except Failure as exc:
+    ...                        # ran, but failed
+    return 1
+except _INPUT_ERRORS as exc:   # domain errors with .errors
+    ...
+    return 1 if is_validate else 2
+except (StoreError, checkpoint.CheckpointError, OSError) as exc:
+    err.write(f"failed: {exc}\n")
+    return 1</pre></div>
+      </div>
+    </div>
+    <h3 style="margin:30px 0 10px"><span lang="zh">17 个顶层命令</span><span lang="en">The 17 top-level commands</span></h3>
+    <div class="scroll"><table class="tbl"><thead><tr><th><span lang="zh">命令</span><span lang="en">Command</span></th><th><span lang="zh">做什么</span><span lang="en">What it does</span></th><th><span lang="zh">落到哪个模块</span><span lang="en">Module</span></th></tr></thead><tbody>
+      <tr><td><code class="k">init</code></td><td><span lang="zh">从预设创建新数据目录、配置和今天的笔记</span><span lang="en">Creates a data directory, config and today's note from a preset</span></td><td>cli, presets, journal</td></tr>
+      <tr><td><code class="k">note new | write</code></td><td><span lang="zh">建笔记；只替换某个 ai 块并读回</span><span lang="en">Create a note; replace one ai block and read it back</span></td><td>journal</td></tr>
+      <tr><td><code class="k">question add</code></td><td><span lang="zh">登记带证据的提问，去重</span><span lang="en">Files an evidence-backed question, de-duplicated</span></td><td>container/questions</td></tr>
+      <tr><td><code class="k">feedback ingest</code></td><td><span lang="zh">从笔记反馈区取入反馈，并给被回答的问题收尾</span><span lang="en">Ingests feedback from notes and closes answered questions</span></td><td>container/feedback</td></tr>
+      <tr><td><code class="k">decide</code></td><td><span lang="zh">写入决定及其规则变更</span><span lang="en">Stores a decision and its rule changes</span></td><td>container/decisions, rules</td></tr>
+      <tr><td><code class="k">usage add</code></td><td><span lang="zh">写使用回执，必须读回核对</span><span lang="en">Stores a usage receipt, which must be read back</span></td><td>container/usage</td></tr>
+      <tr><td><code class="k">outreach send</code></td><td><span lang="zh">把问题与决定报告写进笔记，可选邮件</span><span lang="en">Writes questions and the decision report into the note, optionally by email</span></td><td>outreach/note, email</td></tr>
+      <tr><td><code class="k">pad add | chart</code></td><td><span lang="zh">记录 PAD 读数；画 SVG 并写回 ai:pad 块</span><span lang="en">Records PAD readings; draws the SVG and writes the ai:pad block</span></td><td>models/pad, chart</td></tr>
+      <tr><td><code class="k">g predict | feedback | report</code></td><td><span lang="zh">冻结预测；记录对预测的反馈；生成 G 报告块</span><span lang="en">Freezes a prediction; records feedback on it; builds the G report block</span></td><td>models/g</td></tr>
+      <tr><td><code class="k">xp score</code></td><td><span lang="zh">计分并追加新版本</span><span lang="en">Scores a day and appends a revision</span></td><td>models/xp</td></tr>
+      <tr><td><code class="k">audit weekly</code></td><td><span lang="zh">生成周审计 md 与 json</span><span lang="en">Writes the weekly audit as md and json</span></td><td>container/audit</td></tr>
+      <tr><td><code class="k">checkpoint</code></td><td><span lang="zh">本地 git 提交，没变化就不提交</span><span lang="en">Local git commit, none when nothing changed</span></td><td>checkpoint</td></tr>
+      <tr><td><code class="k">rules list</code></td><td><span lang="zh">列出生效规则（可按作用域）</span><span lang="en">Lists active rules, optionally by scope</span></td><td>container/rules</td></tr>
+      <tr><td><code class="k">prompt</code></td><td><span lang="zh">渲染某个任务的代理提示词</span><span lang="en">Renders the agent prompt for a task</span></td><td>prompts</td></tr>
+      <tr><td><code class="k">notion push</code></td><td><span lang="zh">单向镜像当天笔记</span><span lang="en">One-way mirror of the day's note</span></td><td>adapters/notion</td></tr>
+      <tr><td><code class="k">schedule</code></td><td><span lang="zh">为代理生成调度文件，从不安装</span><span lang="en">Writes scheduler files, never installs them</span></td><td>adapters/scheduler</td></tr>
+      <tr><td><code class="k">validate</code></td><td><span lang="zh">检查整条数据链和笔记，失败时退出码 1</span><span lang="en">Checks the data chain and notes; exit 1 on any failure</span></td><td>container/validate</td></tr>
+    </tbody></table></div>
+  </div>
+</section>
+
+<section id="data" style="background:var(--soft)">
+  <div class="wrap">
+    <div class="sec-n">03</div>
+    <h2><span lang="zh">数据层：只追加，永不改写历史</span><span lang="en">Data layer: append only, history is never rewritten</span></h2>
+    <p class="sub"><span lang="zh">所有「事实」都存成 JSONL 里的一行。要改变一个事实，就追加一条新记录，用 <code class="k">supersedes</code> 指向旧的。只有 <code class="k">rules.json</code> 这种整体状态文件才会被替换，而且通过临时文件加 <code class="k">os.replace</code> 原子完成。</span><span lang="en">Every fact is one line in a JSONL file. To change a fact you append a new record that points at the old one through <code class="k">supersedes</code>. Only whole-state files such as <code class="k">rules.json</code> are replaced, and that is atomic through a temp file plus <code class="k">os.replace</code>.</span></p>
+    <div class="two">
+      <div>
+        <div class="card"><h3>store.py</h3>
+          <p><span lang="zh"><b>每条记录必须有唯一的 <code class="k">id</code></b>，重复或缺失抛 <code class="k">InvalidRecord</code>。</span><span lang="en"><b>Every record needs a unique <code class="k">id</code></b>; a duplicate or missing id raises <code class="k">InvalidRecord</code>.</span></p>
+          <p><span lang="zh"><b>锁文件</b> <code class="k">.etrace.lock</code>：默认等 10 秒，超时抛 <code class="k">LockTimeout</code>；超过 300 秒的旧锁抛 <code class="k">StaleLockError</code>，但<b>不会被自动删除</b>，是否清理由人决定。</span><span lang="en"><b>Lock file</b> <code class="k">.etrace.lock</code>: waits 10 seconds by default, then raises <code class="k">LockTimeout</code>; a lock older than 300 seconds raises <code class="k">StaleLockError</code> and is <b>never removed automatically</b>, because clearing it is a human decision.</span></p>
+          <p><span lang="zh"><b>读到坏行</b>抛 <code class="k">CorruptFile</code>，不会跳过。</span><span lang="en"><b>A corrupt line</b> raises <code class="k">CorruptFile</code>; it is never skipped.</span></p>
+          <p><span lang="zh"><b>原子写</b>：临时文件、<code class="k">fsync</code>、<code class="k">os.replace</code>，并且按字节写（<code class="k">newline=""</code>），不做换行转换。</span><span lang="en"><b>Atomic write</b>: temp file, <code class="k">fsync</code>, <code class="k">os.replace</code>, written byte for byte (<code class="k">newline=""</code>) with no newline translation.</span></p>
+        </div>
+        <div class="codebox" style="margin-top:14px"><span class="cap">store.py write_text_atomic</span><pre>fd, tmp = tempfile.mkstemp(prefix=".tmp-", dir=directory)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+        fh.write(text)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, path)
+except BaseException:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+    raise</pre></div>
+      </div>
+      <div class="scroll"><table class="tbl"><thead><tr><th><span lang="zh">文件</span><span lang="en">File</span></th><th><span lang="zh">谁写</span><span lang="en">Written by</span></th><th><span lang="zh">记录 id</span><span lang="en">Record id</span></th></tr></thead><tbody>
+        <tr><td><code class="k">pad.jsonl</code></td><td>models/pad.record</td><td>PAD-YYYYMMDD-N</td></tr>
+        <tr><td><code class="k">g.jsonl</code></td><td>models/g.record, refill</td><td>G-YYYYMMDD-rN</td></tr>
+        <tr><td><code class="k">predictions.jsonl</code></td><td>g.predict</td><td>P-YYYYMMDD-N</td></tr>
+        <tr><td><code class="k">g_feedback.jsonl</code></td><td>g.feedback</td><td>...</td></tr>
+        <tr><td><code class="k">xp.jsonl</code></td><td>xp.record</td><td>XP-YYYYMMDD-rN</td></tr>
+        <tr><td><code class="k">questions.jsonl</code></td><td>container/questions</td><td>Q-YYYYMMDD-N</td></tr>
+        <tr><td><code class="k">feedback.jsonl</code></td><td>container/feedback</td><td>DATE:feedback:HASH12</td></tr>
+        <tr><td><code class="k">decisions.jsonl</code></td><td>container/decisions</td><td>D-YYYYMMDD-N</td></tr>
+        <tr><td><code class="k">usage.jsonl</code></td><td>container/usage</td><td>U-YYYYMMDD-N</td></tr>
+        <tr><td><code class="k">notifications.jsonl</code></td><td>outreach/note, email</td><td>N-YYYYMMDD-N</td></tr>
+        <tr><td><code class="k">notion.jsonl</code></td><td>adapters/notion</td><td>NO-YYYYMMDD-N</td></tr>
+        <tr><td><code class="k">rules.json</code></td><td>container/rules (atomic)</td><td><span lang="zh">整体状态，带 version</span><span lang="en">whole state with a version</span></td></tr>
+        <tr><td><code class="k">audits/YYYY-Www.md|json</code></td><td>container/audit</td><td><span lang="zh">每周一对文件</span><span lang="en">one pair per week</span></td></tr>
+      </tbody></table></div>
+    </div>
+    <h3 style="margin:30px 0 10px"><span lang="zh">真实记录：Juniper 示例跑出来的</span><span lang="en">Real records from the Juniper example run</span></h3>
+    <div class="tabbar" data-tabs="rec"></div>
+    <div id="rec">
+      <div class="pane" data-title="pad.jsonl"><div class="two"><div class="card"><h3>PAD</h3><p><span lang="zh">一次读数；同一天同一时段再写会追加新记录并用 <code class="k">supersedes</code> 指向旧的，<code class="k">points_for()</code> 只返回每个时段最新的一条。模型推断（model_inference）必须带 <code class="k">source</code> 和 <code class="k">confidence</code>。</span><span lang="en">One reading. Writing the same date and slot again appends a new record that points back through <code class="k">supersedes</code>, and <code class="k">points_for()</code> returns only the latest per slot. A model_inference point must carry <code class="k">source</code> and <code class="k">confidence</code>.</span></p></div><div class="codebox"><pre>{
+  "id": "PAD-20260302-1",
+  "date": "2026-03-02",
+  "point": {
+    "date": "2026-03-02",
+    "slot": "morning",
+    "P": 3,
+    "A": 2,
+    "D": 3,
+    "provenance": "self_report"
+  },
+  "supersedes": null,
+  "recorded_at": "2026-10-11T00:10:40.067613+00:00"
+}</pre></div></div></div>
+      <div class="pane" data-title="feedback.jsonl"><div class="two"><div class="card"><h3>Feedback</h3><p><span lang="zh">笔记反馈区按空行拆条，每条原样存一次，id 是 <code class="k">日期:feedback:原文 sha256 的前 12 位</code>。条目被编辑后哈希变化，新版本通过 <code class="k">supersedes</code> 指向消失的旧版本，<code class="k">version</code> 加一。</span><span lang="en">The feedback zone is split by blank lines and each entry is stored once, verbatim; the id is <code class="k">date:feedback:first 12 hex of sha256</code>. If an entry is edited its hash changes and the new version points at the vanished one through <code class="k">supersedes</code>, with <code class="k">version</code> plus one.</span></p></div><div class="codebox"><pre>{
+  "id": "2026-03-02:feedback:f3fd8d34072d",
+  "source": "note",
+  "block": "user:feedback",
+  "note_date": "2026-03-02",
+  "refers_to_date": "2026-03-02",
+  "observed_at": "2026-10-11T00:10:39.861259+00:00",
+  "text": "Please keep the narrative short. Three or four sentences is enough for me.",
+  "question_id": null,
+  "entry_index": 0,
+  "supersedes": null,
+  "version": 1
+}</pre></div></div></div>
+      <div class="pane" data-title="questions.jsonl"><div class="two"><div class="card"><h3>Question</h3><p><span lang="zh">必须带证据（原话或可验证行为）、恰好两个不同的候选判断、<code class="k">dedupe_key</code>。同一个 key 已开放或已回答就拒绝；仍开放的问题最多追问一次。</span><span lang="en">Must carry evidence (her own words or verifiable behaviour), exactly two different candidate judgements and a <code class="k">dedupe_key</code>. A key that is open or answered is rejected, and an open question gets at most one follow-up.</span></p></div><div class="codebox"><pre>{
+  "type": "question",
+  "source": "note",
+  "date": "2026-03-03",
+  "evidence": {
+    "kind": "quote",
+    "text": "Felt flat all afternoon and did the bare minimum."
+  },
+  "candidates": [
+    "the wait in the rain drained her",
+    "the shift itself was heavy"
+  ],
+  "uncertainty": "Was the flat afternoon about the commute or about work?",
+  "dimensions": [
+    "P",
+    "A",
+    "B1"
+  ],
+  "dedupe_key": "flat-afternoon-2026-03-03",
+  "asked_at": "2026-10-11T00:10:39.767816+00:00",
+  "id": "Q-20260303-1"
+}</pre></div></div></div>
+      <div class="pane" data-title="decisions.jsonl"><div class="two"><div class="card"><h3>Decision</h3><p><span lang="zh">必须引用 feedback.jsonl 里真实存在的反馈 id，并声明 <code class="k">value_source</code> 是 <code class="k">user</code> 还是 <code class="k">agent_decision</code>。每条规则变更都经过 rules 模块的作用域取代，结果和 <code class="k">rules_version</code> 一起记下。</span><span lang="en">Must cite feedback ids that exist in feedback.jsonl and declare <code class="k">value_source</code> as <code class="k">user</code> or <code class="k">agent_decision</code>. Every rule change goes through scoped supersession in the rules module, and the outcome is stored with the <code class="k">rules_version</code>.</span></p></div><div class="codebox"><pre>{
+  "type": "decision",
+  "feedback_ids": [
+    "2026-03-02:feedback:f3fd8d34072d",
+    "2026-03-04:feedback:775b204a9b49",
+    "2026-03-04:feedback:87d36d398b24"
+  ],
+  "decision": "Keep the narrative to three or four sentences; when an afternoon goes flat, ask about the commute before the work; treat a word in the PAD self table as a hint.",
+  "value_source": "user",
+  "rule_changes": [
+    {
+      "rule_id": "narrative-length",
+      "scope": "narrative:length",
+      "status": "active",
+      "superseded_by": null,
+      "reason": "Juniper asked for a short narrative"
+    },
+    {
+      "rule_id": "commute-first",
+      "scope": "questions:low-energy",
+      "status": "active",
+      "superseded_by": null,
+      "reason": "her answer to Q-20260303-1"
+    },
+    {
+      "rule_id": "pad-word-hint",
+      "scope": "pad:self-word",
+      "status": "active",
+      "superseded_by": null,
+      "reason": "she said her word is a hint, not the final word"
+    }
+  ],
+  "rules_version": 12,
+  "decided_at": "2026-10-11T00:10:39.963852+00:00",
+  "id": "D-20261011-1"
+}</pre></div></div></div>
+      <div class="pane" data-title="usage.jsonl"><div class="two"><div class="card"><h3>Usage receipt</h3><p><span lang="zh">状态只有 <code class="k">changed</code>、<code class="k">confirmed</code>、<code class="k">no_match</code>、<code class="k">not_applicable</code>、<code class="k">blocked</code>。只有前两种算「已应用」，并且必须 <code class="k">verified_readback: true</code>。</span><span lang="en">Status is one of <code class="k">changed</code>, <code class="k">confirmed</code>, <code class="k">no_match</code>, <code class="k">not_applicable</code>, <code class="k">blocked</code>. Only the first two count as applied, and they need <code class="k">verified_readback: true</code>.</span></p></div><div class="codebox"><pre>{
+  "task": "daily",
+  "target": "journal/2026-03-04.md",
+  "rule_version": 12,
+  "feedback_ids": [],
+  "decision_ids": [
+    "D-20261011-1"
+  ],
+  "before": "narrative rule: none (the agent wrote a free-length narrative)",
+  "after": "ai:narrative for 2026-03-04 has three sentences",
+  "status": "changed",
+  "verified_readback": true,
+  "recorded_at": "2026-10-11T00:10:51.676247+00:00",
+  "id": "U-20261011-1"
+}</pre></div></div></div>
+      <div class="pane" data-title="rules.json"><div class="two"><div class="card"><h3>Rule</h3><p><span lang="zh">一条规则带作用域、<code class="k">expressed_at</code>（用户原话表达的时间）和状态。注意版本号 12：每次变更都会让整体 version 加一。</span><span lang="en">A rule carries a scope, <code class="k">expressed_at</code> (when the user expressed it) and a status. Note the version 12: every change bumps the whole-file version.</span></p></div><div class="codebox"><pre>{
+  "version": 12,
+  "rules": [
+    {
+      "id": "narrative-length",
+      "scope": "narrative:length",
+      "text": "Keep the daily narrative to three or four sentences.",
+      "expressed_at": "2026-03-02T21:00:00+00:00",
+      "source_feedback_id": "2026-03-02:feedback:f3fd8d34072d",
+      "added_in_version": 10,
+      "status": "active",
+      "superseded_by": null,
+      "superseded_reason": null,
+      "superseded_in_version": null
+    }
+  ]
+}</pre></div></div></div>
+      <div class="pane" data-title="notifications.jsonl"><div class="two"><div class="card"><h3>Notification</h3><p><span lang="zh">只有在笔记被读回、并且确认 ai:questions 块里真的有这段文字之后才会追加。相同文本重跑不产生新记录。</span><span lang="en">Appended only after the note is read back and the ai:questions block is found to contain the text. Re-running with identical text records nothing new.</span></p></div><div class="codebox"><pre>{
+  "channel": "note",
+  "date": "2026-03-04",
+  "status": "sent",
+  "verified_readback": true,
+  "question_ids": [],
+  "decision_ids": [
+    "D-20261011-1"
+  ],
+  "daily_status": "no new important questions",
+  "language": "en",
+  "content_hash": "a616a408fe3bf644eea40c118324cb16f80b0057b61104c99785b056928341ec",
+  "sent_at": "2026-10-11T00:10:42.464393+00:00",
+  "id": "N-20260304-1"
+}</pre></div></div></div>
+      <div class="pane" data-title="predictions.jsonl"><div class="two"><div class="card"><h3>Frozen prediction</h3><p><span lang="zh"><code class="k">g predict</code> 把某天最新的 G 修订冻结成快照：同一修订和同一评分标准版本重复调用返回同一份快照，快照从不被编辑。</span><span lang="en"><code class="k">g predict</code> freezes a day's latest G revision as a snapshot: the same revision under the same rubric version returns the same snapshot, and snapshots are never edited.</span></p></div><div class="codebox"><pre>{
+  "id": "P-20260302-1",
+  "date": "2026-03-02",
+  "revision": 1,
+  "g_record_id": "G-20260302-r1",
+  "rubric_version": "1.3.0",
+  "items": [
+    {
+      "code": "B1",
+      "value": 7,
+      "provenance": "self_report",
+      "source": "note: My G self-rating",
+      "confidence": "high"
+    },
+    "... 7 more items"
+  ],
+  "training_eligible": true,
+  "created_at": "2026-10-11T00:10:40.287511+00:00"
+}</pre></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="journal">
+  <div class="wrap">
+    <div class="sec-n">04</div>
+    <h2><span lang="zh">日记保护：块、哈希、读回</span><span lang="en">Journal guard: blocks, hashes, read-back</span></h2>
+    <p class="sub"><span lang="zh">笔记是普通 Markdown，用注释行分块。块的归属写在标记里，引擎据此决定谁可以动哪一块。</span><span lang="en">A note is plain Markdown split into blocks by comment lines. Ownership is written in the marker, and the engine uses it to decide who may touch which block.</span></p>
+    <div class="two">
+      <div>
+        <div class="codebox"><span class="cap">marker grammar (journal.py)</span><pre>&lt;!-- trace:ai:NAME --&gt;     AI owned, replace_ai_block may rewrite
+&lt;!-- trace:user:NAME --&gt;   the user's own text, protected
+&lt;!-- trace:verbatim --&gt;    original version, append-only
+
+_MARKER = re.compile(
+  r"^&lt;!-- trace:(?:(?P&lt;kind&gt;ai|user):(?P&lt;name&gt;[a-z0-9][a-z0-9-]*)"
+  r"|(?P&lt;verbatim&gt;verbatim)) --&gt;[ \t]*\r?\n?$")</pre></div>
+        <ol class="life" style="margin-top:14px">
+          <li><b>parse(text)</b><span><span lang="zh">按标记切成 Block；<code class="k">render()</code> 与原文逐字节一致，因为读写都用 <code class="k">newline=""</code>。</span><span lang="en">Splits by marker into Blocks; <code class="k">render()</code> is byte-identical to the source because reads and writes use <code class="k">newline=""</code>.</span></span></li>
+          <li><b>replace_ai_block(doc, name, text)</b><span><span lang="zh">只能改 ai 块；块标题（以 Markdown 标题开头的第一行）保留。</span><span lang="en">Only ai blocks can be rewritten; the block title (a leading Markdown heading) is kept.</span></span></li>
+          <li><b>save(doc, path)</b><span><span lang="zh">对磁盘上现有文件和新文本，分别给每个 user 与 verbatim 块算 sha256；任何差异就抛 <code class="k">ProtectedBlockChanged</code>。「之前」取磁盘上的当前内容，所以用户在你加载之后做的修改不会被覆盖。</span><span lang="en">Hashes every user and verbatim block of the file on disk and of the new text; any difference raises <code class="k">ProtectedBlockChanged</code>. "Before" is the file on disk now, so edits the user made since you loaded are never overwritten.</span></span></li>
+          <li><b><span lang="zh">读回</span><span lang="en">Read back</span></b><span><span lang="zh">写完后重新读文件，和写入的文本比较，不一致抛 <code class="k">JournalError</code>（原则 8）。</span><span lang="en">After writing, the file is read again and compared with the text written; a mismatch raises <code class="k">JournalError</code> (principle 8).</span></span></li>
+          <li><b>append_verbatim()</b><span><span lang="zh">唯一的例外：原版本块只能追加，磁盘上原有的字节必须是新块的精确前缀，新增部分以「补写于 ｜实际发生于」之类的标题开头，日期由代码写入。</span><span lang="en">The only exception: the original block is append-only. The bytes already on disk must be an exact prefix of the new block, and the addition starts with a header such as "Added on ... | happened on ...", whose dates the code writes.</span></span></li>
+        </ol>
+      </div>
+      <div>
+        <div class="codebox err"><span class="cap"><span lang="zh">把 user:journal 里的一个词悄悄改掉，再 save</span><span lang="en">Quietly change one phrase in user:journal, then save</span></span><pre>doc = journal.load(path)
+bad = journal.parse(doc.render().replace(
+    "the loop exercise finally clicked",
+    "the loop exercise clicked"))
+journal.save(bad, path)
+
+ProtectedBlockChanged: protected blocks would change:
+    user:journal, verbatim</pre></div>
+        <div class="codebox"><span class="cap">journal.py _check(), trimmed</span><pre>changed = []
+for key in sorted(set(before) | set(after)):
+    if before.get(key) == after.get(key):
+        continue
+    if key == "verbatim" and verbatim_append and \
+       (before.get(key), after.get(key)) == verbatim_append:
+        continue          # the one allowed change
+    if key not in after:    changed.append(f"{key} (removed)")
+    elif key not in before: changed.append(f"{key} (added)")
+    else:                   changed.append(key)
+if changed:
+    raise ProtectedBlockChanged(
+        "protected blocks would change: " + ", ".join(changed))</pre></div>
+        <p class="fine"><span lang="zh">模板顺序固定为 headline、questions、pad、pad-self、xp、g、g-self、journal、feedback、narrative、verbatim，来自 docs/SYSTEM_DESIGN.md 4.4。</span><span lang="en">The template order is fixed as headline, questions, pad, pad-self, xp, g, g-self, journal, feedback, narrative, verbatim, from docs/SYSTEM_DESIGN.md 4.4.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="principles" style="background:var(--soft)">
+  <div class="wrap">
+    <div class="sec-n">05</div>
+    <h2><span lang="zh">九条原则对应的代码和测试</span><span lang="en">The nine principles, and where code and tests hold them</span></h2>
+    <p class="sub"><span lang="zh">原则原文来自 <code class="k">etrace/prompts/en/_principles.md</code>，每个任务提示词都会带上它。下表告诉你，每一条在哪里被强制执行，违反它的瞬间由哪个测试文件抓住。</span><span lang="en">The wording comes from <code class="k">etrace/prompts/en/_principles.md</code> and is included in every task prompt. The table shows where each one is enforced and which test file catches a violation.</span></p>
+    <div class="scroll"><table class="tbl prin"><thead><tr><th>#</th><th><span lang="zh">原则</span><span lang="en">Principle</span></th><th><span lang="zh">强制执行的地方</span><span lang="en">Enforced in</span></th><th><span lang="zh">测试</span><span lang="en">Tests</span></th></tr></thead><tbody>
+      <tr><td>1</td><td><b>Verbatim</b><br><span lang="zh">用户原话一字不改</span><span lang="en">The user's words stay word for word</span></td><td><code class="k">journal.save → _check</code>, <code class="k">ProtectedBlockChanged</code>, <code class="k">append_verbatim</code></td><td>test_journal</td></tr>
+      <tr><td>2</td><td><b>Provenance</b><br><span lang="zh">每个数字声明来源、依据、置信度</span><span lang="en">Every number states provenance, source, confidence</span></td><td><code class="k">PadPoint.__post_init__</code>, <code class="k">GItem</code>: <code class="k">model_inference</code> <span lang="zh">必须有 source 与 confidence</span><span lang="en">needs source and confidence</span></td><td>test_pad, test_g</td></tr>
+      <tr><td>3</td><td><b>Missing is not 0</b><br><span lang="zh">缺失不是 0</span><span lang="en">Missing is not 0</span></td><td><code class="k">g.compute</code> <span lang="zh">缺项返回 None，<code class="k">display</code> 显示「缺 / n/a」；<code class="k">gap_fill</code> 低置信度、<code class="k">training_eligible</code> 为假</span><span lang="en">returns None for a missing part and <code class="k">display</code> shows n/a; <code class="k">gap_fill</code> is low confidence and never training eligible</span>; xp.week_total <span lang="zh">把缺的日子列为 missing</span><span lang="en">lists missing days</span></td><td>test_g, test_g_gap_fill, test_xp</td></tr>
+      <tr><td>4</td><td><b>Events once</b><br><span lang="zh">重大事件只记一次，记在发生那天</span><span lang="en">A major event is booked once, on its day</span></td><td><code class="k">xp._events</code> <span lang="zh">event_id 唯一，occurred_on 必须等于计分日</span><span lang="en">unique event_id, occurred_on must equal the scored date</span>; <code class="k">xp.record</code> <span lang="zh">拒绝已记在别的日子的 id</span><span lang="en">rejects an id booked on another day</span></td><td>test_xp</td></tr>
+      <tr><td>5</td><td><b>Freeze predictions</b><br><span lang="zh">先冻结再评判；校准要 10 + 10 天</span><span lang="en">Freeze before judging; calibration needs 10 + 10 days</span></td><td><code class="k">g.predict</code> <span lang="zh">快照不可变</span><span lang="en">immutable snapshots</span>; <code class="k">TRAIN_DAYS = TEST_DAYS = 10</code>; <code class="k">g.calibration</code></td><td>test_g_calibration</td></tr>
+      <tr><td>6</td><td><b>Latest feedback wins</b><br><span lang="zh">同一作用域内，原话表达更晚的规则取代旧规则</span><span lang="en">In one scope the later-expressed rule replaces the older one</span></td><td><code class="k">rules.add_rule</code> <span lang="zh">按 <code class="k">expressed_at</code>，不是写入顺序</span><span lang="en">by <code class="k">expressed_at</code>, not by write order</span>; feedback <code class="k">supersedes</code></td><td>test_rules, test_feedback</td></tr>
+      <tr><td>7</td><td><b>Decide, report, invite</b><br><span lang="zh">先作合理决定，写明理由，邀请反馈</span><span lang="en">Decide with reasons and invite feedback</span></td><td><code class="k">decisions</code> <span lang="zh">必须引用真实反馈</span><span lang="en">must cite real feedback</span>; <code class="k">note.render_report</code>; <code class="k">audit.reaction</code> <span lang="zh">沉默不算同意</span><span lang="en">silence is not approval</span></td><td>test_decisions, test_outreach_note, test_audit</td></tr>
+      <tr><td>8</td><td><b>Write, then read back</b><br><span lang="zh">写完要读回，读过规则不算用过</span><span lang="en">Read back after writing; reading a rule is not using it</span></td><td><code class="k">journal.save</code>, <code class="k">note.write</code>, <code class="k">usage.verified_readback</code>, <code class="k">validate</code>, <code class="k">audit.weekly</code>, notion <span lang="zh">页面块数核对</span><span lang="en">block count check</span></td><td>test_journal, test_audit, test_notion</td></tr>
+      <tr><td>9</td><td><b>Self-rating is a reference</b><br><span lang="zh">自评是参考，不是命令</span><span lang="en">A self-rating is a reference, not an order</span></td><td><code class="k">self_value</code> <span lang="zh">原样保存，与 AI 值不同则必须写 <code class="k">reason</code></span><span lang="en">stored untouched; if it differs from the AI value a <code class="k">reason</code> is required</span> (PadPoint, GItem)</td><td>test_pad, test_g</td></tr>
+    </tbody></table></div>
+    <div class="callout" style="margin-top:16px"><b><span lang="zh">还有一条隐含的原则：</span><span lang="en">And one implicit principle:</span></b> <span lang="zh">仓库本身不能含个人数据。<code class="k">tests/test_privacy.py</code> 扫描每个被 git 跟踪（和未跟踪）的文件，查邮箱（只允许 example.com/.org/.net）、32 位十六进制 id（Notion 风格）和主目录绝对路径。</span><span lang="en">the repository itself must hold no personal data. <code class="k">tests/test_privacy.py</code> scans every tracked (and new untracked) file for emails (only example.com/.org/.net allowed), 32-hex ids (Notion style) and absolute home paths.</span></div>
+  </div>
+</section>
+
+<section id="models">
+  <div class="wrap">
+    <div class="sec-n">06</div>
+    <h2>PAD · G · XP <span lang="zh">的实现</span><span lang="en">internals</span></h2>
+    <p class="sub"><span lang="zh">三个模型都是纯函数加一个追加式的 <code class="k">record()</code>。数值参数（词表、权重、上限）不写在代码里，而是在预设的 JSON 里，代码只实现形状。</span><span lang="en">All three models are pure functions plus an append-only <code class="k">record()</code>. The numeric parameters (word table, weights, caps) are not in the code but in the preset JSON; the code implements only the shape.</span></p>
+    <div class="tabbar" data-tabs="mod"></div>
+    <div id="mod">
+      <div class="pane" data-title="PAD">
+        <div class="two"><div>
+          <div class="card"><h3><span lang="zh">要点</span><span lang="en">Key points</span></h3>
+            <p><span lang="zh"><b>PadPoint</b> 是冻结的 dataclass，构造时就校验：日期、槽位（六个命名槽或精确的 <code class="k">HH:MM</code>）、P/A/D 在 0 到 5、来源与置信度。<code class="k">from_dict</code> 拒绝未知字段。</span><span lang="en"><b>PadPoint</b> is a frozen dataclass validated at construction: date, slot (six named slots or an exact <code class="k">HH:MM</code>), P/A/D within 0 to 5, provenance and confidence. <code class="k">from_dict</code> rejects unknown fields.</span></p>
+            <p><span lang="zh"><b>project()</b> 把数值映射到预设的 27 词表：小于 1 的值算 1 档，档位取 <code class="k">band()</code>。</span><span lang="en"><b>project()</b> maps values to the preset's 27-word table: a value below 1 counts as level 1, and the band comes from <code class="k">band()</code>.</span></p>
+            <p><span lang="zh"><b>daily_summary()</b> 是按时长加权的均值；没有 <code class="k">duration_hours</code> 的点按已知时长的平均等权，并在结果里标出 <code class="k">equal_weighted</code>。</span><span lang="en"><b>daily_summary()</b> is a duration-weighted mean; points without <code class="k">duration_hours</code> are equal-weighted at the mean known duration and flagged through <code class="k">equal_weighted</code>.</span></p>
+            <p><span lang="zh"><b>validate_day()</b> 要求早、中、下午三段都在场，精确时刻归入它所在的槽位。</span><span lang="en"><b>validate_day()</b> requires morning, noon and afternoon, with exact times counting for the slot they fall in.</span></p>
+            <p><span lang="zh"><b>chart.py</b> 对每条轴做高斯核局部线性平滑（日图带宽 2.5 小时，周图 0.75 天），在 240 个采样点上画折线，输出自带样式的 SVG，没有任何绘图库。</span><span lang="en"><b>chart.py</b> draws each axis with Gaussian-kernel local linear smoothing (bandwidth 2.5 hours for a day, 0.75 days for a week) over 240 samples and emits a self-styled SVG with no plotting library.</span></p>
+          </div></div>
+          <div>
+            <div class="codebox"><span class="cap">pad.py</span><pre>def slot_of(slot):
+    if slot in SLOTS:
+        return slot
+    m = _TIME.match(slot) if isinstance(slot, str) else None
+    if not m:
+        raise PadError([f"slot: must be one of ..."])
+    hour = int(m.group(1))
+    if hour &lt; 5:
+        hour += 24           # 01:30 belongs to the previous evening
+    for name, (start, end) in SLOT_RANGES.items():
+        if start &lt;= hour &lt; end:
+            return name
+
+# principle 9: self_value is kept as given
+if not axis_errors and differs and self.reason is None:
+    errors.append("reason: required when the values "
+                  "differ from self_value")</pre></div>
+            <div class="codebox"><span class="cap">chart.py</span><pre>def local_linear(xs, ys, x0, bandwidth):
+    """Gaussian-kernel local linear estimate at x0."""
+    s0 = s1 = s2 = t0 = t1 = 0.0
+    for x, y in zip(xs, ys):
+        d = x - x0
+        w = math.exp(-0.5 * (d / bandwidth) ** 2)
+        s0 += w; s1 += w * d; s2 += w * d * d
+        t0 += w * y; t1 += w * d * y
+    ...
+    return (s2 * t0 - s1 * t1) / det</pre></div>
+          </div></div>
+      </div>
+      <div class="pane" data-title="G">
+        <div class="two"><div>
+          <div class="card"><h3><span lang="zh">要点</span><span lang="en">Key points</span></h3>
+            <p><span lang="zh"><b>compute()</b>：B 和 E 各是四个小项的加权和，G 是平均；任一组缺项，该组为 None，G 也为 None。权重来自预设（B 0.28/0.18/0.36/0.18，E 0.22/0.14/0.36/0.28）。全程不取整，<code class="k">display()</code> 才四舍五入。</span><span lang="en"><b>compute()</b>: B and E are weighted sums of four items each and G is their mean; if a group has a missing item the group is None and so is G. Weights come from the preset (B 0.28/0.18/0.36/0.18, E 0.22/0.14/0.36/0.28). Nothing is rounded until <code class="k">display()</code>.</span></p>
+            <p><span lang="zh"><b>gap_fill()</b> 有三种方法：两侧都有真实值用 <code class="k">historical_bridge</code>（按日期线性插值）；只有更早的值用 <code class="k">continuity_carry_forward</code>；都没有用 <code class="k">scale_prior</code>（5.0）。补出的项一律 <code class="k">low</code> 置信度，只用真实值（不用别的补值）作邻居。引擎自己生成补值，代理传入 <code class="k">gap_fill</code> 会被拒绝。</span><span lang="en"><b>gap_fill()</b> has three methods: real values on both sides give <code class="k">historical_bridge</code> (linear interpolation by date); only an earlier value gives <code class="k">continuity_carry_forward</code>; none gives <code class="k">scale_prior</code> (5.0). Filled items are always <code class="k">low</code> confidence, and neighbours are real values only. The engine makes fills itself; an agent passing <code class="k">gap_fill</code> is rejected.</span></p>
+            <p><span lang="zh"><b>predict()</b> 冻结预测；<b>calibration()</b> 只有在 10 个训练日加 10 个之后的测试日都满足时才开启，并且补值日不算（<code class="k">training_eligible</code>）。不满足时输出 <code class="k">Calibration off: need 10 training + 10 later test days, have 0 + 0</code>。</span><span lang="en"><b>predict()</b> freezes a prediction; <b>calibration()</b> turns on only with 10 training days plus 10 later test days, and gap-filled days do not count (<code class="k">training_eligible</code>). Otherwise it prints <code class="k">Calibration off: need 10 training + 10 later test days, have 0 + 0</code>.</span></p>
+          </div></div>
+          <div>
+            <div class="codebox"><span class="cap">g.py compute()</span><pre>for group, codes in GROUPS.items():
+    weights = preset["g"]["groups"][group]["items"]
+    if all(code in by_code for code in codes):
+        groups[group] = sum(weights[code]["weight"]
+                            * by_code[code].value for code in codes)
+    else:
+        groups[group] = None          # never 0
+b, e = groups["B"], groups["E"]
+g = (b + e) / 2 if b is not None and e is not None else None</pre></div>
+            <div class="codebox"><span class="cap">g.py _fill_item()</span><pre>if left and right:
+    frac = (target - left[0]).days / (right[0] - left[0]).days
+    value = left[1] + (right[1] - left[1]) * frac
+    method = "historical_bridge"
+elif left:
+    value, method = left[1], "continuity_carry_forward"
+else:
+    value, method = SCALE_PRIOR, "scale_prior"   # 5.0
+return GItem(code=code, value=value, provenance="gap_fill",
+             source=f"gap_fill:{method}", confidence="low", ...)</pre></div>
+          </div></div>
+      </div>
+      <div class="pane" data-title="XP">
+        <div class="two"><div>
+          <div class="card"><h3><span lang="zh">要点</span><span lang="en">Key points</span></h3>
+            <p><span lang="zh"><b>score_day()</b>：六个维度都必须给 0 到 4 的整数等级（0 表示明确的「没有」，缺失是错误），得分是 <code class="k">cap × level / 4</code>；普通成果夹在 0 到 10；事件不封顶，需要唯一的 <code class="k">event_id</code>、等于计分日的 <code class="k">occurred_on</code> 和非负的 points。</span><span lang="en"><b>score_day()</b>: all six dimensions need an integer level 0 to 4 (0 is an explicit "none", a missing one is an error) and score <code class="k">cap × level / 4</code>; ordinary is clamped to 0 to 10; events are uncapped and need a unique <code class="k">event_id</code>, an <code class="k">occurred_on</code> equal to the scored date, and non-negative points.</span></p>
+            <p><span lang="zh">显示的总分是合计后四舍五入（<code class="k">ROUND_HALF_UP</code>，用 Decimal 避免浮点误差）的整数，没有每日上限。</span><span lang="en">The displayed total is the sum rounded half up (through Decimal, to avoid float error) to an integer, with no daily cap.</span></p>
+            <p><span lang="zh"><b>record()</b> 保存修订；内容没变就返回已有记录；别的日子已记过的 event_id 抛 XPError。<b>week_total()</b> 只接受周一作为周起点，没有周奖励，没打分的日子列为 <code class="k">missing</code>。</span><span lang="en"><b>record()</b> keeps revisions; unchanged content returns the existing record; an event_id booked on another day raises XPError. <b>week_total()</b> accepts only a Monday as week start, adds no weekly bonus, and lists unscored days as <code class="k">missing</code>.</span></p>
+          </div></div>
+          <div>
+            <div class="codebox"><span class="cap">xp.py</span><pre>def _round(value):
+    return int(decimal.Decimal(repr(float(value))).quantize(
+        decimal.Decimal("1"), rounding=decimal.ROUND_HALF_UP))
+
+for dim_id, spec in known.items():
+    ...
+    else:
+        dims[dim_id] = {"level": level,
+                        "points": spec["cap"] * level / MAX_LEVEL}
+
+if occurred != date:
+    errors.append(f"{field}.occurred_on: events are booked on "
+                  f"the day they happened ({occurred.isoformat()}), "
+                  f"not {date.isoformat()}")</pre></div>
+            <div class="codebox ok"><span class="cap">Juniper 2026-03-02, <span lang="zh">引擎输出</span><span lang="en">engine output</span></span><pre>levels  3/2/2/3/2/3  caps 18/16/16/14/14/12
+points  13.5 + 8 + 8 + 10.5 + 7 + 9 = 56
+ordinary 6   events 0
+total   62</pre></div>
+          </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="chain" style="background:var(--soft)">
+  <div class="wrap">
+    <div class="sec-n">07</div>
+    <h2><span lang="zh">偏好容器：一条链，每一环都有人把关</span><span lang="en">The preference container: one chain, every link guarded</span></h2>
+    <p class="sub"><span lang="zh">question → feedback → decision → rule → receipt → audit。点击每一环，看它的实现、真实的 id，和它拒绝什么。</span><span lang="en">question → feedback → decision → rule → receipt → audit. Click each link to see its implementation, a real id, and what it rejects.</span></p>
+    <div class="tabbar" data-tabs="chn"></div>
+    <div id="chn">
+      <div class="pane" data-title="1 question"><div class="two"><div class="card"><h3>container/questions.py</h3><p><span lang="zh"><b>id</b> <code class="k">Q-20260303-1</code>；<b>生命周期</b> open → answered | skipped；回答必须带 <code class="k">feedback_id</code>，并且这个反馈必须存在。</span><span lang="en"><b>id</b> <code class="k">Q-20260303-1</code>; <b>lifecycle</b> open → answered | skipped; answering needs a <code class="k">feedback_id</code> and that feedback must exist.</span></p><p><span lang="zh"><b>拒绝</b>：没有证据、候选不是恰好两个、候选相同、<code class="k">dedupe_key</code> 已开放或已回答、第二次追问。</span><span lang="en"><b>Rejects</b>: no evidence, candidates not exactly two, identical candidates, a <code class="k">dedupe_key</code> already open or answered, a second follow-up.</span></p></div><div class="codebox"><span class="cap">Juniper, questions.jsonl</span><pre>{
+  "type": "question",
+  "source": "note",
+  "date": "2026-03-03",
+  "evidence": {
+    "kind": "quote",
+    "text": "Felt flat all afternoon and did the bare minimum."
+  },
+  "candidates": [
+    "the wait in the rain drained her",
+    "the shift itself was heavy"
+  ],
+  "uncertainty": "Was the flat afternoon about the commute or about work?",
+  "dimensions": [
+    "P",
+    "A",
+    "B1"
+  ],
+  "dedupe_key": "flat-afternoon-2026-03-03",
+  "asked_at": "2026-10-11T00:10:39.767816+00:00",
+  "id": "Q-20260303-1"
+}</pre></div></div></div>
+      <div class="pane" data-title="2 feedback"><div class="two"><div class="card"><h3>container/feedback.py</h3><p><span lang="zh">引擎扫描笔记的 <code class="k">user:feedback</code> 块，按空行拆条，跳过模板提示（<code class="k">&lt;!-- hint --&gt;</code>）和标题。以 <code class="k">[Q-...]</code> 开头的条目带上 <code class="k">question_id</code>，<code class="k">cmd_feedback_ingest</code> 随后把对应问题标为 answered。重复运行不会产生新记录。</span><span lang="en">The engine scans the note's <code class="k">user:feedback</code> block, splits by blank line, and skips template hints (<code class="k">&lt;!-- hint --&gt;</code>) and the title. An entry starting with <code class="k">[Q-...]</code> gets a <code class="k">question_id</code>, and <code class="k">cmd_feedback_ingest</code> then marks that question answered. Re-running creates nothing new.</span></p></div><div class="codebox"><span class="cap">Juniper, feedback.jsonl</span><pre>{
+  "id": "2026-03-04:feedback:775b204a9b49",
+  "source": "note",
+  "block": "user:feedback",
+  "note_date": "2026-03-04",
+  "refers_to_date": "2026-03-04",
+  "observed_at": "2026-10-11T00:10:39.861259+00:00",
+  "text": "[Q-20260303-1] It was the bus, not the work. Waiting in the rain drains me more than a busy shift does.",
+  "question_id": "Q-20260303-1",
+  "entry_index": 0,
+  "supersedes": null,
+  "version": 1
+}</pre></div></div></div>
+      <div class="pane" data-title="3 decision"><div class="two"><div class="card"><h3>container/decisions.py</h3><p><span lang="zh">代理给出一个决定和若干 <code class="k">rule_changes</code>，引擎逐条走 <code class="k">rules.add_rule</code>，把结果和 <code class="k">rules_version</code> 一起写进决定记录。如果决定暂时无法应用，可 <code class="k">mark_pending</code> 说明原因，validate 就把它当作「已知未完成」而不是「漏掉」。</span><span lang="en">The agent supplies a decision and some <code class="k">rule_changes</code>; the engine runs each through <code class="k">rules.add_rule</code> and stores the results with the <code class="k">rules_version</code> in the decision record. If a decision cannot be applied yet, <code class="k">mark_pending</code> records why, and validate treats it as known open rather than missed.</span></p></div><div class="codebox"><span class="cap">Juniper, decisions.jsonl</span><pre>{
+  "type": "decision",
+  "feedback_ids": [
+    "2026-03-02:feedback:f3fd8d34072d",
+    "2026-03-04:feedback:775b204a9b49",
+    "2026-03-04:feedback:87d36d398b24"
+  ],
+  "decision": "Keep the narrative to three or four sentences; when an afternoon goes flat, ask about the commute before the work; treat a word in the PAD self table as a hint.",
+  "value_source": "user",
+  "rule_changes": [
+    {
+      "rule_id": "narrative-length",
+      "scope": "narrative:length",
+      "status": "active",
+      "superseded_by": null,
+      "reason": "Juniper asked for a short narrative"
+    },
+    {
+      "rule_id": "commute-first",
+      "scope": "questions:low-energy",
+      "status": "active",
+      "superseded_by": null,
+      "reason": "her answer to Q-20260303-1"
+    },
+    {
+      "rule_id": "pad-word-hint",
+      "scope": "pad:self-word",
+      "status": "active",
+      "superseded_by": null,
+      "reason": "she said her word is a hint, not the final word"
+    }
+  ],
+  "rules_version": 12,
+  "decided_at": "2026-10-11T00:10:39.963852+00:00",
+  "id": "D-20261011-1"
+}</pre></div></div></div>
+      <div class="pane" data-title="4 rule"><div class="two"><div>
+        <div class="card"><h3>container/rules.py: scoped supersession</h3><p><span lang="zh">同一 <code class="k">scope</code> 里，新规则取代 <code class="k">expressed_at</code> 不晚于它的生效规则；如果新规则的原话反而更早，它自己一出生就是 superseded。旧规则不删除，留下 <code class="k">superseded_by</code>、原因和版本。这样「后写入但更早表达」的规则不会推翻更新的偏好。</span><span lang="en">Within one <code class="k">scope</code>, a new rule supersedes any active rule whose <code class="k">expressed_at</code> is not later than its own; if the new rule was expressed earlier it is born superseded. Old rules are never deleted and keep <code class="k">superseded_by</code>, a reason and the version. So a rule written later but expressed earlier cannot overturn a newer preference.</span></p></div>
+        <div class="codebox" style="margin-top:12px"><span class="cap">rules.py add_rule(), trimmed</span><pre>current = [r for r in rules
+           if r["scope"] == scope and r["status"] == "active"]
+for old in current:
+    if _when(old["expressed_at"]) &lt;= when:
+        old.update(status="superseded", superseded_by=rule_id, ...)
+    else:
+        new.update(status="superseded", superseded_by=old["id"], ...)
+rules.append(new)
+data["version"] = version
+write_json_atomic(_path(store), data)   # one atomic replace</pre></div></div>
+        <div class="codebox"><span class="cap">Juniper, rules.json (excerpt)</span><pre>{
+  "version": 12,
+  "rules": [
+    {
+      "id": "narrative-length",
+      "scope": "narrative:length",
+      "text": "Keep the daily narrative to three or four sentences.",
+      "expressed_at": "2026-03-02T21:00:00+00:00",
+      "source_feedback_id": "2026-03-02:feedback:f3fd8d34072d",
+      "added_in_version": 10,
+      "status": "active",
+      "superseded_by": null,
+      "superseded_reason": null,
+      "superseded_in_version": null
+    }
+  ]
+}</pre></div></div></div>
+      <div class="pane" data-title="5 receipt"><div class="two"><div class="card"><h3>container/usage.py</h3><p><span lang="zh">代理应用规则后，写一条回执：<code class="k">before</code> 与 <code class="k">after</code> 描述产物的真实变化，<code class="k">rule_version</code>、引用的 <code class="k">decision_ids</code>，以及 <code class="k">verified_readback</code>。只有 <code class="k">changed</code> 和 <code class="k">confirmed</code> 才算应用；<code class="k">no_match</code>、<code class="k">not_applicable</code>、<code class="k">blocked</code> 如实记录，但不算数。</span><span lang="en">After applying a rule the agent writes a receipt: <code class="k">before</code> and <code class="k">after</code> describing the real change in the product, the <code class="k">rule_version</code>, the cited <code class="k">decision_ids</code>, and <code class="k">verified_readback</code>. Only <code class="k">changed</code> and <code class="k">confirmed</code> count as applied; <code class="k">no_match</code>, <code class="k">not_applicable</code> and <code class="k">blocked</code> are recorded honestly but do not count.</span></p></div><div class="codebox"><span class="cap">Juniper, usage.jsonl</span><pre>{
+  "task": "daily",
+  "target": "journal/2026-03-04.md",
+  "rule_version": 12,
+  "feedback_ids": [],
+  "decision_ids": [
+    "D-20261011-1"
+  ],
+  "before": "narrative rule: none (the agent wrote a free-length narrative)",
+  "after": "ai:narrative for 2026-03-04 has three sentences",
+  "status": "changed",
+  "verified_readback": true,
+  "recorded_at": "2026-10-11T00:10:51.676247+00:00",
+  "id": "U-20261011-1"
+}</pre></div></div></div>
+      <div class="pane" data-title="6 audit"><div class="two"><div>
+        <div class="card"><h3>validate vs audit</h3><p><span lang="zh"><b>validate</b> 只问「链的每一环存不存在」：回答过的问题有没有反馈、决定有没有来源反馈、超过 2 天的决定有没有回执（或被标为 pending）、回执有没有读回、规则有没有被某个决定认领。</span><span lang="en"><b>validate</b> only asks whether each link exists: does an answered question have feedback, does a decision have source feedback, does a decision older than 2 days have a receipt (or a pending mark), was the receipt read back, is a rule claimed by some decision.</span></p><p><span lang="zh"><b>audit weekly</b> 还要问「真的用上了吗」：回执必须在决定之后、且基于决定产生的规则版本；过了宽限期（2 天）只有 no_match 之类的回执就算断链。它还抽样一条已应用的回执给人复核，并用关键词判断用户对每个决定的反应：赞成、反对、其他回复，或者沉默，<b>沉默单独列出，从不算同意</b>。</span><span lang="en"><b>audit weekly</b> also asks whether it was really used: the receipt must come after the decision and be based on the rule version the decision produced; past the grace period (2 days) a decision with only no_match-style receipts is a broken chain. It samples one applied receipt for a person to check and classifies the user's reaction to each decision by keywords: approved, objected, other reply, or silence, and <b>silence is listed separately and never counted as approval</b>.</span></p></div></div>
+        <div class="codebox ok"><span class="cap">audits/2026-W41.md, Juniper</span><pre># Weekly implementation audit 2026-W41 (2026-10-05 to 2026-10-11)
+
+Result: passed. Every chain is complete and every decision was really applied.
+Structural completeness is not a pass: every decision needs a verified receipt that really applied it (changed / confirmed).
+
+## Broken chains
+None.
+
+## Still open (not broken)
+None.
+
+## Decisions without a receipt
+None.
+
+...
+- no reply (silence is not approval): D-20261011-1</pre></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="agent">
+  <div class="wrap">
+    <div class="sec-n">08</div>
+    <h2><span lang="zh">代理与引擎的契约</span><span lang="en">The agent and engine contract</span></h2>
+    <p class="sub"><span lang="zh">提示词只负责「排任务」：列出步骤和确切的 JSON 形状，把所有规则交给引擎。这样规则改了，不必改提示词。</span><span lang="en">A prompt only schedules work: it lists the steps and the exact JSON shapes, and defers every rule to the engine. Change a rule and no prompt needs editing.</span></p>
+    <div class="two">
+      <div class="card"><h3>prompts/</h3>
+        <p><span lang="zh">五个任务：<code class="k">calibrate</code>、<code class="k">feedback</code>、<code class="k">daily</code>、<code class="k">g</code>、<code class="k">audit</code>，每个有 zh 与 en 两份，加上共享的 <code class="k">_principles.md</code>。</span><span lang="en">Five tasks: <code class="k">calibrate</code>, <code class="k">feedback</code>, <code class="k">daily</code>, <code class="k">g</code>, <code class="k">audit</code>, each in zh and en, plus the shared <code class="k">_principles.md</code>.</span></p>
+        <p><span lang="zh"><code class="k">render()</code> 用 <code class="k">string.Template</code> 填入配置和当前生效规则，上限 6000 字符，<b>绝不把数据目录的绝对路径写进提示词</b>，代理只通过环境变量找到配置。</span><span lang="en"><code class="k">render()</code> fills the config and the active rules through <code class="k">string.Template</code>, caps the result at 6000 characters, and <b>never writes the data directory's absolute path into the prompt</b>; the agent finds its config through an environment variable.</span></p>
+        <p><span lang="zh">没有生效规则时填入「(no active rules yet)」。可选的 Notion、邮件段落只在配置启用时才出现。</span><span lang="en">With no active rules it inserts "(no active rules yet)". The optional Notion and email paragraphs appear only when configured.</span></p></div>
+      <div class="codebox"><span class="cap">prompts/en/_principles.md, "Working with the engine"</span><pre>- Every step is a `python3 -m etrace ...` command. It finds
+  trace.toml via $ETRACE_CONFIG or the current directory;
+  do not pass paths you invented.
+- Never edit data/*.jsonl, rules.json or note files by hand;
+  put agent JSON in a temporary file and pass it as FILE.
+- Each command prints one JSON object. Exit 2 = your JSON or
+  arguments were wrong (fix them from the `error:` lines, at
+  most two retries). Exit 1 = it ran but failed: do not hide it.</pre></div>
+    </div>
+    <h3 style="margin:30px 0 10px"><span lang="zh">调度适配器：只写文件，从不安装</span><span lang="en">Scheduler adapters: write files, never install</span></h3>
+    <div class="two">
+      <div class="card"><p><span lang="zh"><code class="k">python3 -m etrace schedule --target codex|claude-code|cron --out DIR</code> 把 trace.toml 的 <code class="k">[tasks]</code> 变成：codex 每任务一个 <code class="k">automation.toml</code>（RRULE 加时区）、claude-code 每任务一个 shell 脚本、cron 一份 crontab。</span><span lang="en"><code class="k">python3 -m etrace schedule --target codex|claude-code|cron --out DIR</code> turns the <code class="k">[tasks]</code> of trace.toml into: one <code class="k">automation.toml</code> per task for codex (RRULE plus timezone), one shell script per task for claude-code, one crontab for cron.</span></p><p><span lang="zh">每次运行都用 <code class="k">etrace prompt TASK --raw</code> 在<b>运行时</b>渲染提示词，所以规则更新后不用重新生成文件。</span><span lang="en">Every run renders its prompt at <b>run time</b> through <code class="k">etrace prompt TASK --raw</code>, so a rule update needs no regeneration.</span></p><p><span lang="zh">不碰 crontab、LaunchAgent 或代理自己的配置。</span><span lang="en">It touches no crontab, no LaunchAgent and no agent configuration.</span></p></div>
+      <div>
+        <div class="codebox"><span class="cap">etrace-daily.sh (claude-code), <span lang="zh">路径已替换</span><span lang="en">paths replaced</span></span><pre>#!/bin/sh
+# Generated by `python3 -m etrace schedule --target claude-code`. Not installed.
+# task: daily
+# schedule: 19:30
+# timezone: UTC
+# Run it from your own scheduler at those times. CLAUDE and ETRACE_CLAUDE_FLAGS
+# override the claude binary and its flags (e.g. allowed tools).
+set -eu
+cd ~/existence-trace-data &amp;&amp; export ETRACE_CONFIG=~/existence-trace-data/trace.toml PYTHONPATH=/path/to/existence-trace
+PROMPT=$(python3 -m etrace prompt daily --raw)
+"${CLAUDE:-claude}" -p ${ETRACE_CLAUDE_FLAGS:-} "$PROMPT"
+</pre></div>
+        <div class="codebox"><span class="cap">etrace.crontab (cron), <span lang="zh">节选</span><span lang="en">excerpt</span></span><pre># Generated by `python3 -m etrace schedule --target cron`. Not installed.
+# Review it, then add it yourself with `crontab -e`.
+# Times are in UTC. CRON_TZ works with cronie/Vixie cron; if your cron
+# ignores it, convert the times to the machine's local zone.
+CRON_TZ=UTC
+0 9 * * * cd DATA &amp;&amp; export ETRACE_CONFIG=... PYTHONPATH=... &amp;&amp; python3 -m etrace prompt calibrate --raw | claude -p  # etrace calibrate
+30 12 * * * cd DATA &amp;&amp; export ETRACE_CONFIG=... PYTHONPATH=... &amp;&amp; python3 -m etrace prompt feedback --raw | claude -p  # etrace feedback
+15 22 * * 0 cd DATA &amp;&amp; export ETRACE_CONFIG=... PYTHONPATH=... &amp;&amp; python3 -m etrace prompt audit --raw | claude -p  # etrace audit</pre></div>
+      </div>
+    </div>
+    <h3 style="margin:30px 0 10px"><span lang="zh">输出与适配器的状态机</span><span lang="en">Outreach and adapter state machines</span></h3>
+    <div class="layers">
+      <div class="card"><h3>outreach/note.py</h3><p><span lang="zh">渲染 <code class="k">ai:questions</code> 块：开放问题（带 [Q-id]）或每日状态句，加决定报告。「目前没有新的重要疑问」只有在扫描成功后才能说，扫描失败说「无法判断」。写完读回，找到块文本后才追加 <code class="k">notifications.jsonl</code>。</span><span lang="en">Renders the <code class="k">ai:questions</code> block: open questions (with [Q-id]) or the daily status sentence, plus the decision report. "No new important questions" may be said only after a successful scan; a failed scan says it cannot judge. It reads back and appends to <code class="k">notifications.jsonl</code> only once the block text is found.</span></p></div>
+      <div class="card"><h3>outreach/email.py</h3><p><span lang="zh">SMTP 发送，IMAP 读回复。状态 <code class="k">sent</code> 只有在 Sent 文件夹里按 Message-ID 找到才成立，否则是 <code class="k">failed</code> 或 <code class="k">unknown</code>，重跑前先找旧的 Message-ID，避免重复发送。回复必须来自 <code class="k">user_address</code>、晚于提问邮件、主题带 <code class="k">[etrace DATE KIND]</code>；引用和签名被剥掉；反馈 id 是 <code class="k">email:MSGHASH12:QUESTION_ID</code>。邮件正文只含 <code class="k">note.render</code> 的内容，从不读日记。</span><span lang="en">SMTP to send, IMAP to read replies. <code class="k">sent</code> holds only if the message is found in the Sent folder by Message-ID; otherwise it is <code class="k">failed</code> or <code class="k">unknown</code>, and a rerun first looks for the earlier Message-ID to avoid duplicates. A reply must come from <code class="k">user_address</code>, be dated after the question email and carry <code class="k">[etrace DATE KIND]</code> in the subject; quotes and signatures are stripped; the feedback id is <code class="k">email:MSGHASH12:QUESTION_ID</code>. The body holds only what <code class="k">note.render</code> produces and never reads the journal.</span></p></div>
+      <div class="card"><h3>adapters/notion.py</h3><p><span lang="zh">单向镜像：只读本地笔记并推送，从不把 Notion 内容读回笔记。笔记没变就不重复推送；变了就建新页面，<b>新页面完整后</b>才归档旧页面，镜像不会出现空档。记录为 <code class="k">pushed</code> 的前提是读回的块数和预期一致，否则 <code class="k">failed</code> 或 <code class="k">unknown</code>。HTTP 走可注入的 <code class="k">transport</code>，测试完全不碰网络。</span><span lang="en">A one-way mirror: it reads the local note and pushes, and never reads Notion content back into notes. An unchanged note is not pushed again; a changed one becomes a new page, and the old page is archived only <b>after the new one is complete</b>, so the mirror is never empty. A record says <code class="k">pushed</code> only if the read-back block count matches, otherwise <code class="k">failed</code> or <code class="k">unknown</code>. HTTP goes through an injectable <code class="k">transport</code>, so tests never touch the network.</span></p></div>
+      <div class="card"><h3>checkpoint.py</h3><p><span lang="zh">让数据目录成为 git 仓库（如果还不是），有变化才提交，从不空提交；不推送，除非 <code class="k">git_remote</code> 明确配置，且从不强推：分叉的远端只报告，不覆盖。从不写用户的全局 git 配置，没有身份时只在这次提交上临时传入中性身份。</span><span lang="en">Makes the data directory a git repository if needed and commits only on change, never an empty commit; nothing is pushed unless <code class="k">git_remote</code> is configured, and never forced: a diverged remote is reported, not overwritten. It never writes the user's global git config; with no identity it passes a neutral one on that commit only.</span></p></div>
+    </div>
+    <p class="fine" style="margin-top:12px"><span lang="zh">邮箱与 Notion 的密钥放在 <code class="k">credentials.email</code> / <code class="k">credentials.notion</code> 指向的单独 TOML 文件里，不进 trace.toml，不进日志、记录或提示词，错误原因输出前会被擦除密码。</span><span lang="en">Email and Notion secrets live in separate TOML files pointed to by <code class="k">credentials.email</code> / <code class="k">credentials.notion</code>; they stay out of trace.toml, logs, records and prompts, and error reasons are scrubbed of the password before output.</span></p>
+  </div>
+</section>
+
+<section id="presets" style="background:var(--soft)">
+  <div class="wrap">
+    <div class="sec-n">09</div>
+    <h2><span lang="zh">预设与配置：把「数」从代码里搬出去</span><span lang="en">Presets and config: moving the numbers out of the code</span></h2>
+    <div class="two">
+      <div class="card"><h3>etrace/preset_data/NAME/</h3><p><span lang="zh">五个 JSON：<code class="k">pad.json</code>（27 词表与档位）、<code class="k">g.json</code>（分项、权重、锚点、版本）、<code class="k">xp.json</code>（六个维度的上限与等级描述）、<code class="k">rules.json</code>（起步规则，含九条原则的基线规则）、<code class="k">question_templates.json</code>。每个面向用户的文字都是 <code class="k">{"zh": ..., "en": ...}</code>。</span><span lang="en">Five JSON files: <code class="k">pad.json</code> (the 27-word table and bands), <code class="k">g.json</code> (items, weights, anchors, version), <code class="k">xp.json</code> (caps and level descriptions of six dimensions), <code class="k">rules.json</code> (starter rules, including baseline rules for the nine principles) and <code class="k">question_templates.json</code>. Every user-facing label is <code class="k">{"zh": ..., "en": ...}</code>.</span></p><p><span lang="zh"><code class="k">presets.load()</code> 读取并校验全部五个文件，错误信息指出文件和字段。<code class="k">default</code> 与 <code class="k">tiger-method</code> 共用 PAD 与 G，只在 XP 的维度命名上不同。G 的评分标准有版本号，只有同一版本的标签才可互相比较。</span><span lang="en"><code class="k">presets.load()</code> reads and validates all five files and names the file and field in any error. <code class="k">default</code> and <code class="k">tiger-method</code> share PAD and G and differ only in XP dimension naming. G's rubric has a version, and labels are comparable only within one version.</span></p></div>
+      <div class="card"><h3>config.py: trace.toml</h3><p><span lang="zh">所有键都可选，<b>未知键抛 ConfigError 并指出键名</b>，拼错不会静默回退。键：<code class="k">timezone</code>、<code class="k">data_dir</code>、<code class="k">preset</code>、<code class="k">language</code>、<code class="k">outreach</code>（<code class="k">note</code> 或 <code class="k">note+email</code>）、<code class="k">git_remote</code>、<code class="k">tasks</code>、<code class="k">credentials</code>。任务时间必须是 <code class="k">HH:MM</code>，审计可以写 <code class="k">Sun 22:15</code>。</span><span lang="en">Every key is optional and <b>an unknown key raises ConfigError naming it</b>, so a typo never silently falls back. Keys: <code class="k">timezone</code>, <code class="k">data_dir</code>, <code class="k">preset</code>, <code class="k">language</code>, <code class="k">outreach</code> (<code class="k">note</code> or <code class="k">note+email</code>), <code class="k">git_remote</code>, <code class="k">tasks</code>, <code class="k">credentials</code>. Task times must be <code class="k">HH:MM</code>, and audit may be <code class="k">Sun 22:15</code>.</span></p><p><span lang="zh">默认任务：calibrate 09:00，feedback 12:30 和 20:30，daily 19:30，g 20:30，audit Sun 22:15。用 <code class="k">tomllib</code> 解析，所以需要 Python 3.11 以上。</span><span lang="en">Default tasks: calibrate 09:00, feedback 12:30 and 20:30, daily 19:30, g 20:30, audit Sun 22:15. It parses with <code class="k">tomllib</code>, hence Python 3.11 or newer.</span></p></div>
+    </div>
+  </div>
+</section>
+
+<section id="tests">
+  <div class="wrap">
+    <div class="sec-n">10</div>
+    <h2><span lang="zh">测试策略</span><span lang="en">Testing strategy</span></h2>
+    <p class="sub"><span lang="zh">只用标准库的 <code class="k">unittest</code>，每个原则至少有一个能在违反时变红的测试，外部世界（SMTP、IMAP、Notion、git）都被替身挡住，测试从不联网。</span><span lang="en">Only the standard-library <code class="k">unittest</code>. Every principle has at least one test that turns red when it is broken, and the outside world (SMTP, IMAP, Notion, git) is replaced by doubles, so tests never use the network.</span></p>
+    <div class="two">
+      <div id="bars"></div>
+      <div>
+        <div class="codebox"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><span class="cap">$</span><pre>python3 -m unittest discover -s tests -v
+
+Ran 372 tests in 4.029s
+
+OK</pre></div>
+        <div class="card"><h3>test_example.py</h3><p><span lang="zh">端到端：虚构人物 Juniper 通过 CLI 跑完三天的完整回路（写笔记、PAD、G、XP、提问、反馈、决定、回执、周审计），并与 <code class="k">examples/persona/expected.json</code> 对照。本页用到的真实记录就来自这条路径。</span><span lang="en">End to end: the fictional persona Juniper runs three full days through the CLI (notes, PAD, G, XP, question, feedback, decision, receipt, weekly audit) and the results are compared with <code class="k">examples/persona/expected.json</code>. The real records on this page come from that path.</span></p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="extend" style="background:var(--soft)">
+  <div class="wrap">
+    <div class="sec-n">11</div>
+    <h2><span lang="zh">怎么扩展</span><span lang="en">How to extend it</span></h2>
+    <p class="sub"><span lang="zh">先读 <code class="k">scripts/ralph/progress.txt</code> 的「Codebase Patterns」，再照下面三个配方做。</span><span lang="en">Read the "Codebase Patterns" section of <code class="k">scripts/ralph/progress.txt</code> first, then follow one of these three recipes.</span></p>
+    <div class="tabbar" data-tabs="ext"></div>
+    <div id="ext">
+      <div class="pane" data-title="&lt;span lang=&quot;zh&quot;&gt;新预设&lt;/span&gt;&lt;span lang=&quot;en&quot;&gt;New preset&lt;/span&gt;"><div class="two"><ol class="life"><li><b><span lang="zh">复制 etrace/preset_data/default</span><span lang="en">Copy etrace/preset_data/default</span></b><span><span lang="zh">改名为新预设，例如 <code class="k">etrace/preset_data/my-method/</code>。</span><span lang="en">Rename it, for example <code class="k">etrace/preset_data/my-method/</code>.</span></span></li><li><b><span lang="zh">改 xp.json 的维度</span><span lang="en">Edit the dimensions in xp.json</span></b><span><span lang="zh">每个维度要 id、双语标签和上限 cap；0 到 4 级的描述是整个文件共用的。</span><span lang="en">Each dimension needs an id, bilingual label and cap; the level 0 to 4 descriptions are shared by the whole file.</span></span></li><li><b><span lang="zh">把名字加进 NAMES</span><span lang="en">Add the name to NAMES</span></b><span><span lang="zh"><code class="k">presets.NAMES</code>（<code class="k">journal.PRESETS</code> 与 <code class="k">init --preset</code> 的选项都引用它）和 <code class="k">config.PRESETS</code> 是两处独立的元组，都要加。</span><span lang="en"><code class="k">presets.NAMES</code> (used by <code class="k">journal.PRESETS</code> and the <code class="k">init --preset</code> choices) and <code class="k">config.PRESETS</code> are two separate tuples; add the name to both.</span></span></li><li><b><span lang="zh">跑测试</span><span lang="en">Run the tests</span></b><span><span lang="zh"><code class="k">test_presets.py</code> 会用校验器检查所有预设，字段写错会指出文件和字段名。</span><span lang="en"><code class="k">test_presets.py</code> validates every preset and names the file and field of any mistake.</span></span></li></ol><div class="codebox"><span class="cap">xp.json, shape</span><pre>{"version": "1.0.0",
+ "levels": {"0": {"zh": "没有", "en": "none"}, ... "4": {...}},
+ "dimensions": [
+   {"id": "rhythm", "cap": 18,
+    "label": {"zh": "节律与稳定", "en": "Rhythm and stability"}},
+   ...],
+ "ordinary": {"min": 0, "max": 10, "label": {...}},
+ "events": {"capped": false, "requires": [...]}}</pre></div></div></div>
+      <div class="pane" data-title="&lt;span lang=&quot;zh&quot;&gt;新调度目标&lt;/span&gt;&lt;span lang=&quot;en&quot;&gt;New scheduler target&lt;/span&gt;"><div class="two"><ol class="life"><li><b><span lang="zh">写一个渲染函数</span><span lang="en">Write a render function</span></b><span><span lang="zh">在 <code class="k">adapters/scheduler.py</code> 里仿照 <code class="k">cron_files(cfg)</code>，返回 {文件名: 文本}。</span><span lang="en">In <code class="k">adapters/scheduler.py</code>, model it on <code class="k">cron_files(cfg)</code> and return {filename: text}.</span></span></li><li><b><span lang="zh">注册</span><span lang="en">Register it</span></b><span><span lang="zh">加进 <code class="k">TARGETS</code> 和 <code class="k">_RENDER</code>。命令行的 <code class="k">--target</code> 选项自动跟上。</span><span lang="en">Add it to <code class="k">TARGETS</code> and <code class="k">_RENDER</code>; the CLI <code class="k">--target</code> choice follows.</span></span></li><li><b><span lang="zh">保持两条纪律</span><span lang="en">Keep two disciplines</span></b><span><span lang="zh">只写文件，不安装；用 <code class="k">env_command(cfg)</code> 与 <code class="k">prompt_command(cfg, task)</code>，这样提示词在运行时渲染。</span><span lang="en">Only write files, never install; use <code class="k">env_command(cfg)</code> and <code class="k">prompt_command(cfg, task)</code> so the prompt renders at run time.</span></span></li></ol><div class="codebox"><span class="cap">scheduler.py</span><pre>TARGETS = ("codex", "claude-code", "cron")
+_RENDER = {"codex": codex_files,
+           "claude-code": claude_code_files,
+           "cron": cron_files}
+
+def render(target, cfg):
+    return _RENDER[target](cfg)</pre></div></div></div>
+      <div class="pane" data-title="&lt;span lang=&quot;zh&quot;&gt;新 CLI 命令&lt;/span&gt;&lt;span lang=&quot;en&quot;&gt;New CLI command&lt;/span&gt;"><div class="two"><ol class="life"><li><b><span lang="zh">领域逻辑放进模块</span><span lang="en">Put the logic in a module</span></b><span><span lang="zh">函数收 <code class="k">data_dir</code>，用 <code class="k">with store.lock()</code>，错误抛带 <code class="k">.errors</code> 的异常。</span><span lang="en">Take <code class="k">data_dir</code>, use <code class="k">with store.lock()</code>, and raise an exception carrying <code class="k">.errors</code>.</span></span></li><li><b><span lang="zh">写 cmd_xxx(ctx, args)</span><span lang="en">Write cmd_xxx(ctx, args)</span></b><span><span lang="zh">用 <code class="k">read_json</code> 与 <code class="k">check_fields</code> 先挡住形状错误；<code class="k">ctx.store</code>、<code class="k">ctx.preset</code> 是属性；返回一个可 JSON 序列化的字典。</span><span lang="en">Use <code class="k">read_json</code> and <code class="k">check_fields</code> to stop shape errors first; <code class="k">ctx.store</code> and <code class="k">ctx.preset</code> are properties; return a JSON-serialisable dict.</span></span></li><li><b><span lang="zh">登记异常和子命令</span><span lang="en">Register the exception and sub-command</span></b><span><span lang="zh">把新异常加进 <code class="k">_INPUT_ERRORS</code>，在 <code class="k">build_parser</code> 里加子命令。</span><span lang="en">Add the new exception to <code class="k">_INPUT_ERRORS</code> and the sub-command to <code class="k">build_parser</code>.</span></span></li><li><b><span lang="zh">写测试并更新提示词</span><span lang="en">Add tests and update prompts</span></b><span><span lang="zh">在 <code class="k">test_cli.py</code> 覆盖退出码 0、1、2，需要时更新 <code class="k">prompts/</code>。</span><span lang="en">Cover exit codes 0, 1 and 2 in <code class="k">test_cli.py</code>, and update <code class="k">prompts/</code> if needed.</span></span></li></ol><div class="codebox"><span class="cap">cli.py, shape</span><pre>def cmd_xp_score(ctx, args):
+    obj = check_fields(read_json(args.file),
+                       ("date", "levels", "ordinary"), ("events",))
+    day = xp.score_day(ctx.day(obj["date"]), obj["levels"],
+                       obj["ordinary"], obj.get("events", []),
+                       ctx.preset)
+    rec = xp.record(ctx.store, day)
+    ...                     # week total, then one JSON dict
+    return {"xp": rec["id"], "date": day.date, "total": day.total, ...}</pre></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="ralph">
+  <div class="wrap">
+    <div class="sec-n">12</div>
+    <h2><span lang="zh">Ralph：这个仓库自己是怎么被造出来的</span><span lang="en">Ralph: how the repository itself was built</span></h2>
+    <p class="sub"><span lang="zh">仓库由一个自主循环（Ralph）按 <code class="k">scripts/ralph/prd.json</code> 里的 24 条用户故事逐条实现，每轮读 <code class="k">progress.txt</code> 的经验再动手。因为循环里的 AI 有写权限，所以安全是分层的，而且由操作系统而不是 AI 自己来执行。</span><span lang="en">The repository was built by an autonomous loop (Ralph) that implements the 24 user stories in <code class="k">scripts/ralph/prd.json</code> one by one, reading the lessons in <code class="k">progress.txt</code> each round. Because the AI in the loop has write access, safety is layered and enforced by the operating system rather than by the AI itself.</span></p>
+    <div class="layers">
+      <div class="card"><h3><span lang="zh">1 · 沙箱</span><span lang="en">1 · Sandbox</span></h3><p><code class="k">safe-ralph.sh</code> <span lang="zh">在 macOS 的 <code class="k">sandbox-exec</code> 里运行循环，沙箱配置由 <code class="k">make-guard.sh</code> 从 <code class="k">guard.sb</code> 模板加受保护目录列表生成。受保护目录既不能读也不能写；shell 配置、git 配置、ssh 配置和登录项不能写。</span><span lang="en">runs the loop inside macOS <code class="k">sandbox-exec</code>; <code class="k">make-guard.sh</code> builds the profile from the <code class="k">guard.sb</code> template plus the list of protected directories. Protected directories can be neither read nor written; shell config, git config, ssh config and login items cannot be written.</span></p></div>
+      <div class="card"><h3><span lang="zh">2 · 受保护路径不进 git</span><span lang="en">2 · Protected paths stay out of git</span></h3><p><span lang="zh">真实的目录列表在 <code class="k">protected-paths.local</code>（不在 git 里），仓库里只有 <code class="k">protected-paths.example</code>。这样仓库永远不会含有主人个人系统的路径。</span><span lang="en">The real list lives in <code class="k">protected-paths.local</code> (not in git); the repository holds only <code class="k">protected-paths.example</code>. So the repository never contains paths of the owner's personal system.</span></p></div>
+      <div class="card"><h3><span lang="zh">3 · 没有连接器</span><span lang="en">3 · No connectors</span></h3><p><code class="k">no-mcp.json</code> <span lang="zh">是 <code class="k">{"mcpServers":{}}</code>：循环里的 AI 没有任何 MCP 连接器，所以无法触碰 Notion 等外部工作区。</span><span lang="en">is <code class="k">{"mcpServers":{}}</code>: the AI in the loop has no MCP connectors, so it cannot touch Notion or any other workspace.</span></p></div>
+      <div class="card"><h3><span lang="zh">4 · 入口检查</span><span lang="en">4 · Entry check</span></h3><p><span lang="zh"><code class="k">safe-ralph.sh</code> 拒绝在仓库根目录以外运行；设置 <code class="k">ETRACE_SANDBOXED=1</code>。直接跑 <code class="k">ralph.sh</code> 是不被允许的，文件里写明「Always use this instead」。</span><span lang="en"><code class="k">safe-ralph.sh</code> refuses to run outside the repository root and sets <code class="k">ETRACE_SANDBOXED=1</code>. Running <code class="k">ralph.sh</code> directly is not allowed; the script says "Always use this instead".</span></p></div>
+      <div class="card"><h3><span lang="zh">5 · CLAUDE.md 硬边界</span><span lang="en">5 · CLAUDE.md hard boundary</span></h3><p><span lang="zh">仓库的 CLAUDE.md 把边界写成每个代理运行都要读的指令：只在仓库内工作、不碰受保护目录与任何 Notion 工作区、不编辑 shell 与系统配置、不把真实个人数据或绝对 home 路径写进仓库、不做导入主人个人系统数据的工具。<code class="k">test_privacy</code> 再用测试守住最后一条。</span><span lang="en">The repository's CLAUDE.md states the boundary as instructions every agent run reads: work only inside the repo, never touch protected directories or any Notion workspace, never edit shell or system config, never put real personal data or absolute home paths in the repo, and never build a tool that imports the owner's personal system data. <code class="k">test_privacy</code> then guards part of that with a test.</span></p></div>
+      <div class="card"><h3><span lang="zh">6 · 记忆与验收</span><span lang="en">6 · Memory and acceptance</span></h3><p><span lang="zh"><code class="k">prd.json</code> 的每条故事有验收标准和 <code class="k">passes</code> 标志；<code class="k">progress.txt</code> 记录每轮学到的模式，下一轮先读。现在 24 条全部为 true。</span><span lang="en">Each story in <code class="k">prd.json</code> has acceptance criteria and a <code class="k">passes</code> flag; <code class="k">progress.txt</code> records the patterns learned each round and the next round reads it first. All 24 are now true.</span></p></div>
+    </div>
+    <h3 style="margin:30px 0 10px"><span lang="zh">24 条用户故事</span><span lang="en">The 24 user stories</span></h3>
+    <div class="scroll"><table class="tbl"><thead><tr><th>ID</th><th>Title</th></tr></thead><tbody id="prd"></tbody></table></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>existence-trace · MaxonT/existence-trace · MIT · <span lang="zh">数据来自真实运行，仓库未被修改</span><span lang="en">data from real runs, repository unmodified</span></span>
+    <a class="pill" href="index.html"><span lang="zh">回到大众版</span><span lang="en">Back to the everyone version</span></a>
+  </div>
+</footer>
+
+<script>
+const MODS=[{"f": "cli.py", "n": 719, "l": "cli", "zh": "argparse 子命令、Context、退出码映射", "en": "argparse sub-commands, Context, exit-code mapping"}, {"f": "config.py", "n": 167, "l": "core", "zh": "读取并校验 trace.toml，未知键报错", "en": "Loads and validates trace.toml; unknown keys are errors"}, {"f": "presets.py", "n": 260, "l": "core", "zh": "加载并校验五个预设 JSON，27 词表查词", "en": "Loads and validates the five preset JSON files; 27-word lookup"}, {"f": "store.py", "n": 164, "l": "core", "zh": "追加式 JSONL、锁文件、原子写", "en": "Append-only JSONL, lock file, atomic writes"}, {"f": "journal.py", "n": 389, "l": "core", "zh": "笔记分块、受保护块哈希、读回、原版本追加", "en": "Note blocks, protected block hashing, read-back, verbatim append"}, {"f": "chart.py", "n": 181, "l": "model", "zh": "PAD 的 SVG 折线图，高斯核局部线性平滑", "en": "PAD SVG chart with Gaussian local linear smoothing"}, {"f": "checkpoint.py", "n": 136, "l": "adapter", "zh": "本地私有 git 提交，不强推", "en": "Local private git checkpoints, never force-pushed"}, {"f": "models/pad.py", "n": 300, "l": "model", "zh": "PadPoint、27 词投影、按时长加权的日均、读数记录", "en": "PadPoint, 27-word projection, duration-weighted daily mean, recording"}, {"f": "models/g.py", "n": 584, "l": "model", "zh": "B/E/G 计算、补值、冻结预测、校准门槛", "en": "B/E/G computation, gap fill, frozen predictions, calibration gate"}, {"f": "models/xp.py", "n": 237, "l": "model", "zh": "六维等级计分、重大事件只记一次、周合计", "en": "Six-dimension scoring, events booked once, week totals"}, {"f": "container/questions.py", "n": 213, "l": "container", "zh": "带证据的提问，去重，生命周期", "en": "Evidence-backed questions, de-duplication, lifecycle"}, {"f": "container/feedback.py", "n": 193, "l": "container", "zh": "从笔记反馈区取入反馈，哈希去重，版本链", "en": "Feedback intake from notes, hash de-duplication, version chain"}, {"f": "container/decisions.py", "n": 170, "l": "container", "zh": "决定记录，引用反馈，应用规则变更，pending", "en": "Decision records citing feedback, applying rule changes, pending"}, {"f": "container/rules.py", "n": 154, "l": "container", "zh": "规则文件，按作用域和表达时间取代", "en": "Rule file with scoped supersession by expressed time"}, {"f": "container/usage.py", "n": 115, "l": "container", "zh": "使用回执，必须读回才算已应用", "en": "Usage receipts; applied only if read back"}, {"f": "container/validate.py", "n": 66, "l": "container", "zh": "整条链的结构校验", "en": "Structural validation of the whole chain"}, {"f": "container/audit.py", "n": 402, "l": "container", "zh": "周审计：是否真的用上，用户反应分类", "en": "Weekly audit: was it really applied, user reaction classes"}, {"f": "outreach/note.py", "n": 265, "l": "outreach", "zh": "把问题和决定报告写进笔记并读回", "en": "Writes questions and the decision report into the note and reads back"}, {"f": "outreach/email.py", "n": 502, "l": "outreach", "zh": "SMTP 发信，IMAP 读回复，解析与去重", "en": "SMTP send, IMAP reply reading, parsing and de-duplication"}, {"f": "adapters/scheduler.py", "n": 193, "l": "adapter", "zh": "为 codex、claude-code、cron 生成调度文件", "en": "Scheduler files for codex, claude-code, cron"}, {"f": "adapters/notion.py", "n": 370, "l": "adapter", "zh": "单向镜像笔记到 Notion，读回块数核对", "en": "One-way Notion mirror with block count read-back"}, {"f": "prompts/__init__.py", "n": 88, "l": "core", "zh": "渲染任务提示词，限制 6000 字符", "en": "Renders task prompts, capped at 6000 characters"}];
+const PRD=[["US-001", "Package scaffold and config loader"], ["US-002", "Append-only JSONL store with locking"], ["US-003", "Journal file format and protected blocks"], ["US-024", "Verbatim block is append-only (late additions)"], ["US-004", "Container: rules with scoped supersession"], ["US-005", "Container: feedback intake from notes"], ["US-006", "Container: genuine questions"], ["US-007", "Container: decisions, usage receipts, validation"], ["US-008", "Outreach: questions and decision report in the note"], ["US-009", "Presets: default and tiger-method, complete"], ["US-010", "PAD core model"], ["US-011", "PAD SVG chart"], ["US-012", "G score computation"], ["US-013", "G continuity gap fill"], ["US-014", "Frozen predictions and calibration gate"], ["US-015", "XP scoring"], ["US-016", "Outreach: email plugin"], ["US-017", "Weekly implementation audit"], ["US-018", "Local git checkpoint"], ["US-019", "CLI"], ["US-020", "Agent task prompts (zh/en)"], ["US-021", "Scheduler adapters"], ["US-022", "Optional Notion output adapter"], ["US-023", "Privacy guard, example persona, README"]];
+const TESTS=[["test_audit", 18], ["test_chart", 14], ["test_checkpoint", 15], ["test_cli", 24], ["test_config", 11], ["test_decisions", 18], ["test_example", 1], ["test_feedback", 11], ["test_g", 19], ["test_g_calibration", 12], ["test_g_gap_fill", 11], ["test_journal", 29], ["test_notion", 20], ["test_outreach_email", 30], ["test_outreach_note", 20], ["test_pad", 16], ["test_presets", 22], ["test_privacy", 2], ["test_prompts", 13], ["test_questions", 12], ["test_rules", 11], ["test_scheduler", 8], ["test_store", 15], ["test_xp", 20]];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function bi(z,e){return '<span lang="zh">'+z+'</span><span lang="en">'+e+'</span>';}
+var TITLE={zh:'existence-trace 开发者指南',en:'existence-trace: developer guide'};
+function applyLang(l){
+  document.documentElement.setAttribute('data-lang',l);
+  document.documentElement.lang=l==='zh'?'zh-CN':'en';
+  document.title=TITLE[l];
+  try{localStorage.setItem('et_lang',l);}catch(e){}
+}
+applyLang(document.documentElement.getAttribute('data-lang')||'zh');
+document.getElementById('lang').onclick=function(){applyLang(document.documentElement.getAttribute('data-lang')==='zh'?'en':'zh');};
+document.getElementById('theme').onclick=function(){
+  var r=document.documentElement, cur=r.getAttribute('data-theme');
+  var dark=cur?cur==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;
+  r.setAttribute('data-theme',dark?'light':'dark');
+};
+document.querySelectorAll('[data-copy]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var t=b.parentNode.querySelector('pre').textContent;
+    function done(){b.classList.add('done'); setTimeout(function(){b.classList.remove('done');},1600);}
+    if(navigator.clipboard){navigator.clipboard.writeText(t).then(done,function(){});}
+  });
+});
+
+/* tabs: each .tabbar[data-tabs=ID] controls the panes inside #ID */
+document.querySelectorAll('.tabbar[data-tabs]').forEach(function(bar){
+  var host=document.getElementById(bar.getAttribute('data-tabs'));
+  var panes=Array.prototype.slice.call(host.children).filter(function(p){return p.classList.contains('pane');});
+  panes.forEach(function(p,i){
+    var b=document.createElement('button'); b.setAttribute('role','tab');
+    b.innerHTML=p.getAttribute('data-title');  /* titles may carry language spans */
+    b.onclick=function(){show(i);}; bar.appendChild(b);
+  });
+  function show(i){
+    panes.forEach(function(p,j){p.classList.toggle('on',i===j);});
+    Array.prototype.forEach.call(bar.children,function(b,j){b.setAttribute('aria-selected',i===j?'true':'false');});
+  }
+  show(0);
+});
+
+/* module map */
+(function(){
+  var LAY={cli:['CLI','var(--p)'],model:['models','var(--d)'],container:['container','var(--g)'],outreach:['outreach','var(--a)'],adapter:['adapters','#8a63d2'],core:['core','#495057']};
+  var body=document.getElementById('mbody'), q=document.getElementById('mq'), chips=document.getElementById('mchips'), cur='';
+  Object.keys(LAY).forEach(function(k){
+    var b=document.createElement('button'); b.className='pill'; b.style.marginRight='6px'; b.textContent=LAY[k][0];
+    b.onclick=function(){cur=(cur===k?'':k); draw();}; chips.appendChild(b);
+  });
+  function draw(){
+    var s=q.value.toLowerCase();
+    Array.prototype.forEach.call(chips.children,function(b,i){b.style.borderColor=(Object.keys(LAY)[i]===cur)?'var(--accent)':'';});
+    body.innerHTML=MODS.filter(function(m){
+      return (!cur||m.l===cur)&&(!s||(m.f+' '+m.zh+' '+m.en).toLowerCase().indexOf(s)>=0);
+    }).map(function(m){
+      return '<tr><td><code class="k">'+esc(m.f)+'</code></td><td>'+m.n+'</td><td><span class="lay" style="background:'+LAY[m.l][1]+'">'+LAY[m.l][0]+'</span></td><td>'+bi(esc(m.zh),esc(m.en))+'</td></tr>';
+    }).join('');
+  }
+  q.addEventListener('input',draw); draw();
+})();
+
+/* tests bars */
+(function(){
+  var max=Math.max.apply(null,TESTS.map(function(t){return t[1];}));
+  document.getElementById('bars').innerHTML=TESTS.map(function(t){
+    return '<div class="barrow"><span>'+esc(t[0])+'</span><span style="display:block;background:var(--soft);border-radius:6px"><span class="bar" style="width:'+Math.round(t[1]/max*100)+'%"></span></span><span class="n">'+t[1]+'</span></div>';
+  }).join('');
+})();
+
+/* PRD */
+document.getElementById('prd').innerHTML=PRD.map(function(u){return '<tr><td><code class="k">'+esc(u[0])+'</code></td><td>'+esc(u[1])+'</td></tr>';}).join('');
+</script>
+</body>
+</html>
