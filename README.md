@@ -8,12 +8,12 @@
 [![Last commit](https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg)](https://github.com/MaxonT/existence-trace/commits)
 [![GitHub stars](https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social)](https://github.com/MaxonT/existence-trace/stargazers)
 
-[中文](README.zh.md) · [Website](https://maxont.github.io/existence-trace/) · [For developers](https://maxont.github.io/existence-trace/developers.html) · [Install page](https://maxont.github.io/existence-trace/install/)
+[中文](README.zh.md) · [Website](https://maxont.github.io/existence-trace/) · [For developers](https://maxont.github.io/existence-trace/developers.html) · [Install page](https://maxont.github.io/existence-trace/install/) · [Methodology](https://maxont.github.io/existence-trace/methodology.html)
 
 **Record your traces of existence.**
 
-You write a journal. An AI agent reads it through three lenses (PAD for emotion, G for security
-and hope, XP for growth) and writes a daily report. The part that matters most is what happens
+You write a journal. An AI agent reads it through three lenses (PAD for emotion, G for stability
+and exploration, XP for growth) and writes a daily report. The part that matters most is what happens
 next: a **self-improving preference system** that asks you where it is unsure, turns your answer
 into a rule, and proves every week that it actually used it. Python 3 standard library only, MIT.
 

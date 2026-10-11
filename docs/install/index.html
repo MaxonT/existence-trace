@@ -49,7 +49,7 @@ nav a{margin-right:16px;font-size:14px;text-decoration:none}
 <p>You are the AI agent the user gave this page to. Everything below is addressed to you. Follow it in order. If you cannot do a step, say so plainly instead of pretending.</p>
 
 <h3>0. What you are installing</h3>
-<p>existence-trace records the user's traces of existence. The user writes a short daily journal. You read it through three lenses (PAD emotion, G security and hope, XP growth), ask the user questions when you are unsure, turn their answers into rules, apply those rules, and prove each time that you used them. Its strongest feature is the <strong>self-optimizing preference system</strong>: question, feedback, decision, rule, usage receipt, weekly audit. Source: <code>https://github.com/MaxonT/existence-trace</code>.</p>
+<p>existence-trace records the user's traces of existence. The user writes a short daily journal. You read it through three lenses (PAD emotion, G stability and exploration, XP growth), ask the user questions when you are unsure, turn their answers into rules, apply those rules, and prove each time that you used them. Its strongest feature is the <strong>self-optimizing preference system</strong>: question, feedback, decision, rule, usage receipt, weekly audit. Source: <code>https://github.com/MaxonT/existence-trace</code>.</p>
 
 <h3>1. Capability gate</h3>
 <p>You must be able to (a) run shell commands and (b) read and write files in the user's home directory. If either is missing, stop and tell the user to paste this prompt into an agent that can, or to run the terminal one-liner above by hand.</p>
@@ -84,7 +84,7 @@ etrace validate</pre>
 <p>To make <code>ETRACE_CONFIG</code> permanent, tell the user the line to add to their shell profile and let them decide. Do not append it yourself.</p>
 
 <h3>5. Show the user the four zones they write in</h3>
-<p>Open today's note in the journal folder and explain the only four zones the user edits: <em>My PAD</em> (optional, 1 to 5), <em>My G self-rating</em> (optional, blank is never read as 0), <em>Closer to the real me</em> (free text, you never modify it), and <em>Feedback for the AI</em> (notes for you; start with <code>[Q-id]</code> to answer a question). Everything else is yours to write, through the engine.</p>
+<p>Open today's note in the journal folder and explain the only four zones the user edits: <em>My PAD</em> (optional, 0 to 5), <em>My G self-rating</em> (optional, blank is never read as 0), <em>Closer to the real me</em> (free text, you never modify it), and <em>Feedback for the AI</em> (notes for you; start with <code>[Q-id]</code> to answer a question). Everything else is yours to write, through the engine.</p>
 
 <h3>6. Optional: schedule</h3>
 <p>Offer to generate scheduler files for the agent in use. This only writes files; it installs nothing:</p>

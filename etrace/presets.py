@@ -19,6 +19,7 @@ PAD_AXES = ("P", "A", "D")
 PAD_BANDS = ("low", "mid", "high")
 G_GROUPS = {"B": ("B1", "B2", "B3", "B4"), "E": ("E1", "E2", "E3", "E4")}
 G_ANCHORS = ("0", "2", "5", "8", "10")
+G_ITEM_ANCHORS = ("0-2", "5", "8-10")
 XP_LEVELS = ("0", "1", "2", "3", "4")
 
 
@@ -58,6 +59,8 @@ def label(obj, language):
 
 def validate_pad(pad, where="pad.json"):
     _obj(pad, where)
+    if pad.get("scale") != {"min": 0, "max": 5}:
+        _fail(f"{where}.scale", "must be min 0, max 5")
     axes = _obj(pad.get("axes"), f"{where}.axes")
     if sorted(axes) != sorted(PAD_AXES):
         _fail(f"{where}.axes", f"must be exactly {', '.join(PAD_AXES)}")
@@ -66,12 +69,12 @@ def validate_pad(pad, where="pad.json"):
         _label(_obj(axes[axis], field).get("label"), f"{field}.label")
         levels = _obj(axes[axis].get("levels"), f"{field}.levels")
         if sorted(levels) != [str(i) for i in range(1, 6)]:
-            _fail(f"{field}.levels", "must have exactly the five levels 1-5")
+            _fail(f"{field}.levels", "must have exactly the five reference levels 1-5")
         for level, anchor in levels.items():
             _label(anchor, f"{field}.levels.{level}")
     projection = _obj(pad.get("projection"), f"{where}.projection")
-    if projection != {"low": [1, 2], "mid": [3, 3], "high": [4, 5]}:
-        _fail(f"{where}.projection", "must be low 1-2, mid 3, high 4-5")
+    if projection != {"low": [0, 2], "mid": [3, 3], "high": [4, 5]}:
+        _fail(f"{where}.projection", "must be low 0-2, mid 3, high 4-5")
     words = pad.get("words")
     if not isinstance(words, list) or len(words) != 27:
         _fail(f"{where}.words", "must have exactly 27 cells")
@@ -114,6 +117,11 @@ def validate_g(g, where="g.json"):
                 _fail(f"{field}.items.{code}.weight", "must be positive")
             total += weight
             _label(item.get("label"), f"{field}.items.{code}.label")
+            item_anchors = _obj(item.get("anchors"), f"{field}.items.{code}.anchors")
+            if sorted(item_anchors) != sorted(G_ITEM_ANCHORS):
+                _fail(f"{field}.items.{code}.anchors", f"must be exactly {' / '.join(G_ITEM_ANCHORS)}")
+            for key in G_ITEM_ANCHORS:
+                _label(item_anchors[key], f"{field}.items.{code}.anchors.{key}")
         if not math.isclose(total, 1.0, abs_tol=1e-9):
             _fail(f"{field}.items", f"weights must sum to 1.0, got {total:g}")
     return g
@@ -243,16 +251,16 @@ def g_items(preset):
 
 
 def band(level):
-    """Project a 1-5 PAD level onto low / mid / high (decimals round to the nearest level)."""
+    """Project a continuous 0-5 PAD value onto low / mid / high (decimals round to the nearest level)."""
     _number(level, "level")
-    if not 1 <= level <= 5:
-        raise ValueError(f"level: must be within 1-5, got {level!r}")
+    if not 0 <= level <= 5:
+        raise ValueError(f"level: must be within 0-5, got {level!r}")
     rounded = math.floor(level + 0.5)
     return "low" if rounded <= 2 else "mid" if rounded == 3 else "high"
 
 
 def pad_word(preset, p, a, d, language="zh"):
-    """The 27-table word for P/A/D levels 1-5."""
+    """The 27-table word for P/A/D values 0-5 (a coarse projection only)."""
     key = (band(p), band(a), band(d))
     for cell in preset["pad"]["words"]:
         if (cell["P"], cell["A"], cell["D"]) == key:

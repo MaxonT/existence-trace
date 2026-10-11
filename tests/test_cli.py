@@ -364,6 +364,23 @@ class CliTest(unittest.TestCase):
         with open(self.note(), encoding="utf-8") as fh:
             self.assertIn("G 6.0", fh.read())
 
+    def test_g_chart(self):
+        end = datetime.date.fromisoformat(self.today)
+        for i, value in enumerate((5, 6)):
+            day = (end - datetime.timedelta(days=i)).isoformat()
+            self.run_cli("g", "predict", self.write_json("g.json", {
+                "date": day, "items": self.g_items(value=value)}))
+        code, _, err = self.run_cli("g", "chart", self.today)
+        self.assertNotEqual(code, 0)
+        self.assertIn("at least 3", err)
+        day = (end - datetime.timedelta(days=4)).isoformat()
+        self.run_cli("g", "predict", self.write_json("g.json", {"date": day, "items": self.g_items(value=7)}))
+        code, out, _ = self.run_cli("g", "chart", self.today, "--days", "7")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out["points"]["G"], 3)  # days without a record are skipped, not zero
+        with open(out["chart"], encoding="utf-8") as fh:
+            self.assertEqual(fh.read().count('class="g-line"'), 3)
+
     def test_g_gap_fill_and_errors(self):
         code, out, _ = self.run_cli("g", "predict", self.write_json("g.json", {
             "date": self.today, "items": self.g_items(g.CODES[:-1])}))

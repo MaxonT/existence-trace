@@ -39,14 +39,18 @@ class BundledPresetsTest(unittest.TestCase):
 
     def test_pad_projection(self):
         p = presets.load("default")
-        self.assertEqual([presets.band(x) for x in (1, 2, 3, 4, 5)], ["low", "low", "mid", "high", "high"])
+        self.assertEqual([presets.band(x) for x in (0, 1, 2, 3, 4, 5)], ["low", "low", "low", "mid", "high", "high"])
         self.assertEqual(presets.band(2.4), "low")
         self.assertEqual(presets.band(2.5), "mid")
         self.assertEqual(presets.pad_word(p, 3, 3, 3), "专注")
         self.assertEqual(presets.pad_word(p, 5, 5, 5, "en"), "exhilarated")
         self.assertEqual(presets.pad_word(p, 1, 2, 4), "轻蔑")
+        self.assertEqual(presets.pad_word(p, 0, 0, 4), "轻蔑")
+        self.assertEqual(p["pad"]["scale"], {"min": 0, "max": 5})
         with self.assertRaises(ValueError):
-            presets.band(0)
+            presets.band(-0.1)
+        with self.assertRaises(ValueError):
+            presets.band(5.1)
 
     def test_g_weights_and_anchors(self):
         for name in presets.NAMES:
@@ -56,6 +60,20 @@ class BundledPresetsTest(unittest.TestCase):
             self.assertEqual([weights[c] for c in ("E1", "E2", "E3", "E4")], [0.22, 0.14, 0.36, 0.28])
             self.assertEqual(sorted(p["g"]["anchors"], key=int), ["0", "2", "5", "8", "10"])
             self.assertIn("G = (B + E) / 2", p["g"]["formula"]["en"])
+            names = {code: label["zh"] for code, _, label in presets.g_items(p)}
+            self.assertEqual([names[c] for c in ("B1", "B2", "B3", "B4", "E1", "E2", "E3", "E4")],
+                             ["睡眠与恢复", "身体精力", "安全与支持", "注意力与负担",
+                              "内在兴趣", "自主与自由", "期待与意义", "边界与可持续性"])
+            for group in p["g"]["groups"].values():
+                for item in group["items"].values():
+                    self.assertEqual(sorted(item["anchors"]), sorted(presets.G_ITEM_ANCHORS))
+
+    def test_g_item_anchors_required(self):
+        import copy
+        g = copy.deepcopy(presets.load("default")["g"])
+        del g["groups"]["B"]["items"]["B1"]["anchors"]["5"]
+        with self.assertRaises(ValueError):
+            presets.validate_g(g, "g.json")
 
     def test_xp_dimensions_and_no_events(self):
         for name in presets.NAMES:

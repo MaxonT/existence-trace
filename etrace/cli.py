@@ -447,6 +447,28 @@ def _g_text(ctx, day, res, cal):
     return "\n".join(lines + ["", g.legend(ctx.preset, lang)])
 
 
+def cmd_g_chart(ctx, args):
+    if args.days < 1:
+        raise InputError("--days must be at least 1")
+    end = datetime.date.fromisoformat(ctx.day(args.date))
+    series = []
+    for i in range(args.days - 1, -1, -1):
+        day = (end - datetime.timedelta(days=i)).isoformat()
+        rec = g.latest(ctx.store, day)
+        if rec is not None:
+            res = g.compute(rec["items"], ctx.preset)
+            series.append((day, {"B": res.B, "E": res.E, "G": res.G}))
+    counts = {k: sum(1 for _, v in series if v[k] is not None) for k in chart.G_LINES}
+    if max(counts.values(), default=0) < chart.G_MIN_POINTS:
+        raise InputError(f"date: need at least {chart.G_MIN_POINTS} days with B, E or G in the "
+                         f"{args.days} days up to {end}; have {counts}")
+    svg = chart.g_svg(series, ctx.lang)
+    os.makedirs(ctx.charts, exist_ok=True)
+    path = os.path.join(ctx.charts, f"{end}-g-{args.days}d.svg")
+    write_text_atomic(path, svg)
+    return {"chart": path, "days": len(series), "points": counts}
+
+
 def cmd_g_report(ctx, args):
     day = ctx.day(args.date)
     snaps = g.predictions(ctx.store, day)
@@ -628,6 +650,10 @@ def build_parser():
     s = gg.add_parser("report")
     s.add_argument("--date")
     s.set_defaults(func=cmd_g_report)
+    s = gg.add_parser("chart")
+    s.add_argument("date")
+    s.add_argument("--days", type=int, default=30, help="window ending on DATE (default 30)")
+    s.set_defaults(func=cmd_g_chart)
 
     x = group("xp", "XP scoring")
     s = x.add_parser("score")

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>existence-trace · Methodology: PAD, G, XP</title>
+<link rel="canonical" href="https://maxont.github.io/existence-trace/methodology.html">
+<meta name="description" content="The three lenses of existence-trace: PAD (continuous 0-5), G (stability and exploration, g-1.4.0) and XP 2.2. 方法论：PAD、G、XP。">
+<script>
+(function(){
+  var l='zh';
+  try{var s=localStorage.getItem('et_lang'); if(s==='zh'||s==='en') l=s; else if(!/^zh/i.test(navigator.language||'')) l='en';}
+  catch(e){ if(!/^zh/i.test(navigator.language||'')) l='en'; }
+  document.documentElement.setAttribute('data-lang',l);
+  document.documentElement.lang=l==='zh'?'zh-CN':'en';
+})();
+</script>
+<style>
+:root{--bg:#fbf8f3;--card:#fff;--ink:#2a2522;--muted:#6d655f;--line:#e7dfd5;--soft:#f4eee5;--p:#d6336c;--a:#e08600;--d:#1c7ed6;--b:#2b8a3e;--e:#7048e8;--accent:#d6336c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161418;--card:#211e25;--ink:#eee9e4;--muted:#a69da0;--line:#38333d;--soft:#1c1a20;--accent:#f06595}}
+:root[data-theme="dark"]{--bg:#161418;--card:#211e25;--ink:#eee9e4;--muted:#a69da0;--line:#38333d;--soft:#1c1a20;--accent:#f06595}
+html[data-lang="zh"] [lang="en"]{display:none!important}
+html[data-lang="en"] [lang="zh"]{display:none!important}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.7;font-size:16px;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(10px);background:color-mix(in srgb,var(--bg) 82%,transparent);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:14px;height:56px}
+nav b{font-size:15px;white-space:nowrap}
+nav .links{display:flex;gap:16px;flex:1;overflow:auto;scrollbar-width:none}
+nav .links a{color:var(--muted);text-decoration:none;font-size:14px;white-space:nowrap}
+.pill{font:inherit;font-size:13px;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink);text-decoration:none;white-space:nowrap;cursor:pointer}
+header{padding:56px 0 18px}
+h1{font-size:clamp(28px,4.6vw,46px);line-height:1.2;margin:8px 0 14px}
+h2{font-size:clamp(22px,3vw,30px);margin:0 0 6px}
+h3{margin:26px 0 8px}
+.eyebrow{font-size:13px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.lead,.sub{color:var(--muted);max-width:780px}
+section{padding:40px 0;border-top:1px solid var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0}
+.note{background:var(--soft);border-left:4px solid var(--accent);border-radius:8px;padding:12px 16px;margin:14px 0}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px;color:#fff;margin-right:6px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--card)}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.grp td{background:var(--soft);font-weight:700}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;background:var(--soft);padding:1px 5px;border-radius:5px}
+ul{padding-left:22px}
+footer{padding:30px 0 50px;color:var(--muted);border-top:1px solid var(--line)}
+footer .wrap{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <b><a href="./" style="color:inherit;text-decoration:none">existence-trace</a></b>
+    <div class="links">
+      <a href="#pad">PAD</a><a href="#g">G</a><a href="#xp">XP</a><a href="#rules"><span lang="zh">共同规则</span><span lang="en">Shared rules</span></a>
+    </div>
+    <a class="pill" href="./"><span lang="zh">首页</span><span lang="en">Home</span></a>
+    <a class="pill" href="developers.html"><span lang="zh">开发者版</span><span lang="en">For developers</span></a>
+    <button class="pill" id="lang" aria-label="language"><span lang="zh">English</span><span lang="en">中文</span></button>
+    <button class="pill" id="theme"><span lang="zh">深浅色</span><span lang="en">Light/Dark</span></button>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow"><span lang="zh">方法论</span><span lang="en">Methodology</span></div>
+    <h1><span lang="zh">三个视角：PAD、G、XP</span><span lang="en">Three lenses: PAD, G and XP</span></h1>
+    <p class="lead"><span lang="zh">这里写的是引擎实际使用的方法：量程、权重、锚点、补值和校准规则。表格直接从内置 <code>default</code> 预设生成，与代码一致。</span><span lang="en">This is the method the engine actually uses: scales, weights, anchors, gap filling and calibration. The tables are generated from the bundled <code>default</code> preset, so they match the code.</span></p>
+    <div class="note"><span lang="zh">PAD、G、XP 都是单人纵向的反思辅助，<b>不是临床量表</b>，也不是对一个人的客观真值。缺失永远不算 0；AI 的推断永远标明是推断。</span><span lang="en">PAD, G and XP are single-person, longitudinal reflection aids, <b>not clinical scales</b> and not an objective truth about a person. Missing is never 0, and an AI inference is always labelled as one.</span></div>
+  </div>
+</header>
+
+<section id="pad">
+  <div class="wrap">
+    <h2><span class="tag" style="background:var(--p)">PAD</span><span lang="zh">情绪的形状</span><span lang="en">The shape of mood</span></h2>
+    <p class="sub"><span lang="zh">愉悦 P、激活 A、掌控 D 三个轴，每个轴是 0–5 的连续值。</span><span lang="en">Pleasure P, Arousal A and Dominance D, each a continuous value from 0 to 5.</span></p>
+    <ul>
+      <li><span lang="zh">读数可以带精确时间（HH:MM）或只标时段（早、中、下午、其他）。只标时段的读数画在固定位置，图注会说明。</span><span lang="en">A reading has an exact time (HH:MM) or only a slot (morning, noon, afternoon, other). Slot-only readings are drawn at fixed positions and the caption says so.</span></li>
+      <li><span lang="zh">曲线是高斯核局部线性拟合：一日图带宽 2.5 小时，一周图带宽 0.75 天，结果裁剪到 0–5。没有散点，没有虚线。</span><span lang="en">Lines are Gaussian-kernel local linear fits: 2.5-hour bandwidth for a day, 0.75 days for a week, clamped to 0-5. No dots, no dashed lines.</span></li>
+      <li><span lang="zh">27 个情绪词只是<b>粗投影</b>：每个轴四舍五入后 0–2 为低、3 为中、4–5 为高。词永远不替代连续值。</span><span lang="en">The 27 mood words are only a <b>coarse projection</b>: after rounding, 0-2 is low, 3 is mid and 4-5 is high on each axis. A word never replaces the continuous values.</span></li>
+    </ul>
+    <div class="note"><span lang="zh">原方法论目前<b>没有</b>写出逐轴评分锚点、27 词与 125 词映射、校准程序与准确性验证。本页不补写这些内容。下表只是本仓库预设使用的粗投影表，不是经过验证的映射。</span><span lang="en">The source methodology does <b>not</b> yet define per-axis scoring anchors, a 27- or 125-word mapping, a calibration procedure or an accuracy validation. This page does not fill them in. The table below is only the coarse projection this repository's preset uses, not a validated mapping.</span></div>
+    <div class="scroll"><table>
+      <thead><tr><th>P</th><th>A</th><th>D <span lang="zh">低</span><span lang="en">low</span></th><th>D <span lang="zh">中</span><span lang="en">mid</span></th><th>D <span lang="zh">高</span><span lang="en">high</span></th></tr></thead>
+      <tbody><tr><td>P <span lang="zh">低</span><span lang="en">low</span></td><td>A <span lang="zh">低</span><span lang="en">low</span></td><td><span lang="zh">无助</span><span lang="en">helpless</span></td><td><span lang="zh">沮丧</span><span lang="en">dejected</span></td><td><span lang="zh">轻蔑</span><span lang="en">contemptuous</span></td></tr><tr><td>P <span lang="zh">低</span><span lang="en">low</span></td><td>A <span lang="zh">中</span><span lang="en">mid</span></td><td><span lang="zh">担忧</span><span lang="en">worried</span></td><td><span lang="zh">烦躁</span><span lang="en">irritated</span></td><td><span lang="zh">不满</span><span lang="en">dissatisfied</span></td></tr><tr><td>P <span lang="zh">低</span><span lang="en">low</span></td><td>A <span lang="zh">高</span><span lang="en">high</span></td><td><span lang="zh">恐慌</span><span lang="en">panicked</span></td><td><span lang="zh">紧张</span><span lang="en">tense</span></td><td><span lang="zh">愤怒</span><span lang="en">angry</span></td></tr><tr><td>P <span lang="zh">中</span><span lang="en">mid</span></td><td>A <span lang="zh">低</span><span lang="en">low</span></td><td><span lang="zh">茫然</span><span lang="en">blank</span></td><td><span lang="zh">平静</span><span lang="en">calm</span></td><td><span lang="zh">淡定</span><span lang="en">composed</span></td></tr><tr><td>P <span lang="zh">中</span><span lang="en">mid</span></td><td>A <span lang="zh">中</span><span lang="en">mid</span></td><td><span lang="zh">困惑</span><span lang="en">confused</span></td><td><span lang="zh">专注</span><span lang="en">focused</span></td><td><span lang="zh">笃定</span><span lang="en">assured</span></td></tr><tr><td>P <span lang="zh">中</span><span lang="en">mid</span></td><td>A <span lang="zh">高</span><span lang="en">high</span></td><td><span lang="zh">震惊</span><span lang="en">shocked</span></td><td><span lang="zh">惊讶</span><span lang="en">surprised</span></td><td><span lang="zh">警觉</span><span lang="en">alert</span></td></tr><tr><td>P <span lang="zh">高</span><span lang="en">high</span></td><td>A <span lang="zh">低</span><span lang="en">low</span></td><td><span lang="zh">依恋</span><span lang="en">attached</span></td><td><span lang="zh">满足</span><span lang="en">content</span></td><td><span lang="zh">惬意</span><span lang="en">at ease</span></td></tr><tr><td>P <span lang="zh">高</span><span lang="en">high</span></td><td>A <span lang="zh">中</span><span lang="en">mid</span></td><td><span lang="zh">感动</span><span lang="en">moved</span></td><td><span lang="zh">开心</span><span lang="en">happy</span></td><td><span lang="zh">自豪</span><span lang="en">proud</span></td></tr><tr><td>P <span lang="zh">高</span><span lang="en">high</span></td><td>A <span lang="zh">高</span><span lang="en">high</span></td><td><span lang="zh">惊喜</span><span lang="en">delighted</span></td><td><span lang="zh">兴奋</span><span lang="en">excited</span></td><td><span lang="zh">豪迈</span><span lang="en">exhilarated</span></td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="g">
+  <div class="wrap">
+    <h2><span class="tag" style="background:var(--b)">G</span><span lang="zh">稳定与探索</span><span lang="en">Stability and exploration</span> <small style="color:var(--muted);font-size:15px">g-1.4.0</small></h2>
+    <p class="sub"><span lang="zh">G 是根据日记证据编码的单人纵向复合指数，不是临床量表，也不是对人的客观真值。</span><span lang="en">G is a single-person longitudinal composite coded from journal evidence; it is not a clinical scale and not an objective truth about a person.</span></p>
+    <div class="card"><b><span lang="zh">B = 0.28 B1 + 0.18 B2 + 0.36 B3 + 0.18 B4；E = 0.22 E1 + 0.14 E2 + 0.36 E3 + 0.28 E4；G = (B + E) / 2</span><span lang="en">B = 0.28 B1 + 0.18 B2 + 0.36 B3 + 0.18 B4; E = 0.22 E1 + 0.14 E2 + 0.36 E3 + 0.28 E4; G = (B + E) / 2</span></b><br><span style="color:var(--muted)"><span lang="zh">刻度 0–10。全局锚点：</span><span lang="en">Scale 0-10. Global anchors: </span></span><b>0</b> <span lang="zh">明确而强烈的不足</span><span lang="en">clear and strong shortfall</span> · <b>2</b> <span lang="zh">明显不足</span><span lang="en">clearly short</span> · <b>5</b> <span lang="zh">支持与阻力并存</span><span lang="en">support and resistance side by side</span> · <b>8</b> <span lang="zh">较充分</span><span lang="en">mostly sufficient</span> · <b>10</b> <span lang="zh">明确而充分</span><span lang="en">clear and sufficient</span></div>
+    <h3><span lang="zh">八个细项与逐项锚点</span><span lang="en">Eight items and their anchors</span></h3>
+    <div class="scroll"><table>
+      <thead><tr><th><span lang="zh">细项</span><span lang="en">Item</span></th><th><span lang="zh">权重</span><span lang="en">Weight</span></th><th>0–2</th><th>5</th><th>8–10</th></tr></thead>
+      <tbody><tr class="grp"><td colspan="5"><span lang="zh">B 稳定</span><span lang="en">B stability</span></td></tr><tr><td><b>B1</b> <span lang="zh">睡眠与恢复</span><span lang="en">Sleep and recovery</span></td><td class="num">0.28</td><td><span lang="zh">明确失眠、严重压缩或几乎未恢复</span><span lang="en">clear insomnia, badly cut short or barely recovered</span></td><td><span lang="zh">有休息，也有不足或质量不明</span><span lang="en">some rest, with shortfall or unclear quality</span></td><td><span lang="zh">恢复充分且本人感到被修复</span><span lang="en">fully recovered and feels restored</span></td></tr><tr><td><b>B2</b> <span lang="zh">身体精力</span><span lang="en">Physical energy</span></td><td class="num">0.18</td><td><span lang="zh">明确疲惫、疼痛或难以承担日常</span><span lang="en">clearly exhausted, in pain or unable to carry the day</span></td><td><span lang="zh">有能量也有身体成本</span><span lang="en">some energy, with a bodily cost</span></td><td><span lang="zh">精力充足、身体余力明显</span><span lang="en">plenty of energy, clear physical reserve</span></td></tr><tr><td><b>B3</b> <span lang="zh">安全与支持</span><span lang="en">Safety and support</span></td><td class="num">0.36</td><td><span lang="zh">明确不安全、孤立或支持断裂</span><span lang="en">clearly unsafe, isolated or cut off from support</span></td><td><span lang="zh">支持与威胁/孤立并存</span><span lang="en">support alongside threat or isolation</span></td><td><span lang="zh">关系与环境带来清楚承接</span><span lang="en">relationships and surroundings clearly hold you</span></td></tr><tr><td><b>B4</b> <span lang="zh">注意力与负担</span><span lang="en">Attention and load</span></td><td class="num">0.18</td><td><span lang="zh">明显被多线、义务或反复思考占满</span><span lang="en">clearly swamped by parallel threads, duties or rumination</span></td><td><span lang="zh">能推进，但切换与负担明显</span><span lang="en">can move forward, but switching and load are clear</span></td><td><span lang="zh">注意力自主、负担可控且有余地</span><span lang="en">attention is self-directed, load is manageable with room to spare</span></td></tr><tr class="grp"><td colspan="5"><span lang="zh">E 探索</span><span lang="en">E exploration</span></td></tr><tr><td><b>E1</b> <span lang="zh">内在兴趣</span><span lang="en">Intrinsic interest</span></td><td class="num">0.22</td><td><span lang="zh">几乎只有被迫执行或明确厌倦</span><span lang="en">almost only forced execution or clear boredom</span></td><td><span lang="zh">兴趣与义务混合</span><span lang="en">interest mixed with obligation</span></td><td><span lang="zh">持续被问题、声音或创作吸引</span><span lang="en">steadily drawn in by a problem, a sound or making something</span></td></tr><tr><td><b>E2</b> <span lang="zh">自主与自由</span><span lang="en">Autonomy and freedom</span></td><td class="num">0.14</td><td><span lang="zh">被外界要求或证明冲动主导</span><span lang="en">driven by outside demands or the urge to prove yourself</span></td><td><span lang="zh">有选择，也有明显外部牵引</span><span lang="en">some choice, with a clear outside pull</span></td><td><span lang="zh">能按自身愿望选择、拒绝或无功利用途地尝试</span><span lang="en">can choose, decline or try things for no purpose, by your own wish</span></td></tr><tr><td><b>E3</b> <span lang="zh">期待与意义</span><span lang="en">Anticipation and meaning</span></td><td class="num">0.36</td><td><span lang="zh">明天缺少可感知方向或明确绝望</span><span lang="en">no felt direction for tomorrow, or clear despair</span></td><td><span lang="zh">有下一步，但意义感不稳定</span><span lang="en">a next step exists, but the sense of meaning is unsteady</span></td><td><span lang="zh">对明天有本人认可的期待与方向</span><span lang="en">an expectation and direction for tomorrow you endorse yourself</span></td></tr><tr><td><b>E4</b> <span lang="zh">边界与可持续性</span><span lang="en">Boundaries and sustainability</span></td><td class="num">0.28</td><td><span lang="zh">没有停止点、代价明显不可承受</span><span lang="en">no stopping point, the cost is clearly unbearable</span></td><td><span lang="zh">开始设边界但执行不稳</span><span lang="en">starting to set boundaries, but keeping them is unsteady</span></td><td><span lang="zh">能停、能退出、强度可长期承受</span><span lang="en">can stop, can step out, the intensity is sustainable</span></td></tr></tbody>
+    </table></div>
+    <h3><span lang="zh">缺失与补值</span><span lang="en">Missing values and gap filling</span></h3>
+    <ul>
+      <li><span lang="zh">一组四项都有才算该组，两组都有才算 G；否则显示为「缺」，不当作 0。计算中不取整，只在显示时保留一位小数。</span><span lang="en">A group is computed only when all four items exist, and G only when both groups exist; otherwise it shows n/a, never 0. Nothing is rounded during computation; display uses one decimal.</span></li>
+      <li><span lang="zh">补值按固定顺序逐项进行：<code>historical_bridge</code>（前后真实值线性插值）→ <code>continuity_carry_forward</code>（沿用最近的前值）→ <code>scale_prior</code>（5.0）。补值一律低置信度，带上方法和邻近日期，整天不进入训练和准确率统计。</span><span lang="en">Gaps are filled per item in a fixed order: <code>historical_bridge</code> (linear interpolation between real values) → <code>continuity_carry_forward</code> (nearest earlier value) → <code>scale_prior</code> (5.0). Fills are always low confidence, carry their method and neighbour dates, and keep the whole day out of training and accuracy.</span></li>
+      <li><span lang="zh">后来的真实值改变了补值时，追加一个新修订，旧修订保留。</span><span lang="en">When a later real value changes a fill, a new revision is appended and old revisions stay.</span></li>
+    </ul>
+    <h3><span lang="zh">先冻结，后校准</span><span lang="en">Freeze first, calibrate later</span></h3>
+    <ul>
+      <li><span lang="zh">每天的估计先冻结成快照。只有在快照之后表达的反馈才能关联到它；只有用户明确给出的数字才是标签，文字只作证据。</span><span lang="en">Each day's estimate is frozen into a snapshot first. Only feedback expressed after the snapshot links to it; only numbers the user explicitly gave are labels, text is evidence only.</span></li>
+      <li><span lang="zh">反馈可以针对细项、B、E 或 G。设计向量：细项是单位向量，B/E 是该组权重，G 是两组权重各乘 0.5。</span><span lang="en">Feedback may target an item, B, E or G. Design vectors: a unit vector for an item, the group weights for B or E, and both groups' weights x 0.5 for G.</span></li>
+      <li><span lang="zh">Ridge 回归为每个细项拟合一个加性偏移：λ = 5；样本权重 2<sup>−Δ天/60</sup>（半衰期 60 天）；同一天的标注合计权重为 1；偏移裁剪到 ±2，校准后分数裁剪到 0–10。</span><span lang="en">Ridge regression fits one additive offset per item: λ = 5; sample weight 2<sup>−Δdays/60</sup> (60-day half-life); the labels of one day share a total weight of 1; offsets are clipped to ±2 and corrected scores to 0-10.</span></li>
+      <li><span lang="zh">前瞻评估：前 10 个标注日之后的每一天，只用更早的日子拟合再预测。MAE 先在一天内平均，再跨天平均。快照晚于当天次日冻结的回顾性回填可以参与训练，但不计入前瞻准确率。</span><span lang="en">Prospective evaluation: each labelled day after the first 10 is predicted with offsets fitted only on earlier days. MAE is averaged within a day first, then across days. Retrospective backfills (snapshots frozen later than the next day) may train but never count towards prospective accuracy.</span></li>
+      <li><span lang="zh">门槛：至少 10 个训练日 + 10 个前瞻测试日，且 MAE 改善 ≥ 0.2 才启用；最近 10 个测试日恶化 ≥ 0.3 就停用。</span><span lang="en">Gate: at least 10 training days + 10 prospective test days and an MAE gain of ≥ 0.2 to switch on; a loss of ≥ 0.3 over the last 10 test days switches it off.</span></li>
+      <li><span lang="zh">不同评分标准版本的标注不混用。版本变化必须升级版本号，不静默重算历史。时区默认 America/Chicago，可在 trace.toml 中修改。</span><span lang="en">Labels from different rubric versions are never mixed. Any change bumps the version; history is never silently recomputed. The default timezone is America/Chicago and can be changed in trace.toml.</span></li>
+    </ul>
+    <h3><span lang="zh">趋势图</span><span lang="en">Trend chart</span></h3>
+    <p><span lang="zh"><code>etrace g chart DATE --days N</code> 画 B、E、G 三条平滑线：高斯核局部线性，带宽 4.5 天；纵轴在数据范围外扩 0.2，按 0.2 对齐，跨度至少 1.2，并保持在 0–10 内；少于 3 个点的线不画。</span><span lang="en"><code>etrace g chart DATE --days N</code> draws three smooth lines for B, E and G: Gaussian-kernel local linear, 4.5-day bandwidth; the y axis pads the data range by 0.2, aligns to 0.2, spans at least 1.2 and stays within 0-10; a line with fewer than 3 points is not drawn.</span></p>
+  </div>
+</section>
+
+<section id="xp">
+  <div class="wrap">
+    <h2><span class="tag" style="background:var(--a)">XP 2.2</span><span lang="zh">成长</span><span lang="en">Growth</span></h2>
+    <p class="sub"><span lang="zh">六个维度，每天各评 0–4 级。单项得分 = 上限 × 等级 / 4。六维上限合计 90。</span><span lang="en">Six dimensions, each rated 0-4 per day. Points = cap × level / 4. The six caps add up to 90.</span></p>
+    <p><b>0</b> <span lang="zh">没有</span><span lang="en">none</span> · <b>1</b> <span lang="zh">一点</span><span lang="en">a little</span> · <b>2</b> <span lang="zh">明显</span><span lang="en">clear</span> · <b>3</b> <span lang="zh">很强</span><span lang="en">strong</span> · <b>4</b> <span lang="zh">突破</span><span lang="en">breakthrough</span></p>
+    <div class="scroll"><table>
+      <thead><tr><th><span lang="zh">维度（default 预设）</span><span lang="en">Dimension (default preset)</span></th><th><span lang="zh">上限</span><span lang="en">Cap</span></th><th>L0</th><th>L1</th><th>L2</th><th>L3</th><th>L4</th></tr></thead>
+      <tbody><tr><td><span lang="zh">节律与稳定</span><span lang="en">Rhythm and stability</span></td><td class="num">18</td><td class="num">0</td><td class="num">4.5</td><td class="num">9</td><td class="num">13.5</td><td class="num">18</td></tr><tr><td><span lang="zh">学习与吸收</span><span lang="en">Learning and absorbing</span></td><td class="num">16</td><td class="num">0</td><td class="num">4</td><td class="num">8</td><td class="num">12</td><td class="num">16</td></tr><tr><td><span lang="zh">边界与休息</span><span lang="en">Boundaries and rest</span></td><td class="num">16</td><td class="num">0</td><td class="num">4</td><td class="num">8</td><td class="num">12</td><td class="num">16</td></tr><tr><td><span lang="zh">行动与尝试</span><span lang="en">Action and trying</span></td><td class="num">14</td><td class="num">0</td><td class="num">3.5</td><td class="num">7</td><td class="num">10.5</td><td class="num">14</td></tr><tr><td><span lang="zh">反思与发现</span><span lang="en">Reflection and discovery</span></td><td class="num">14</td><td class="num">0</td><td class="num">3.5</td><td class="num">7</td><td class="num">10.5</td><td class="num">14</td></tr><tr><td><span lang="zh">联结与探索</span><span lang="en">Connection and exploration</span></td><td class="num">12</td><td class="num">0</td><td class="num">3</td><td class="num">6</td><td class="num">9</td><td class="num">12</td></tr></tbody>
+    </table></div>
+    <ul>
+      <li><span lang="zh">普通成果另计 0–10 分。</span><span lang="en">Ordinary achievements add 0-10 points.</span></li>
+      <li><span lang="zh">重大事件不封顶，用唯一 event_id 在发生日记一次。</span><span lang="en">Major events are uncapped and booked once, on the day they happened, with a unique event_id.</span> <span lang="zh">没有单日上限。</span><span lang="en">There is no daily cap.</span></li>
+      <li><span lang="zh">维度名称可以换成你自己反复遇到的难题；上限和计分规则不变。</span><span lang="en">Dimension names can be renamed after difficulties you keep meeting; caps and scoring stay the same.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section id="rules">
+  <div class="wrap">
+    <h2><span lang="zh">三者共同的规则</span><span lang="en">Rules shared by all three</span></h2>
+    <ul>
+      <li><span lang="zh">每个数值都标明来源：<code>self_report</code>（你说的）、<code>model_inference</code>（AI 推断）或 <code>gap_fill</code>（补值），并带置信度。</span><span lang="en">Every value states its provenance: <code>self_report</code>, <code>model_inference</code> or <code>gap_fill</code>, with a confidence.</span></li>
+      <li><span lang="zh">你的自评和 AI 的估计不一致时，两个数都保留，AI 写明理由，不悄悄改成一致。</span><span lang="en">When your rating and the AI's estimate differ, both are kept and the AI states why; neither is quietly changed to match.</span></li>
+      <li><span lang="zh">原话逐字保存，AI 只写自己的区块。</span><span lang="en">Your words are kept verbatim; the AI only writes its own blocks.</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>existence-trace · MaxonT/existence-trace · MIT</span>
+    <a class="pill" href="./"><span lang="zh">回到首页</span><span lang="en">Back to home</span></a>
+  </div>
+</footer>
+<script>
+document.getElementById('lang').addEventListener('click',function(){
+  var l=document.documentElement.getAttribute('data-lang')==='zh'?'en':'zh';
+  document.documentElement.setAttribute('data-lang',l);
+  document.documentElement.lang=l==='zh'?'zh-CN':'en';
+  try{localStorage.setItem('et_lang',l);}catch(e){}
+});
+document.getElementById('theme').addEventListener('click',function(){
+  var r=document.documentElement, cur=r.getAttribute('data-theme');
+  if(!cur) cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  r.setAttribute('data-theme',cur==='dark'?'light':'dark');
+});
+</script>
+</body>
+</html>

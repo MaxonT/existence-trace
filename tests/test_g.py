@@ -131,9 +131,12 @@ class LegendTest(unittest.TestCase):
     def test_zh(self):
         text = g.legend(presets.load("default"), "zh")
         self.assertIn("G = (B + E) / 2", text)
-        self.assertIn("B1 身体与作息 (0.28)", text)
-        self.assertIn("E3 行动力 (0.36)", text)
-        self.assertIn("10 非常充足", text)
+        self.assertIn("B 稳定", text)
+        self.assertIn("E 探索", text)
+        self.assertIn("B1 睡眠与恢复 (0.28)：0–2 明确失眠", text)
+        self.assertIn("E3 期待与意义 (0.36)", text)
+        self.assertIn("8–10 对明天有本人认可的期待与方向", text)
+        self.assertIn("10 明确而充分", text)
         self.assertIn("不是临床量表", text)
 
     def test_en_both_presets(self):
@@ -144,7 +147,10 @@ class LegendTest(unittest.TestCase):
             for code, weight, label in presets.g_items(p):
                 self.assertIn(f"{code} {label['en']} ({weight:g})", text)
             self.assertIn("not a clinical scale", text)
-            self.assertLess(text.index("0 "), text.index("10 "))
+            scale = text[text.index("Scale 0-10"):]
+            self.assertLess(scale.index(" 0 "), scale.index(" 10 "))
+            for key in presets.G_ITEM_ANCHORS:
+                self.assertIn(f"{key} ", text)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scale": {
-    "min": 1,
+    "min": 0,
     "max": 5
   },
   "axes": {
@@ -92,7 +92,7 @@
   },
   "projection": {
     "low": [
-      1,
+      0,
       2
     ],
     "mid": [
@@ -105,8 +105,8 @@
     ]
   },
   "projection_note": {
-    "zh": "档位 1–2 为低、3 为中、4–5 为高；小数先四舍五入到最近档位。",
-    "en": "Levels 1-2 are low, 3 is mid, 4-5 are high; decimals round to the nearest level first."
+    "zh": "连续值 0–5，1–5 为参考档位。0–2 为低、3 为中、4–5 为高；小数先四舍五入到最近档位。27 词只是粗投影，不替代连续值。",
+    "en": "Continuous 0-5; levels 1-5 are reference points. 0-2 are low, 3 is mid, 4-5 are high; decimals round to the nearest level first. The 27 words are a coarse projection and never replace the continuous values."
   },
   "words": [
     {

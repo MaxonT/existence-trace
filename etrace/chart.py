@@ -78,21 +78,21 @@ def local_linear(xs, ys, x0, bandwidth):
     return (s2 * t0 - s1 * t1) / det
 
 
-def smooth(xs, ys, bandwidth, samples=SAMPLES):
-    """[(x, y)] on an even grid over [min xs, max xs], y clamped to 0-5."""
+def smooth(xs, ys, bandwidth, samples=SAMPLES, y_min=Y_MIN, y_max=Y_MAX):
+    """[(x, y)] on an even grid over [min xs, max xs], y clamped to [y_min, y_max]."""
     lo, hi = min(xs), max(xs)
     if hi - lo < 1e-9:  # a single position: draw a short flat stroke
         lo, hi = lo - bandwidth / 5, hi + bandwidth / 5
     grid = [lo + (hi - lo) * i / (samples - 1) for i in range(samples)]
-    return [(x, min(Y_MAX, max(Y_MIN, local_linear(xs, ys, x, bandwidth)))) for x in grid]
+    return [(x, min(y_max, max(y_min, local_linear(xs, ys, x, bandwidth)))) for x in grid]
 
 
 def _sx(x, x_min, x_max):
     return LEFT + (x - x_min) / (x_max - x_min) * (RIGHT - LEFT)
 
 
-def _sy(y):
-    return BOTTOM - (y - Y_MIN) / (Y_MAX - Y_MIN) * (BOTTOM - TOP)
+def _sy(y, y_min=Y_MIN, y_max=Y_MAX):
+    return BOTTOM - (y - y_min) / (y_max - y_min) * (BOTTOM - TOP)
 
 
 def _sub(parent, tag, text=None, **attrs):
@@ -178,4 +178,111 @@ def pad_svg(points, kind="day", language="zh", preset=None):
         _sub(svg, "text", CAPTION_SLOTS[lang], x=LEFT, y=HEIGHT - 30, font_size=15,
              fill=MUTED_COLOR, **{"class": "caption"})
 
+    return ET.tostring(svg, encoding="unicode")
+
+
+# --- G / B / E trend ---------------------------------------------------------
+#
+# g_svg(series) draws B, E and G across days on the same canvas. Each line is a
+# Gaussian-kernel local linear fit with a 4.5-day bandwidth; a line with fewer
+# than 3 values is not drawn. The y range is the data range padded by 0.2,
+# aligned outwards to multiples of 0.2, widened to a span of at least 1.2 and
+# kept inside 0-10.
+
+G_COLORS = {"B": "#2B8A3E", "E": "#7048E8", "G": "#212529"}
+G_LINES = ("B", "E", "G")
+G_BANDWIDTH = 4.5  # days
+G_MIN_POINTS = 3
+G_PAD, G_STEP, G_MIN_SPAN = 0.2, 0.2, 1.2
+G_TITLES = {"zh": "G 趋势 {start} – {end}", "en": "G trend {start} – {end}"}
+G_LEGEND = {"zh": {"B": "B 稳定", "E": "E 探索", "G": "G"},
+            "en": {"B": "B stability", "E": "E exploration", "G": "G"}}
+G_CAPTION = {"zh": "少于 3 个点的线不画。", "en": "Lines with fewer than 3 points are not drawn."}
+
+
+def g_range(values):
+    """(y_min, y_max) for the G chart: padded 0.2, aligned to 0.2, span >= 1.2, within 0-10."""
+    def snap(v):
+        return round(v / G_STEP) * G_STEP
+    lo = math.floor(round((min(values) - G_PAD) / G_STEP, 9)) * G_STEP
+    hi = math.ceil(round((max(values) + G_PAD) / G_STEP, 9)) * G_STEP
+    if hi - lo < G_MIN_SPAN - 1e-9:
+        extra = G_MIN_SPAN - (hi - lo)
+        lo -= math.floor(round(extra / 2 / G_STEP, 9)) * G_STEP
+        hi = lo + G_MIN_SPAN
+    if lo < 0:
+        lo, hi = 0.0, max(hi - lo, G_MIN_SPAN)
+    if hi > 10:
+        lo, hi = min(lo - (hi - 10), 10 - G_MIN_SPAN), 10.0
+    return round(snap(lo), 10), round(snap(hi), 10)
+
+
+def _g_ticks(y_min, y_max):
+    span = y_max - y_min
+    step = next(s for s in (0.2, 0.4, 1.0, 2.0) if span / s <= 8 + 1e-9)
+    first = math.ceil(round(y_min / step, 9)) * step
+    ticks, v = [], first
+    while v <= y_max + 1e-9:
+        ticks.append(round(v, 10))
+        v += step
+    return ticks
+
+
+def g_svg(series, language="zh"):
+    """The G/B/E trend for SERIES [(date 'YYYY-MM-DD', {"B": x|None, "E": .., "G": ..})] as SVG."""
+    series = sorted((datetime.date.fromisoformat(d), vals) for d, vals in series)
+    if not series:
+        raise ValueError("g_svg needs at least one day")
+    lang = language if language in ("zh", "en") else "en"
+    start, end = series[0][0], series[-1][0]
+    days = max(1, (end - start).days)
+    lines = {}
+    for key in G_LINES:
+        pts = [((d - start).days, float(v[key])) for d, v in series if v.get(key) is not None]
+        if len(pts) >= G_MIN_POINTS:
+            lines[key] = pts
+    if not lines:
+        raise ValueError(f"g_svg needs at least {G_MIN_POINTS} values for one of B, E, G")
+    curves = {k: smooth([x for x, _ in pts], [y for _, y in pts], G_BANDWIDTH, y_min=0.0, y_max=10.0)
+              for k, pts in lines.items()}
+    values = [y for pts in lines.values() for _, y in pts] + [y for c in curves.values() for _, y in c]
+    y_min, y_max = g_range(values)
+
+    svg = ET.Element("svg", {
+        "xmlns": SVG_NS, "width": str(WIDTH), "height": str(HEIGHT),
+        "viewBox": f"0 0 {WIDTH} {HEIGHT}", "font-family": FONT,
+    })
+    _sub(svg, "rect", x=0, y=0, width=WIDTH, height=HEIGHT, fill=BACKGROUND)
+    title = G_TITLES[lang].format(start=start.isoformat(), end=end.isoformat())
+    _sub(svg, "text", title, x=LEFT, y=44, font_size=24, font_weight="600", fill=TEXT_COLOR)
+    legend_x = RIGHT
+    for key in reversed(G_LINES):
+        name = G_LEGEND[lang][key]
+        _sub(svg, "text", name, x=legend_x, y=44, font_size=18, font_weight="600",
+             fill=G_COLORS[key] if key in lines else MUTED_COLOR, text_anchor="end")
+        legend_x -= 30 + 11 * len(name)
+
+    grid = _sub(svg, "g", stroke=GRID_COLOR, stroke_width=1)
+    for v in _g_ticks(y_min, y_max):
+        y = round(_sy(v, y_min, y_max), 2)
+        _sub(grid, "line", x1=LEFT, y1=y, x2=RIGHT, y2=y)
+        _sub(svg, "text", f"{v:g}", x=LEFT - 14, y=y + 6, font_size=16,
+             fill=MUTED_COLOR, text_anchor="end")
+    step = max(1, math.ceil((days + 1) / 10))
+    for i in range(0, days + 1, step):
+        sx = round(_sx(i, 0, days), 2)
+        label = (start + datetime.timedelta(days=i)).strftime("%m-%d")
+        _sub(svg, "text", label, x=sx, y=BOTTOM + 28, font_size=15,
+             fill=MUTED_COLOR, text_anchor="middle")
+
+    for key in G_LINES:
+        if key not in curves:
+            continue
+        coords = [f"{_sx(x, 0, days):.2f},{_sy(y, y_min, y_max):.2f}" for x, y in curves[key]]
+        _sub(svg, "path", d="M" + " L".join(coords), fill="none", stroke=G_COLORS[key],
+             stroke_width=LINE_WIDTH, stroke_linecap="round", stroke_linejoin="round",
+             **{"class": "g-line", "data-line": key})
+    if len(lines) < len(G_LINES):
+        _sub(svg, "text", G_CAPTION[lang], x=LEFT, y=HEIGHT - 30, font_size=15,
+             fill=MUTED_COLOR, **{"class": "caption"})
     return ET.tostring(svg, encoding="unicode")
