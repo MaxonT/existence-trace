@@ -68,7 +68,7 @@ etrace prompt daily --raw  # 代理跑日报时用的 prompt
 
 ## 一天是什么样
 
-<p align="center"><a href="https://maxont.github.io/existence-trace/#day"><img src="docs/img/day.png" alt="一位虚构面包师的一天：笔记、疑问、反馈、日报" width="720"></a></p>
+<p align="center"><a href="https://maxont.github.io/existence-trace/#day"><img src="docs/img/day.zh.png" alt="一位虚构面包师的一天：笔记、疑问、反馈、日报" width="720"></a></p>
 
 | 默认时间 | 任务 | 做什么 |
 |---|---|---|
