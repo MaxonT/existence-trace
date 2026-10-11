@@ -68,7 +68,7 @@ etrace prompt daily --raw  # the prompt an agent runs for the daily report
 
 `etrace validate` checks the whole chain at any time and exits 1 on any problem.
 
-## What a day looks like
+## What a month looks like
 
 <p align="center"><a href="https://maxont.github.io/existence-trace/methodology.html#pad"><img src="docs/img/pad-month.png" alt="Example monthly PAD trend: P, A and D smoothed with a 0.75-day Gaussian-kernel local linear fit; shaded days have no direct record (synthetic example data)" width="100%"></a></p>
 
