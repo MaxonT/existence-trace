@@ -12,6 +12,15 @@
 - Example images use synthetic persona data (Juniper), never the owner's real records, even if the owner sends a real chart as the model. Keep the layout and say the data is synthetic. It must look real: smooth, rounded curves with realistic complexity (several overlapping rhythms, noise, spikes, dips, gaps), never flat or toy-like lines.
 - The repo sidebar must not be empty: every release has a GitHub Release (wheel + sdist attached) and a package on GitHub Packages (`ghcr.io/maxont/existence-trace`). To release: bump `version` in `pyproject.toml` and `etrace/__init__.py`, run the full tests, commit, push, then push tag `vX.Y.Z`; `.github/workflows/release.yml` publishes both. Check that the release and the package exist afterwards.
 - A CLI is mandatory (`etrace`, a console script) and it must be well tested: unit tests for every command plus an install-and-run check from the built wheel (the release workflow does the latter).
+
+### Working style & judgment (cross-project)
+- Reply in Chinese (中文) by default; code, identifiers, commit messages, and public English docs stay in English.
+- When you have an idea/suggestion for the owner, put it inline in the conversation — do NOT create a markdown file for it in the repo.
+- For private, owner-only tooling, naming and tidiness don't matter; the bar is "the owner can open it and understand it". Spend polish on public output, and write docs to be self-explanatory (clear docs > pretty names).
+- Repo positioning: either a product/tool (simple, approachable, complete) or research/a large system (complex, approachable, continuously growing). Know which this repo is.
+- Reuse existing engines rather than rebuilding; write new glue only for the missing pieces.
+- Stay current by following a FEW original-take sources filtered by low frequency, not by tracking more repos.
+
 - Shared copy of these preferences lives in the owner's global agent files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.kiro/steering/owner-preferences.md`); keep them in sync when this section changes.
 
 ## Hard boundary (non-negotiable)
