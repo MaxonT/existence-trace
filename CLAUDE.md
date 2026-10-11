@@ -9,9 +9,10 @@
 
 ## Owner preferences (keep these; add new ones here)
 - English is the default language. `README.md` and English pages use English-only images; `README.zh.md` gets the Chinese variant (`name.zh.png`). Never show a Chinese screenshot in an English place.
-- Example images use synthetic persona data (Juniper), never the owner's real records, even if the owner sends a real chart as the model. Keep the layout and say so.
-- The repo sidebar must not be empty: every release has a GitHub Release (wheel + sdist attached) and a package on GitHub Packages (`ghcr.io/maxont/existence-trace`). To release: bump `version` in `pyproject.toml` and `etrace/__init__.py`, commit, push, then push tag `vX.Y.Z`; `.github/workflows/release.yml` publishes both. Check that the release and the package exist afterwards.
-- Do the whole job in one go (implement, test, docs, commit, push, verify), then report briefly in Chinese.
+- Example images use synthetic persona data (Juniper), never the owner's real records, even if the owner sends a real chart as the model. Keep the layout and say the data is synthetic. It must look real: smooth, rounded curves with realistic complexity (several overlapping rhythms, noise, spikes, dips, gaps), never flat or toy-like lines.
+- The repo sidebar must not be empty: every release has a GitHub Release (wheel + sdist attached) and a package on GitHub Packages (`ghcr.io/maxont/existence-trace`). To release: bump `version` in `pyproject.toml` and `etrace/__init__.py`, run the full tests, commit, push, then push tag `vX.Y.Z`; `.github/workflows/release.yml` publishes both. Check that the release and the package exist afterwards.
+- A CLI is mandatory (`etrace`, a console script) and it must be well tested: unit tests for every command plus an install-and-run check from the built wheel (the release workflow does the latter).
+- Shared copy of these preferences lives in the owner's global agent files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.kiro/steering/owner-preferences.md`); keep them in sync when this section changes.
 
 ## Hard boundary (non-negotiable)
 - Work only inside this repository.
