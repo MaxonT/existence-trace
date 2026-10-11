@@ -1,111 +1,223 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "scale": {
     "min": 0,
     "max": 10
   },
   "formula": {
-    "zh": "B = Σ 权重×B 细项；E = Σ 权重×E 细项；G = (B + E) / 2",
-    "en": "B = sum(weight x B item); E = sum(weight x E item); G = (B + E) / 2"
+    "zh": "B = 0.28 B1 + 0.18 B2 + 0.36 B3 + 0.18 B4；E = 0.22 E1 + 0.14 E2 + 0.36 E3 + 0.28 E4；G = (B + E) / 2",
+    "en": "B = 0.28 B1 + 0.18 B2 + 0.36 B3 + 0.18 B4; E = 0.22 E1 + 0.14 E2 + 0.36 E3 + 0.28 E4; G = (B + E) / 2"
   },
   "anchors": {
     "0": {
-      "zh": "完全没有",
-      "en": "none at all"
+      "zh": "明确而强烈的不足",
+      "en": "clear and strong shortfall"
     },
     "2": {
-      "zh": "很弱",
-      "en": "very weak"
+      "zh": "明显不足",
+      "en": "clearly short"
     },
     "5": {
-      "zh": "一般",
-      "en": "middling"
+      "zh": "支持与阻力并存",
+      "en": "support and resistance side by side"
     },
     "8": {
-      "zh": "较强",
-      "en": "strong"
+      "zh": "较充分",
+      "en": "mostly sufficient"
     },
     "10": {
-      "zh": "非常充足",
-      "en": "abundant"
+      "zh": "明确而充分",
+      "en": "clear and sufficient"
     }
   },
   "groups": {
     "B": {
       "label": {
-        "zh": "B 安全感",
-        "en": "B security"
+        "zh": "B 稳定",
+        "en": "B stability"
       },
       "items": {
         "B1": {
           "weight": 0.28,
           "label": {
-            "zh": "身体与作息",
-            "en": "Body and rest"
+            "zh": "睡眠与恢复",
+            "en": "Sleep and recovery"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "明确失眠、严重压缩或几乎未恢复",
+              "en": "clear insomnia, badly cut short or barely recovered"
+            },
+            "5": {
+              "zh": "有休息，也有不足或质量不明",
+              "en": "some rest, with shortfall or unclear quality"
+            },
+            "8-10": {
+              "zh": "恢复充分且本人感到被修复",
+              "en": "fully recovered and feels restored"
+            }
           }
         },
         "B2": {
           "weight": 0.18,
           "label": {
-            "zh": "物质与环境",
-            "en": "Resources and surroundings"
+            "zh": "身体精力",
+            "en": "Physical energy"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "明确疲惫、疼痛或难以承担日常",
+              "en": "clearly exhausted, in pain or unable to carry the day"
+            },
+            "5": {
+              "zh": "有能量也有身体成本",
+              "en": "some energy, with a bodily cost"
+            },
+            "8-10": {
+              "zh": "精力充足、身体余力明显",
+              "en": "plenty of energy, clear physical reserve"
+            }
           }
         },
         "B3": {
           "weight": 0.36,
           "label": {
-            "zh": "关系与支持",
-            "en": "Relationships and support"
+            "zh": "安全与支持",
+            "en": "Safety and support"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "明确不安全、孤立或支持断裂",
+              "en": "clearly unsafe, isolated or cut off from support"
+            },
+            "5": {
+              "zh": "支持与威胁/孤立并存",
+              "en": "support alongside threat or isolation"
+            },
+            "8-10": {
+              "zh": "关系与环境带来清楚承接",
+              "en": "relationships and surroundings clearly hold you"
+            }
           }
         },
         "B4": {
           "weight": 0.18,
           "label": {
-            "zh": "可预期与掌控",
-            "en": "Predictability and control"
+            "zh": "注意力与负担",
+            "en": "Attention and load"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "明显被多线、义务或反复思考占满",
+              "en": "clearly swamped by parallel threads, duties or rumination"
+            },
+            "5": {
+              "zh": "能推进，但切换与负担明显",
+              "en": "can move forward, but switching and load are clear"
+            },
+            "8-10": {
+              "zh": "注意力自主、负担可控且有余地",
+              "en": "attention is self-directed, load is manageable with room to spare"
+            }
           }
         }
       }
     },
     "E": {
       "label": {
-        "zh": "E 希望",
-        "en": "E hope"
+        "zh": "E 探索",
+        "en": "E exploration"
       },
       "items": {
         "E1": {
           "weight": 0.22,
           "label": {
-            "zh": "目标清晰",
-            "en": "Clear goals"
+            "zh": "内在兴趣",
+            "en": "Intrinsic interest"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "几乎只有被迫执行或明确厌倦",
+              "en": "almost only forced execution or clear boredom"
+            },
+            "5": {
+              "zh": "兴趣与义务混合",
+              "en": "interest mixed with obligation"
+            },
+            "8-10": {
+              "zh": "持续被问题、声音或创作吸引",
+              "en": "steadily drawn in by a problem, a sound or making something"
+            }
           }
         },
         "E2": {
           "weight": 0.14,
           "label": {
-            "zh": "路径与资源",
-            "en": "Pathways and resources"
+            "zh": "自主与自由",
+            "en": "Autonomy and freedom"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "被外界要求或证明冲动主导",
+              "en": "driven by outside demands or the urge to prove yourself"
+            },
+            "5": {
+              "zh": "有选择，也有明显外部牵引",
+              "en": "some choice, with a clear outside pull"
+            },
+            "8-10": {
+              "zh": "能按自身愿望选择、拒绝或无功利用途地尝试",
+              "en": "can choose, decline or try things for no purpose, by your own wish"
+            }
           }
         },
         "E3": {
           "weight": 0.36,
           "label": {
-            "zh": "行动力",
-            "en": "Agency"
+            "zh": "期待与意义",
+            "en": "Anticipation and meaning"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "明天缺少可感知方向或明确绝望",
+              "en": "no felt direction for tomorrow, or clear despair"
+            },
+            "5": {
+              "zh": "有下一步，但意义感不稳定",
+              "en": "a next step exists, but the sense of meaning is unsteady"
+            },
+            "8-10": {
+              "zh": "对明天有本人认可的期待与方向",
+              "en": "an expectation and direction for tomorrow you endorse yourself"
+            }
           }
         },
         "E4": {
           "weight": 0.28,
           "label": {
-            "zh": "意义与未来感",
-            "en": "Meaning and a sense of future"
+            "zh": "边界与可持续性",
+            "en": "Boundaries and sustainability"
+          },
+          "anchors": {
+            "0-2": {
+              "zh": "没有停止点、代价明显不可承受",
+              "en": "no stopping point, the cost is clearly unbearable"
+            },
+            "5": {
+              "zh": "开始设边界但执行不稳",
+              "en": "starting to set boundaries, but keeping them is unsteady"
+            },
+            "8-10": {
+              "zh": "能停、能退出、强度可长期承受",
+              "en": "can stop, can step out, the intensity is sustainable"
+            }
           }
         }
       }
     }
   },
   "notice": {
-    "zh": "G 不是临床量表，不做医学判断。",
-    "en": "G is not a clinical scale and makes no medical judgement."
+    "zh": "G 是根据日记证据编码的单人纵向复合指数，不是临床量表，也不是对人的客观真值。",
+    "en": "G is a single-person longitudinal composite coded from journal evidence; it is not a clinical scale and not an objective truth about a person."
   }
 }

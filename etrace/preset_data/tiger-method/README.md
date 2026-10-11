@@ -1,6 +1,6 @@
 # tiger-method preset
 
-`tiger-method` uses the same PAD 27-word table and the same G model (g-1.3.0,
+`tiger-method` uses the same PAD 27-word table and the same G model (g-1.4.0,
 weights B .28 .18 .36 .18 / E .22 .14 .36 .28) as `default`. The difference is
 XP (version 2.2): its six dimensions are named after real, recurring
 difficulties instead of generic virtues. It also ships two extra starter rules
@@ -47,7 +47,7 @@ PAD and G are not clinical scales and make no medical judgement.
 
 # tiger-method 预设（中文）
 
-与 `default` 共用 PAD 27 词表和 G 模型（g-1.3.0）。不同在 XP 2.2：六个维度以反复出现的真实难题命名，
+与 `default` 共用 PAD 27 词表和 G 模型（g-1.4.0）。不同在 XP 2.2：六个维度以反复出现的真实难题命名，
 而不是通用美德；另外多两条起步规则（专注时段的 PAD 参考、没有数字时 AI 先代理决定）。
 不含任何个人事件或日记内容。
 

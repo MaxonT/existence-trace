@@ -1,4 +1,4 @@
-"""G score: B (security), E (hope) and G = (B + E) / 2.
+"""G score: B (stability), E (exploration) and G = (B + E) / 2.
 
 A GItem is one item score (B1..B4, E1..E4) on the preset's 0-10 scale with its
 evidence: provenance (self_report | model_inference), source and confidence
@@ -23,8 +23,9 @@ a bridge) is appended as a new revision and old revisions stay.
 
 Frozen predictions (principle 5): predict() snapshots a day's latest revision
 into predictions.jsonl, feedback() links later user numbers/text to it
-(g_feedback.jsonl), and calibration() gates a numeric correction behind
-10 training + 10 later test days per rubric version.
+(g_feedback.jsonl; targets may be items, B, E or G), and calibration() fits a
+ridge offset per item and gates it behind 10 training + 10 later prospective
+test days per rubric version.
 """
 
 import dataclasses
@@ -211,7 +212,11 @@ def legend(preset=None, language="zh"):
         lines.append(lab(spec["label"]) + ("：" if zh else ":"))
         for code in codes:
             item = spec["items"][code]
-            lines.append(f"- {code} {lab(item['label'])} ({item['weight']:g})")
+            anchors = ("；" if zh else "; ").join(
+                f"{key.replace('-', '–' if zh else '-')} {lab(item['anchors'][key])}"
+                for key in presets.G_ITEM_ANCHORS)
+            lines.append(f"- {code} {lab(item['label'])} ({item['weight']:g})"
+                         + ("：" if zh else ": ") + anchors)
     scale = g.get("scale", {"min": 0, "max": 10})
     lines.append((f"刻度 {scale['min']}–{scale['max']}，锚点：" if zh
                   else f"Scale {scale['min']}-{scale['max']}, anchors: ")
@@ -403,16 +408,34 @@ def revisions(data_dir, date):
 # revision of a day into predictions.jsonl before any feedback exists.
 # feedback() links user feedback to such a snapshot; it is rejected unless the
 # prediction was created strictly before the feedback was expressed. Only
-# numbers the user explicitly gave become labels (targets); free text is kept
-# as evidence with targets={}. calibration() fits a per-item mean-bias
-# correction on the first TRAIN_DAYS labelled days and enables it only when the
-# later TEST_DAYS+ days have a lower MAE with the correction than without.
+# numbers the user explicitly gave become labels (targets: an item, B, E or G);
+# free text is kept as evidence with targets={}.
+#
+# calibration() fits one additive offset per item by ridge regression. Each
+# label has a design vector over the eight items: a unit vector for an item,
+# the group weights for B or E, and both groups' weights x 0.5 for G. Labels
+# are weighted 2^(-age/60 days), and the labels of one day share a total
+# weight of 1. RIDGE_LAMBDA = 5, offsets are clipped to +-2 and corrected
+# items to 0-10. The gate is evaluated prospectively: every labelled day after
+# the first TRAIN_DAYS is predicted with offsets fitted only on earlier days;
+# MAE is averaged within each day first, then across days. Days whose
+# prediction was frozen retrospectively (more than one day late) still train
+# but never count towards accuracy. The correction is on when there are
+# TRAIN_DAYS + TEST_DAYS days and it lowers MAE by >= ENABLE_GAIN, and off
+# again when the last RECENT_DAYS test days are worse by >= DISABLE_LOSS.
 # Labels from other rubric versions and gap-filled days are never used.
 
 PREDICTIONS = "predictions"
 G_FEEDBACK = "g_feedback"
 TRAIN_DAYS = 10
 TEST_DAYS = 10
+RECENT_DAYS = 10
+RIDGE_LAMBDA = 5.0
+HALF_LIFE_DAYS = 60.0
+MAX_OFFSET = 2.0
+ENABLE_GAIN = 0.2
+DISABLE_LOSS = 0.3
+TARGET_LEVELS = CODES + ("B", "E", "G")
 
 
 def rubric_version(preset=None):
@@ -477,8 +500,8 @@ def predictions(data_dir, date=None):
 def feedback(data_dir, prediction_id, targets=None, text=None, expressed_at=None, now=None):
     """Store feedback on a frozen prediction; returns the record.
 
-    TARGETS maps item codes to numbers the user explicitly gave (the only
-    training labels). TEXT is stored as evidence and never parsed into labels.
+    TARGETS maps item codes, B, E or G to numbers the user explicitly gave (the
+    only training labels). TEXT is stored as evidence and never parsed into labels.
     EXPRESSED_AT (default now) must be after the prediction's created_at.
     """
     store, now = _store(data_dir), _now(now)
@@ -489,8 +512,8 @@ def feedback(data_dir, prediction_id, targets=None, text=None, expressed_at=None
         errors.append("targets: must be an object {code: number}")
     else:
         for code, value in targets.items():
-            if code not in CODES:
-                errors.append(f"targets.{code}: unknown item code")
+            if code not in TARGET_LEVELS:
+                errors.append(f"targets.{code}: unknown target (B1..E4, B, E or G)")
             else:
                 _check_value(value, f"targets.{code}", errors)
     if text is not None:
@@ -511,7 +534,7 @@ def feedback(data_dir, prediction_id, targets=None, text=None, expressed_at=None
         rec = {"id": _next_id(records, "GF", snap["date"].replace("-", "")),
                "prediction_id": prediction_id, "date": snap["date"],
                "rubric_version": snap["rubric_version"],
-               "targets": {c: targets[c] for c in CODES if c in targets},
+               "targets": {c: targets[c] for c in TARGET_LEVELS if c in targets},
                "text": text, "expressed_at": expressed_at.isoformat(),
                "created_at": now.isoformat()}
         store.append_locked(G_FEEDBACK, rec)
@@ -524,23 +547,53 @@ class Calibration:
     reason: str
     rubric_version: str
     train_days: list
-    test_days: list
-    bias: dict          # code -> mean (label - prediction) on the training days
+    test_days: list         # prospective days after the training days
+    bias: dict              # code -> ridge offset on all labelled days (clipped +-MAX_OFFSET)
     mae_raw: float = None
     mae_corrected: float = None
+    recent_mae_raw: float = None
+    recent_mae_corrected: float = None
 
     def apply(self, code, value):
         """VALUE corrected for CODE when enabled (clamped 0-10), else unchanged."""
         if not self.enabled:
             return value
-        return min(MAX_VALUE, max(MIN_VALUE, value + self.bias.get(code, 0.0)))
+        return _clamp(value + self.bias.get(code, 0.0))
 
 
-def _label_pairs(data_dir, version):
-    """{date: {code: (predicted, label)}} from the latest feedback per date+code."""
+def _clamp(value):
+    return min(MAX_VALUE, max(MIN_VALUE, value))
+
+
+def design_vector(level, preset=None):
+    """A label's weights over CODES: unit vector, group weights, or both x 0.5 for G."""
+    if preset is None:
+        preset = presets.load("default")
+    weights = {code: w for code, w, _ in presets.g_items(preset)}
+    if level in CODES:
+        return [1.0 if c == level else 0.0 for c in CODES]
+    if level in GROUPS:
+        return [weights[c] if c in GROUPS[level] else 0.0 for c in CODES]
+    if level == "G":
+        return [0.5 * weights[c] for c in CODES]
+    raise GError([f"level: unknown target {level!r}"])
+
+
+def _dot(x, values):
+    return sum(a * b for a, b in zip(x, values))
+
+
+def _prospective(snap):
+    """False when the prediction was frozen more than one day after its date."""
+    created = _aware(snap["created_at"], "created_at").date()
+    return created <= _date(snap["date"]) + datetime.timedelta(days=1)
+
+
+def _labels(data_dir, version, preset):
+    """{date: {"prospective": bool, "labels": [(x, raw, target)]}}; latest feedback per date+level."""
     store = _store(data_dir)
     snaps = {s["id"]: s for s in store.read_all(PREDICTIONS)}
-    days = {}
+    latest = {}
     fbs = sorted(store.read_all(G_FEEDBACK), key=lambda r: _aware(r["expressed_at"], "expressed_at"))
     for fb in fbs:
         snap = snaps.get(fb["prediction_id"])
@@ -548,37 +601,92 @@ def _label_pairs(data_dir, version):
                 or not snap.get("training_eligible") or not training_eligible(snap)):
             continue
         predicted = {i["code"]: i["value"] for i in snap["items"]}
-        for code, label in fb["targets"].items():
-            if code in predicted:
-                days.setdefault(snap["date"], {})[code] = (predicted[code], label)
+        if any(c not in predicted for c in CODES):
+            continue
+        raw = [float(predicted[c]) for c in CODES]
+        for level, target in fb["targets"].items():
+            latest[(snap["date"], level)] = (snap, raw, float(target))
+    days = {}
+    for (date, level), (snap, raw, target) in sorted(latest.items()):
+        day = days.setdefault(date, {"prospective": True, "labels": []})
+        day["prospective"] = day["prospective"] and _prospective(snap)
+        day["labels"].append((design_vector(level, preset), raw, target))
     return days
 
 
-def _mae(pairs):
-    return sum(abs(label - pred) for pred, label in pairs) / len(pairs)
+def _solve(a, b):
+    """Solve a x = b (Gauss-Jordan with partial pivoting; a is positive definite here)."""
+    n = len(b)
+    m = [list(row) + [b[i]] for i, row in enumerate(a)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(m[r][col]))
+        m[col], m[piv] = m[piv], m[col]
+        for r in range(n):
+            if r != col and m[r][col]:
+                f = m[r][col] / m[col][col]
+                for k in range(col, n + 1):
+                    m[r][k] -= f * m[col][k]
+    return [m[i][n] / m[i][i] for i in range(n)]
+
+
+def fit_offsets(days, reference):
+    """Ridge offsets per item from DAYS (see _labels), ages measured to REFERENCE."""
+    n = len(CODES)
+    a = [[RIDGE_LAMBDA if i == j else 0.0 for j in range(n)] for i in range(n)]
+    b = [0.0] * n
+    ref = _date(reference)
+    for date, day in days.items():
+        labels = day["labels"]
+        w = 2 ** (-(ref - _date(date)).days / HALF_LIFE_DAYS) / len(labels)
+        for x, raw, target in labels:
+            r = target - _dot(x, raw)
+            for i in range(n):
+                if x[i]:
+                    b[i] += w * x[i] * r
+                    for j in range(n):
+                        a[i][j] += w * x[i] * x[j]
+    delta = _solve(a, b)
+    return {c: max(-MAX_OFFSET, min(MAX_OFFSET, d)) for c, d in zip(CODES, delta)}
+
+
+def _day_mae(labels, offsets):
+    errors = [abs(target - _dot(x, [_clamp(v + offsets.get(c, 0.0)) for c, v in zip(CODES, raw)]))
+              for x, raw, target in labels]
+    return sum(errors) / len(errors)
+
+
+def _mean(values):
+    return sum(values) / len(values)
 
 
 def calibration(data_dir, preset=None, version=None):
     """Calibration gate for one rubric version (default: the preset's)."""
+    if preset is None:
+        preset = presets.load("default")
     version = rubric_version(preset) if version is None else str(version)
-    days = _label_pairs(data_dir, version)
+    days = _labels(data_dir, version, preset)
     dates = sorted(days)
-    train, test = dates[:TRAIN_DAYS], dates[TRAIN_DAYS:]
-    off = lambda reason, **kw: Calibration(False, reason, version, train, test, {}, **kw)
+    train = dates[:TRAIN_DAYS]
+    test = [d for d in dates[TRAIN_DAYS:] if days[d]["prospective"]]
+    bias = fit_offsets(days, dates[-1]) if dates else {}
+    off = lambda reason, **kw: Calibration(False, reason, version, train, test, bias, **kw)
     if len(train) < TRAIN_DAYS or len(test) < TEST_DAYS:
-        return off(f"need {TRAIN_DAYS} training + {TEST_DAYS} later test days, "
+        return off(f"need {TRAIN_DAYS} training + {TEST_DAYS} later prospective test days, "
                    f"have {len(train)} + {len(test)}")
-    sums = {}
-    for d in train:
-        for code, (pred, label) in days[d].items():
-            sums.setdefault(code, []).append(label - pred)
-    bias = {code: sum(v) / len(v) for code, v in sums.items()}
-    probe = Calibration(True, "", version, train, test, bias)
-    raw = [pair for d in test for pair in days[d].values()]
-    corrected = [(probe.apply(code, pred), label)
-                 for d in test for code, (pred, label) in days[d].items()]
-    mae_raw, mae_corr = _mae(raw), _mae(corrected)
-    if mae_corr < mae_raw:
-        return Calibration(True, "correction lowers test MAE", version, train, test, bias,
-                           mae_raw, mae_corr)
-    return off("correction does not lower test MAE", mae_raw=mae_raw, mae_corrected=mae_corr)
+    raw, corrected = [], []
+    for d in test:
+        offsets = fit_offsets({k: days[k] for k in dates if k < d}, d)
+        raw.append(_day_mae(days[d]["labels"], {}))
+        corrected.append(_day_mae(days[d]["labels"], offsets))
+    stats = {"mae_raw": _mean(raw), "mae_corrected": _mean(corrected),
+             "recent_mae_raw": _mean(raw[-RECENT_DAYS:]),
+             "recent_mae_corrected": _mean(corrected[-RECENT_DAYS:])}
+    loss = round(stats["recent_mae_corrected"] - stats["recent_mae_raw"], 9)
+    gain = round(stats["mae_raw"] - stats["mae_corrected"], 9)
+    if loss >= DISABLE_LOSS:
+        return off(f"correction raises MAE by >= {DISABLE_LOSS:g} over the last "
+                   f"{RECENT_DAYS} test days", **stats)
+    if gain >= ENABLE_GAIN:
+        return Calibration(True, f"correction lowers prospective MAE by >= {ENABLE_GAIN:g}",
+                           version, train, test, bias, **stats)
+    return off(f"correction lowers prospective MAE by less than {ENABLE_GAIN:g}", **stats)

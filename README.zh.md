@@ -8,11 +8,11 @@
 [![Last commit](https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg)](https://github.com/MaxonT/existence-trace/commits)
 [![GitHub stars](https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social)](https://github.com/MaxonT/existence-trace/stargazers)
 
-[English](README.md) · [网站](https://maxont.github.io/existence-trace/) · [开发者版](https://maxont.github.io/existence-trace/developers.html) · [安装页](https://maxont.github.io/existence-trace/install/)
+[English](README.md) · [网站](https://maxont.github.io/existence-trace/) · [开发者版](https://maxont.github.io/existence-trace/developers.html) · [安装页](https://maxont.github.io/existence-trace/install/) · [方法论](https://maxont.github.io/existence-trace/methodology.html)
 
 **记录你的存在痕迹。**
 
-你每天写日记。AI 代理用三个视角去理解你的一天：PAD（情绪）、G（安全感与希望）、XP（成长），
+你每天写日记。AI 代理用三个视角去理解你的一天：PAD（情绪）、G（稳定与探索）、XP（成长），
 写成日报。但最重要的是接下来发生的事：一套**会自我迭代的偏好系统**。它在没把握的地方来问你，
 把你的回答变成规则，并且每周证明自己真的用上了。只用 Python 3 标准库，MIT 协议。
 

@@ -39,5 +39,22 @@ class PackagingTest(unittest.TestCase):
         self.assertIn("preset_data/*/*", self.project["tool"]["setuptools"]["package-data"]["etrace"])
 
 
+
+class MethodologyPageTest(unittest.TestCase):
+    def test_page_matches_default_preset(self):
+        with open(os.path.join(REPO, "docs", "methodology.html"), encoding="utf-8") as fh:
+            page = fh.read()
+        p = presets.load("default")
+        self.assertIn(f"g-{p['g']['version']}", page)
+        for code, weight, label in presets.g_items(p):
+            self.assertIn(f"<b>{code}</b>", page)
+            self.assertIn(label["zh"], page)
+            self.assertIn(f"{weight:.2f}", page)
+        for d in p["xp"]["dimensions"]:
+            self.assertIn(d["label"]["en"], page)
+        self.assertIn("125", page)  # states that the PAD 125-word mapping is not written
+        self.assertIn("methodology.html", open(os.path.join(REPO, "docs", "index.html"), encoding="utf-8").read())
+
+
 if __name__ == "__main__":
     unittest.main()

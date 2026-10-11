@@ -198,6 +198,7 @@ footer .wrap{display:flex; gap:16px; flex-wrap:wrap; justify-content:space-betwe
       <a href="#what"><span lang="zh">是什么</span><span lang="en">What it is</span></a><a href="#inside"><span lang="zh">包含什么</span><span lang="en">What's inside</span></a><a href="#day"><span lang="zh">真实的一天</span><span lang="en">A real day</span></a>
       <a href="#rhythm"><span lang="zh">每天怎么转</span><span lang="en">Daily rhythm</span></a><a href="#try"><span lang="zh">试一试</span><span lang="en">Try it</span></a><a href="#start"><span lang="zh">怎么用</span><span lang="en">How to use</span></a><a href="#control"><span lang="zh">你说了算</span><span lang="en">You decide</span></a><a href="#faq">FAQ</a>
     </div>
+    <a class="pill" href="methodology.html"><span lang="zh">方法论</span><span lang="en">Methodology</span></a>
     <a class="pill" href="install/"><span lang="zh">安装</span><span lang="en">Install</span></a>
     <a class="pill dev" href="developers.html"><span lang="zh">开发者版</span><span lang="en">For developers</span></a>
     <button class="pill lang" id="lang" aria-label="language"><span lang="zh">English</span><span lang="en">中文</span></button>
@@ -261,12 +262,12 @@ footer .wrap{display:flex; gap:16px; flex-wrap:wrap; justify-content:space-betwe
       </div>
       <div class="card"><span class="tag" style="background:var(--p)">PAD</span>
         <h3><span lang="zh">看情绪的形状</span><span lang="en">The shape of your mood</span></h3>
-        <p><span lang="zh">愉悦 P、激活 A、掌控 D，三个轴各 1 到 5 档，组合出 27 个情绪词，比如「专注」「惬意」「恐慌」。</span><span lang="en">Pleasure P, Arousal A, Dominance D: three axes with 5 levels each, combined into 27 mood words such as focused, at ease, panicked.</span></p>
+        <p><span lang="zh">愉悦 P、激活 A、掌控 D，三个轴各取 0 到 5 的连续值，再粗略投影到 27 个情绪词，比如「专注」「惬意」「恐慌」。</span><span lang="en">Pleasure P, Arousal A, Dominance D: three axes, each a continuous value from 0 to 5, coarsely projected onto 27 mood words such as focused, at ease, panicked.</span></p>
         <p><span lang="zh">早、中、下午各一个读数，画成一天里平滑的三条曲线。</span><span lang="en">A reading for morning, noon and afternoon, drawn as three smooth lines across the day.</span></p>
       </div>
       <div class="card"><span class="tag" style="background:var(--g)">G</span>
-        <h3><span lang="zh">看安全感与希望</span><span lang="en">Security and hope</span></h3>
-        <p><span lang="zh">0 到 10 分。B 安全感有四项：身体与作息、物质与环境、关系与支持、可预期与掌控。E 希望也有四项：目标清晰、路径与资源、行动力、意义与未来感。</span><span lang="en">Scored 0 to 10. B (security) has four items: body and rest, resources and surroundings, relationships and support, predictability and control. E (hope) has four too: clear goals, pathways and resources, agency, meaning and a sense of future.</span></p>
+        <h3><span lang="zh">看稳定与探索</span><span lang="en">Stability and exploration</span></h3>
+        <p><span lang="zh">0 到 10 分。B 稳定有四项：睡眠与恢复、身体精力、安全与支持、注意力与负担。E 探索也有四项：内在兴趣、自主与自由、期待与意义、边界与可持续性。G = (B + E) / 2。</span><span lang="en">Scored 0 to 10. B (stability) has four items: sleep and recovery, physical energy, safety and support, attention and load. E (exploration) has four too: intrinsic interest, autonomy and freedom, anticipation and meaning, boundaries and sustainability. G = (B + E) / 2.</span></p>
         <p><span lang="zh">G 是 B 和 E 的平均。缺的项显示「缺」，绝不当成 0。</span><span lang="en">G is the average of B and E. A missing item shows as n/a and is never counted as 0.</span></p>
       </div>
       <div class="card"><span class="tag" style="background:var(--a)">XP</span>
@@ -306,7 +307,7 @@ footer .wrap{display:flex; gap:16px; flex-wrap:wrap; justify-content:space-betwe
       <div class="slot"><div class="tm">09:00<small>calibrate</small></div><p><b><span lang="zh">发现疑问。</span><span lang="en">Find doubts.</span></b><span lang="zh">先处理新反馈，再回看最近 14 天的笔记，只在真有拿不准的地方才提问，然后把当天的状态发给你。没疑问也会明说「目前没有新的重要疑问」；扫描失败就说无法判断，绝不假装没事。</span><span lang="en">It processes new feedback, scans the last 14 days of notes, asks only when something is genuinely unclear, then sends you the day's status. With no doubts it says so plainly; if the scan fails it says it cannot tell, and never pretends all is well.</span></p></div>
       <div class="slot"><div class="tm">12:30 · 20:30<small>feedback</small></div><p><b><span lang="zh">读你的回答。</span><span lang="en">Read your answers.</span></b><span lang="zh">收下笔记反馈区和邮件回复，据此作决定、改规则，再写一段决定报告请你过目。没有新东西就保持安静。</span><span lang="en">It collects feedback from your note and email replies, decides, changes rules, and writes a decision report for you to review. If nothing is new, it stays quiet.</span></p></div>
       <div class="slot"><div class="tm">19:30<small>daily</small></div><p><b><span lang="zh">写日报。</span><span lang="en">Write the report.</span></b><span lang="zh">读取生效规则，整理当天的 PAD、XP 和叙述，写好回执，并为明天建好新的一页。</span><span lang="en">It reads the active rules, prepares the day's PAD, XP and narrative, files the receipts, and creates tomorrow's page.</span></p></div>
-      <div class="slot"><div class="tm">20:30<small>g</small></div><p><b><span lang="zh">估 G。</span><span lang="en">Estimate G.</span></b><span lang="zh">给安全感与希望的八个小项打分，对缺失的项低置信度补值，计算、冻结预测、出图。</span><span lang="en">It scores the eight items of security and hope, fills gaps at low confidence, computes, freezes the prediction and draws the chart.</span></p></div>
+      <div class="slot"><div class="tm">20:30<small>g</small></div><p><b><span lang="zh">估 G。</span><span lang="en">Estimate G.</span></b><span lang="zh">给稳定与探索的八个小项打分，对缺失的项低置信度补值，计算、冻结预测、出图。</span><span lang="en">It scores the eight items of stability and exploration, fills gaps at low confidence, computes, freezes the prediction and draws the chart.</span></p></div>
       <div class="slot"><div class="tm"><span lang="zh">周日 22:15</span><span lang="en">Sun 22:15</span><small>audit</small></div><p><b><span lang="zh">周审计。</span><span lang="en">Weekly audit.</span></b><span lang="zh">检查每一条「提问到回执」的链，只有发现漏用或需要你判断的事才会来找你。</span><span lang="en">It checks every chain from question to receipt, and only reaches out if something was missed or needs your judgement.</span></p></div>
     </div>
     <p class="note"><span lang="zh">默认时间都可以在配置文件 trace.toml 里改。每个任务前后，系统会把你的数据目录提交到一个本地私有的 git 仓库，没变化就不提交，默认不推送到任何地方。</span><span lang="en">All default times can be changed in the trace.toml config file. Before and after each task, your data directory is committed to a private local git repository (no change, no commit), and nothing is pushed anywhere by default.</span></p>
@@ -327,13 +328,13 @@ footer .wrap{display:flex; gap:16px; flex-wrap:wrap; justify-content:space-betwe
         <div class="result"><small><span lang="zh">投影出的情绪词</span><span lang="en">Projected word</span></small><div class="word" id="word"></div></div>
       </div>
       <div class="tool">
-        <h3><span lang="zh">G 安全感与希望</span><span lang="en">G: security and hope</span></h3>
+        <h3><span lang="zh">G 稳定与探索</span><span lang="en">G: stability and exploration</span></h3>
         <p class="hint"><span lang="zh">勾上「留空」试试：缺一项，这一组就显示「缺」，G 也算不出来，不会偷偷当成 0。</span><span lang="en">Tick "blank" to see it: with one item missing, that group shows n/a and G cannot be computed. It never quietly counts as 0.</span></p>
         <div id="gRows"></div>
         <div class="result">
           <div style="display:flex; gap:18px; flex-wrap:wrap">
-            <div><small><span lang="zh">B 安全感</span><span lang="en">B security</span></small><div class="big" id="gB"></div></div>
-            <div><small><span lang="zh">E 希望</span><span lang="en">E hope</span></small><div class="big" id="gE"></div></div>
+            <div><small><span lang="zh">B 稳定</span><span lang="en">B stability</span></small><div class="big" id="gB"></div></div>
+            <div><small><span lang="zh">E 探索</span><span lang="en">E exploration</span></small><div class="big" id="gE"></div></div>
             <div><small>G</small><div class="big" id="gG"></div></div>
           </div>
           <small id="gRaw"></small>
@@ -371,7 +372,7 @@ etrace validate</pre></div>
         <h3><span lang="zh">每天只需要写这四个区</span><span lang="en">Each day you only write four zones</span></h3>
         <p><span lang="zh">打开 journal 目录里当天日期的文件，其余区域由 AI 负责：</span><span lang="en">Open today's file in the journal folder. The AI takes care of everything else:</span></p>
         <div class="zones">
-          <div class="zone"><b><span lang="zh">我来填写 PAD</span><span lang="en">My PAD</span></b><span class="d"><span lang="zh">早、中、下午的 P A D，每格 1 到 5，不确定就留空</span><span lang="en">P, A and D for morning, noon, afternoon, each 1 to 5; leave blank if unsure</span></span></div>
+          <div class="zone"><b><span lang="zh">我来填写 PAD</span><span lang="en">My PAD</span></b><span class="d"><span lang="zh">早、中、下午的 P A D，每格 0 到 5，不确定就留空</span><span lang="en">P, A and D for morning, noon, afternoon, each 0 to 5; leave blank if unsure</span></span></div>
           <div class="zone"><b><span lang="zh">我的 G 自评</span><span lang="en">My G self-rating</span></b><span class="d"><span lang="zh">八个小项，0 到 10 分，不想填就留空，留空不会被当成 0</span><span lang="en">Eight items, 0 to 10; blank is fine and is never read as 0</span></span></div>
           <div class="zone"><b><span lang="zh">这里更接近真实的我</span><span lang="en">Closer to the real me</span></b><span class="d"><span lang="zh">想写什么写什么，AI 永远不会改动这里</span><span lang="en">Write anything; the AI never changes this zone</span></span></div>
           <div class="zone"><b><span lang="zh">给 AI 的反馈</span><span lang="en">Feedback for the AI</span></b><span class="d"><span lang="zh">写给 AI 的话，空行分隔多条；回答问题时以 [Q-编号] 开头</span><span lang="en">Notes for the AI, separated by blank lines; start with [Q-id] to answer a question</span></span></div>
@@ -493,7 +494,7 @@ var SRC={self_report:['自述','self_report'],model_inference:['AI 推断','mode
       '<div class="quote" style="border-color:var(--a)"><b>'+bie(d.headline)+'</b></div>'+
       '<div class="chart">'+d.svg+'</div>'+
       '<table class="t"><thead><tr><th>'+bi('时段','Slot')+'</th><th>P</th><th>A</th><th>D</th><th>'+bi('情绪词','Word')+'</th><th>'+bi('来源','Source')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-      '<div class="kpis"><div class="kpi"><small>'+bi('B 安全感','B security')+'</small><b>'+esc(d.B)+'</b></div><div class="kpi"><small>'+bi('E 希望','E hope')+'</small><b>'+esc(d.E)+'</b></div><div class="kpi"><small>G</small><b>'+esc(d.G)+'</b></div><div class="kpi"><small>'+bi('当天 XP','XP today')+'</small><b>'+d.xp+'</b></div></div>'+
+      '<div class="kpis"><div class="kpi"><small>'+bi('B 稳定','B stability')+'</small><b>'+esc(d.B)+'</b></div><div class="kpi"><small>'+bi('E 探索','E exploration')+'</small><b>'+esc(d.E)+'</b></div><div class="kpi"><small>G</small><b>'+esc(d.G)+'</b></div><div class="kpi"><small>'+bi('当天 XP','XP today')+'</small><b>'+d.xp+'</b></div></div>'+
       '<h4 style="margin-top:6px">'+bi('叙述','Narrative')+'</h4><div class="quote" style="border-color:var(--g)">'+bie(d.narrative)+'</div>'+
       (d.callout?'<div class="callout">'+bih(d.callout)+'</div>':'')+'</div>';
     view.innerHTML=left+right;
@@ -516,8 +517,8 @@ var SRC={self_report:['自述','self_report'],model_inference:['AI 推断','mode
   }
   ['pp','pa','pd'].forEach(function(id){document.getElementById(id).addEventListener('input',pad);}); pad();
 
-  var GB=[['B1','身体与作息','Body and rest',.28,7],['B2','物质与环境','Resources and surroundings',.18,6],['B3','关系与支持','Relationships and support',.36,7],['B4','可预期与掌控','Predictability and control',.18,6]];
-  var GE=[['E1','目标清晰','Clear goals',.22,7],['E2','路径与资源','Pathways and resources',.14,6],['E3','行动力','Agency',.36,7],['E4','意义与未来感','Meaning and a sense of future',.28,7]];
+  var GB=[['B1','睡眠与恢复','Sleep and recovery',.28,7],['B2','身体精力','Physical energy',.18,6],['B3','安全与支持','Safety and support',.36,7],['B4','注意力与负担','Attention and load',.18,6]];
+  var GE=[['E1','内在兴趣','Intrinsic interest',.22,7],['E2','自主与自由','Autonomy and freedom',.14,6],['E3','期待与意义','Anticipation and meaning',.36,7],['E4','边界与可持续性','Boundaries and sustainability',.28,7]];
   var gr=document.getElementById('gRows'), gitems=[];
   GB.concat(GE).forEach(function(it,i){
     var r=document.createElement('div'); r.className='row g';

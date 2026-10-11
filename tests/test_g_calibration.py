@@ -110,10 +110,13 @@ class CalibrationTest(Base):
         self.run_days(20, 2)
         cal = g.calibration(self.store)
         self.assertTrue(cal.enabled, cal.reason)
-        self.assertAlmostEqual(cal.bias["B1"], 2.0)
+        # ridge: delta = sum(w r) / (sum(w) + lambda), w = 2^(-age/60)
+        ws = [2 ** (-age / 60) for age in range(20)]
+        self.assertAlmostEqual(cal.bias["B1"], 2 * sum(ws) / (sum(ws) + 5))
+        self.assertEqual(cal.bias["B2"], 0.0)
         self.assertAlmostEqual(cal.mae_raw, 2.0)
-        self.assertAlmostEqual(cal.mae_corrected, 0.0)
-        self.assertEqual(cal.apply("B1", 6), 8.0)
+        self.assertLess(cal.mae_corrected, cal.mae_raw - 0.2)
+        self.assertAlmostEqual(cal.apply("B1", 6), 6 + cal.bias["B1"])
         self.assertEqual(cal.apply("B1", 9.5), 10.0)
         # test days come after all training days
         self.assertLess(max(cal.train_days), min(cal.test_days))
@@ -150,6 +153,80 @@ class CalibrationTest(Base):
         cal = g.calibration(self.store)
         self.assertFalse(cal.enabled)
         self.assertEqual(cal.train_days, [])
+
+    def label_days(self, n, targets_for, start=START, frozen_late=False):
+        for i in range(n):
+            day = start + datetime.timedelta(days=i)
+            stamp = day + datetime.timedelta(days=3) if frozen_late else day
+            g.record(self.store, day, items(), now=at(stamp))
+            snap = g.predict(self.store, day, now=at(stamp, 20, 31))
+            g.feedback(self.store, snap["id"], targets=targets_for(i), now=at(stamp, 23))
+
+    def test_feedback_accepts_group_and_g_targets(self):
+        snap = self.predict_day(START)
+        rec = g.feedback(self.store, snap["id"], targets={"G": 7, "B": 6, "E3": 4},
+                         now=at(START, 23))
+        self.assertEqual(rec["targets"], {"E3": 4, "B": 6, "G": 7})
+
+    def test_design_vectors(self):
+        p = presets.load("default")
+        self.assertEqual(g.design_vector("B3", p), [0, 0, 1, 0, 0, 0, 0, 0])
+        self.assertEqual(g.design_vector("B", p), [.28, .18, .36, .18, 0, 0, 0, 0])
+        self.assertEqual(g.design_vector("E", p), [0, 0, 0, 0, .22, .14, .36, .28])
+        self.assertEqual(g.design_vector("G", p), [.14, .09, .18, .09, .11, .07, .18, .14])
+        with self.assertRaises(g.GError):
+            g.design_vector("X", p)
+
+    def test_g_level_feedback_trains_all_items(self):
+        raw_g = g.compute(items()).G
+        self.label_days(20, lambda i: {"G": raw_g + 1.5})
+        cal = g.calibration(self.store)
+        self.assertTrue(cal.enabled, cal.reason)
+        self.assertTrue(all(cal.bias[c] > 0 for c in g.CODES))
+        self.assertGreater(cal.bias["B3"], cal.bias["B2"])  # heavier weight, larger share
+
+    def test_same_day_labels_share_weight_one(self):
+        # one day with eight item labels must not outweigh one day with a single label
+        days = {"2026-01-01": {"prospective": True, "labels": [
+                    (g.design_vector(c), [6.0] * 8, 8.0) for c in g.CODES]}}
+        per_item = g.fit_offsets(days, "2026-01-01")["B1"]
+        self.assertAlmostEqual(per_item, (1 / 8) * 2 / (1 / 8 + 5))
+
+    def test_offsets_are_clipped(self):
+        days = {f"2026-01-{d:02d}": {"prospective": True, "labels": [
+                    (g.design_vector("B1"), [0.0] * 8, 10.0)]} for d in range(1, 31)}
+        self.assertEqual(g.fit_offsets(days, "2026-01-30")["B1"], 2.0)
+
+    def test_retrospective_days_train_but_do_not_test(self):
+        self.label_days(10, lambda i: {"B1": 8})
+        self.label_days(10, lambda i: {"B1": 8}, start=START + datetime.timedelta(days=10),
+                        frozen_late=True)
+        cal = g.calibration(self.store)
+        self.assertFalse(cal.enabled)
+        self.assertEqual((len(cal.train_days), len(cal.test_days)), (10, 0))
+        self.assertGreater(cal.bias["B1"], 0)
+
+    def test_small_gain_stays_off(self):
+        # predictions are 6; labels alternate 6.2 / 5.8, so any offset barely helps
+        self.label_days(20, lambda i: {"B1": 6.2 if i % 2 else 5.8})
+        cal = g.calibration(self.store)
+        self.assertFalse(cal.enabled)
+        self.assertIn("less than 0.2", cal.reason)
+
+    def test_recent_deterioration_turns_off(self):
+        # 20 days at +2 build a strong offset, then 10 days at +0 make it hurt
+        self.label_days(20, lambda i: {"B1": 8})
+        self.label_days(10, lambda i: {"B1": 6}, start=START + datetime.timedelta(days=20))
+        cal = g.calibration(self.store)
+        self.assertGreater(cal.mae_raw - cal.mae_corrected, -1)  # still computed
+        self.assertGreaterEqual(cal.recent_mae_corrected - cal.recent_mae_raw, 0.3)
+        self.assertFalse(cal.enabled)
+        self.assertIn("last 10", cal.reason)
+
+    def test_mae_is_averaged_per_day_first(self):
+        days = [[(g.design_vector(c), [6.0] * 8, 6.0) for c in g.CODES],
+                [(g.design_vector("B1"), [6.0] * 8, 8.0)]]
+        self.assertEqual([g._day_mae(d, {}) for d in days], [0.0, 2.0])
 
 
 if __name__ == "__main__":

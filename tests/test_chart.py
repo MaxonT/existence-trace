@@ -132,5 +132,43 @@ class SmoothingTest(unittest.TestCase):
         self.assertEqual(len(curve), chart.SAMPLES)
 
 
+def g_series(values, start=1, keys=("B", "E", "G")):
+    return [(f"2026-03-{start + i:02d}", {k: v for k in keys}) for i, v in enumerate(values)]
+
+
+class GChartTest(unittest.TestCase):
+    def test_range_rules(self):
+        lo, hi = chart.g_range([6.0, 6.1])  # padded, aligned, widened to 1.2
+        self.assertAlmostEqual(hi - lo, 1.2)
+        self.assertLessEqual(lo, 5.8)
+        self.assertGreaterEqual(hi, 6.3)
+        for v in (lo, hi):
+            self.assertAlmostEqual(v / 0.2, round(v / 0.2))
+        self.assertEqual(chart.g_range([3.05, 7.95]), (2.8, 8.2))
+        self.assertEqual(chart.g_range([0.1, 0.2]), (0.0, 1.2))
+        self.assertEqual(chart.g_range([9.9, 10.0]), (8.8, 10.0))
+
+    def test_lines_and_bandwidth(self):
+        svg = chart.g_svg(g_series([5, 6, 7, 6, 5]), "en")
+        root = ET.fromstring(svg)
+        lines = root.findall("svg:path", NS)
+        self.assertEqual([p.get("data-line") for p in lines], ["B", "E", "G"])
+        self.assertIn("G trend 2026-03-01", svg)
+        self.assertNotIn("circle", svg)
+        self.assertEqual(chart.G_BANDWIDTH, 4.5)
+
+    def test_fewer_than_three_points_not_drawn(self):
+        series = g_series([5, 6, 7]) + g_series([6, 6], start=4, keys=("B",))
+        for d, vals in series[:3]:
+            vals["E"] = None
+        series[0][1]["E"] = 4
+        svg = chart.g_svg(series, "zh")
+        root = ET.fromstring(svg)
+        self.assertEqual([p.get("data-line") for p in root.findall("svg:path", NS)], ["B", "G"])
+        self.assertIn("少于 3 个点的线不画", svg)
+        with self.assertRaises(ValueError):
+            chart.g_svg(g_series([5, 6]))
+
+
 if __name__ == "__main__":
     unittest.main()

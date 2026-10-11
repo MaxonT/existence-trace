@@ -313,7 +313,7 @@ class JournalTest(unittest.TestCase):
                 self.assertIn(f"| {code} {presets.label(name, lang)} |", body)
             for axis in presets.PAD_AXES:
                 self.assertIn(presets.label(p["pad"]["axes"][axis]["label"], lang), body)
-        self.assertIn("B3 关系与支持", journal.new_note("2026-10-08", "tiger-method", "zh").render())
+        self.assertIn("B3 安全与支持", journal.new_note("2026-10-08", "tiger-method", "zh").render())
 
     def test_new_note_labels_by_language(self):
         zh = journal.new_note("2026-10-08", language="zh").render()
