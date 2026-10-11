@@ -51,8 +51,6 @@ etrace prompt daily --raw  # the prompt an agent runs for the daily report
 
 ## The self-improving preference loop
 
-<p align="center"><a href="https://maxont.github.io/existence-trace/developers.html#chain"><img src="docs/img/chain.png" alt="The preference container: question, feedback, decision, rule, receipt, audit" width="720"></a></p>
-
 <p align="center"><img src="docs/assets/how-it-works.gif" alt="How existence-trace works: journal, read through PAD/G/XP, ask, decide into a rule, audit weekly" width="100%"></p>
 
 ```

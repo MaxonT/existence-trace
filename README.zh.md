@@ -49,8 +49,6 @@ etrace prompt daily --raw  # 代理跑日报时用的 prompt
 
 ## 会自我迭代的偏好闭环
 
-<p align="center"><a href="https://maxont.github.io/existence-trace/developers.html#chain"><img src="docs/img/chain.png" alt="偏好容器：疑问、反馈、决定、规则、回执、审计" width="720"></a></p>
-
 <p align="center"><img src="docs/assets/how-it-works.gif" alt="existence-trace 工作原理：写日记 → 三镜头解读 → 问你 → 沉淀成规则 → 每周复核" width="100%"></p>
 
 ```
