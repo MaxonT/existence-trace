@@ -47,6 +47,9 @@ etrace validate            # {"ok": true, ...}
 etrace prompt daily --raw  # 代理跑日报时用的 prompt
 ```
 
+**其他方式：** 从[最新 Release](https://github.com/MaxonT/existence-trace/releases/latest) 下载 wheel 用 `pip install` 安装，
+或者用 GitHub Packages 上的容器：`docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`。
+
 ## 会自我迭代的偏好闭环
 
 <p align="center"><img src="docs/assets/how-it-works.gif" alt="existence-trace 工作原理：写日记 → 三镜头解读 → 问你 → 沉淀成规则 → 每周复核" width="100%"></p>
@@ -66,7 +69,7 @@ etrace prompt daily --raw  # 代理跑日报时用的 prompt
 
 `etrace validate` 随时检查整条链，有任何问题就以退出码 1 结束。
 
-## 一天是什么样
+## 一个月是什么样
 
 <p align="center"><a href="https://maxont.github.io/existence-trace/methodology.html#pad"><img src="docs/img/pad-month.zh.png" alt="月度 PAD 趋势示例：P、A、D 经带宽 0.75 天的高斯核局部线性拟合；阴影日无直接记录（虚构示例数据）" width="100%"></a></p>
 
