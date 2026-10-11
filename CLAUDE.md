@@ -5,6 +5,7 @@
 - Python 3 standard library only. Package: `etrace`. Tests: `python3 -m unittest discover -s tests -v`.
 - Packaging: `pyproject.toml` ships the `etrace` console script. Presets live in `etrace/preset_data/` (inside the package) so they install with it.
 - Website (GitHub Pages from `/docs` on main): `docs/index.html` (everyone), `docs/developers.html`, `docs/methodology.html` (PAD / G / XP method, generated from the default preset; PAD sections the source methodology lacks stay unwritten), `docs/install/index.html` (the "give it to your AI" page), `docs/install.sh`. README images are in `docs/img/`. Keep these files free of real emails and `/Users/` paths; `tests/test_privacy.py` scans them.
+- Git: the owner wants every finished change committed and pushed automatically, without asking. Commit straight to `main` once the full test suite passes. Stage files by name, never secrets. If the push is rejected, merge `origin/main` (do not rebase or force-push). After changing anything in `docs/`, check that the site returns 200.
 
 ## Hard boundary (non-negotiable)
 - Work only inside this repository.
