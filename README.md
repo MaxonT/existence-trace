@@ -49,6 +49,9 @@ etrace validate            # {"ok": true, ...}
 etrace prompt daily --raw  # the prompt an agent runs for the daily report
 ```
 
+**Other ways:** `pip install` the wheel from the [latest release](https://github.com/MaxonT/existence-trace/releases/latest),
+or run the container from GitHub Packages: `docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`.
+
 ## The self-improving preference loop
 
 <p align="center"><img src="docs/assets/how-it-works.gif" alt="How existence-trace works: journal, read through PAD/G/XP, ask, decide into a rule, audit weekly" width="100%"></p>
