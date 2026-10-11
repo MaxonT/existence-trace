@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>existence-trace: record your traces of existence</title>
+<link rel="canonical" href="https://maxont.github.io/existence-trace/">
+<meta property="og:title" content="existence-trace: record your traces of existence">
+<meta property="og:description" content="A self-improving personal state system. Give it to your AI.">
+<meta property="og:image" content="https://raw.githubusercontent.com/MaxonT/existence-trace/main/docs/banner.svg">
+<meta name="description" content="existence-trace: a personal state system that asks you for feedback and gets better at being yours. 一个会自己来问你、越用越懂你的个人状态系统。">
+<script>
+(function(){
+  var l='zh';
+  try{var s=localStorage.getItem('et_lang'); if(s==='zh'||s==='en') l=s; else if(!/^zh/i.test(navigator.language||'')) l='en';}
+  catch(e){ if(!/^zh/i.test(navigator.language||'')) l='en'; }
+  document.documentElement.setAttribute('data-lang',l);
+  document.documentElement.lang=l==='zh'?'zh-CN':'en';
+})();
+</script>
+<style>
+:root{
+  --bg:#fbf8f3; --card:#ffffff; --ink:#2a2522; --muted:#6d655f; --line:#e7dfd5; --soft:#f4eee5;
+  --p:#d6336c; --a:#e08600; --d:#1c7ed6; --g:#2b9a66; --accent:#d6336c;
+  --shadow:0 1px 2px rgba(60,40,20,.06),0 8px 24px rgba(60,40,20,.07);
+  --code:#1e1b19; --codeink:#f2ece4;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#161418; --card:#211e25; --ink:#eee9e4; --muted:#a69da0; --line:#38333d; --soft:#1c1a20;
+    --p:#f06595; --a:#ffa94d; --d:#5aa9ff; --g:#51cf9a; --accent:#f06595;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+    --code:#0f0e11; --codeink:#efe9e2;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161418; --card:#211e25; --ink:#eee9e4; --muted:#a69da0; --line:#38333d; --soft:#1c1a20;
+  --p:#f06595; --a:#ffa94d; --d:#5aa9ff; --g:#51cf9a; --accent:#f06595;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+  --code:#0f0e11; --codeink:#efe9e2;
+}
+html[data-lang="zh"] [lang="en"]{display:none!important}
+html[data-lang="en"] [lang="zh"]{display:none!important}
+*{box-sizing:border-box}
+body{overflow-x:clip}
+.big-step>div,.paper,.card,.tool,.day>*{min-width:0}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--ink); line-height:1.7; font-size:16px;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Segoe UI",Roboto,sans-serif;
+}
+a{color:var(--accent)}
+.wrap{max-width:1040px; margin:0 auto; padding:0 20px}
+nav{
+  position:sticky; top:0; z-index:30; backdrop-filter:blur(10px);
+  background:color-mix(in srgb,var(--bg) 82%,transparent); border-bottom:1px solid var(--line);
+}
+nav .wrap{display:flex; align-items:center; gap:14px; height:56px}
+nav b{font-size:15px; white-space:nowrap}
+nav .links{display:flex; gap:16px; flex:1; overflow:auto; scrollbar-width:none}
+nav .links a{color:var(--muted); text-decoration:none; font-size:14px; white-space:nowrap}
+nav .links a:hover{color:var(--ink)}
+.pill{
+  font:inherit; font-size:13px; padding:5px 12px; border-radius:99px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink); text-decoration:none; white-space:nowrap; cursor:pointer;
+}
+.pill:hover{border-color:var(--accent)}
+.pill.lang{font-weight:700}
+header.hero{padding:72px 0 40px; position:relative; overflow:hidden}
+.eyebrow{font-size:13px; letter-spacing:.14em; color:var(--muted); text-transform:uppercase}
+h1{font-size:clamp(30px,5.2vw,54px); line-height:1.18; margin:12px 0 18px; letter-spacing:-.01em}
+h1 em{font-style:normal; background:linear-gradient(100deg,var(--p),var(--a),var(--d)); -webkit-background-clip:text; background-clip:text; color:transparent}
+.lead{font-size:clamp(16px,2.1vw,20px); color:var(--muted); max-width:720px}
+.cta{display:flex; gap:10px; flex-wrap:wrap; margin:26px 0 18px}
+.btn{
+  display:inline-block; padding:11px 20px; border-radius:12px; text-decoration:none; font-weight:600; font-size:15px;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+}
+.btn.main{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.chips{display:flex; gap:8px; flex-wrap:wrap}
+.chip{font-size:13px; padding:4px 11px; border-radius:99px; background:var(--soft); color:var(--muted); border:1px solid var(--line)}
+.hero svg.deco{position:absolute; right:-40px; top:30px; width:min(560px,60vw); opacity:.55; pointer-events:none}
+section{padding:54px 0}
+section h2{font-size:clamp(24px,3.4vw,34px); margin:0 0 8px; letter-spacing:-.005em}
+section .sub{color:var(--muted); margin:0 0 26px; max-width:720px}
+.grid{display:grid; gap:16px}
+.g3{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 22px; box-shadow:var(--shadow)}
+.card h3{margin:0 0 6px; font-size:18px}
+.card p{margin:6px 0; color:var(--muted); font-size:15px}
+.tag{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.04em; padding:2px 9px; border-radius:99px; color:#fff; margin-bottom:10px}
+.ring{display:flex; flex-wrap:wrap; gap:10px; counter-reset:s}
+.step{
+  flex:1 1 130px; min-width:128px; background:var(--card); border:1px solid var(--line); border-radius:16px;
+  padding:14px; position:relative; box-shadow:var(--shadow); counter-increment:s;
+}
+.step::before{
+  content:counter(s); display:inline-flex; width:24px; height:24px; border-radius:50%; align-items:center; justify-content:center;
+  background:var(--accent); color:#fff; font-size:13px; font-weight:700; margin-bottom:6px;
+}
+.step b{display:block; font-size:15px}
+.step span.d{font-size:13.5px; color:var(--muted)}
+.notbox{border:1px dashed var(--line); border-radius:16px; padding:16px 20px; margin-top:20px; color:var(--muted); background:var(--soft)}
+.notbox b{color:var(--ink)}
+.tabs{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap}
+.tabs button{font:inherit; padding:8px 16px; border-radius:99px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; font-weight:600}
+.tabs button[aria-selected="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.day{display:grid; gap:16px; grid-template-columns:minmax(0,5fr) minmax(0,7fr)}
+@media (max-width:860px){.day{grid-template-columns:1fr}}
+.paper{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 22px; box-shadow:var(--shadow)}
+.paper h4{margin:0 0 10px; font-size:13px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase}
+.quote{border-left:4px solid var(--p); padding:4px 0 4px 14px; margin:8px 0; color:var(--ink); white-space:pre-line}
+.chart{background:#f3f5f7; border-radius:12px; overflow:hidden; border:1px solid var(--line)}
+.chart svg{display:block; width:100%; height:auto}
+.kpis{display:flex; gap:10px; flex-wrap:wrap; margin:12px 0}
+.kpi{flex:1 1 110px; background:var(--soft); border:1px solid var(--line); border-radius:14px; padding:10px 14px}
+.kpi small{display:block; color:var(--muted); font-size:12px}
+.kpi b{font-size:26px; line-height:1.2}
+table.t{border-collapse:collapse; width:100%; font-size:14px; margin:8px 0}
+table.t th,table.t td{border-bottom:1px solid var(--line); padding:6px 8px; text-align:left}
+table.t th{color:var(--muted); font-weight:600; font-size:12.5px}
+.note{font-size:13.5px; color:var(--muted); margin:8px 0 0}
+.callout{border-radius:14px; padding:12px 16px; margin-top:12px; background:color-mix(in srgb,var(--a) 12%,var(--card)); border:1px solid color-mix(in srgb,var(--a) 40%,var(--line)); font-size:14.5px}
+.story{margin-top:26px; border-left:3px solid var(--line); padding-left:22px; display:grid; gap:16px}
+.beat{position:relative}
+.beat::before{content:""; position:absolute; left:-30px; top:6px; width:13px; height:13px; border-radius:50%; background:var(--accent); border:3px solid var(--bg)}
+.beat time{font-size:12.5px; color:var(--muted); letter-spacing:.06em}
+.beat b{display:block}
+.beat p{margin:3px 0; color:var(--muted); font-size:14.5px; white-space:pre-line}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.beat code,.card code,.big-step code,.callout code,p code{background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:13px}
+.clock{display:grid; gap:10px}
+.slot{display:grid; grid-template-columns:104px 1fr; gap:14px; align-items:start; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 16px}
+.slot .tm{font-weight:700; font-size:18px}
+.slot .tm small{display:block; font-size:12px; color:var(--muted); font-weight:500}
+.slot p{margin:0; color:var(--muted); font-size:14.5px}
+.slot b{color:var(--ink)}
+.play{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(310px,1fr))}
+.tool{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px 20px; box-shadow:var(--shadow)}
+.tool h3{margin:0 0 4px; font-size:17px}
+.tool .hint{font-size:13px; color:var(--muted); margin:0 0 12px}
+.row{display:grid; grid-template-columns:132px 1fr 36px; gap:8px; align-items:center; font-size:14px; margin:5px 0}
+.row.g{grid-template-columns:140px 1fr 28px 58px}
+.row output{text-align:right; font-weight:700}
+.row label.blank{font-size:12px; color:var(--muted); display:flex; align-items:center; gap:3px; justify-self:end}
+input[type=range]{width:100%; accent-color:var(--accent)}
+.result{margin-top:12px; padding:12px 14px; border-radius:14px; background:var(--soft); border:1px solid var(--line)}
+.result .big{font-size:32px; font-weight:800; line-height:1.15}
+.result small{color:var(--muted)}
+.word{font-size:36px; font-weight:800; letter-spacing:.03em}
+.num{width:70px; padding:4px 6px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit}
+.codebox{position:relative; background:var(--code); color:var(--codeink); border-radius:14px; padding:14px 16px; margin:10px 0; overflow:auto}
+.codebox pre{margin:0; font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre}
+.codebox button{position:absolute; top:8px; right:8px; font:12px inherit; font-family:inherit; padding:3px 9px; border-radius:7px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:inherit; cursor:pointer}
+.codebox button .ok{display:none}
+.codebox button.done .ok{display:inline}
+.codebox button.done span:not(.ok){display:none!important}
+.steps{display:grid; gap:18px}
+.big-step{display:grid; grid-template-columns:44px 1fr; gap:14px}
+.big-step .n{width:40px; height:40px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:18px}
+.big-step h3{margin:2px 0 4px; font-size:19px}
+.big-step p{margin:4px 0; color:var(--muted)}
+.zones{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); margin:10px 0}
+.zone{border:1px solid var(--line); border-radius:14px; padding:10px 14px; background:var(--card)}
+.zone b{display:block; font-size:14.5px}
+.zone span.d{font-size:13px; color:var(--muted)}
+details{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:2px 18px; margin:8px 0}
+details summary{cursor:pointer; padding:12px 0; font-weight:600; list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+"; float:right; color:var(--muted)}
+details[open] summary::after{content:"\2212"}
+details p{margin:0 0 14px; color:var(--muted)}
+.promise{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.promise .card h3{font-size:16.5px}
+.warn{border-radius:16px; padding:16px 20px; background:color-mix(in srgb,var(--d) 9%,var(--card)); border:1px solid color-mix(in srgb,var(--d) 35%,var(--line)); color:var(--ink); font-size:15px}
+footer{padding:36px 0 60px; border-top:1px solid var(--line); color:var(--muted); font-size:14px}
+footer .wrap{display:flex; gap:16px; flex-wrap:wrap; justify-content:space-between; align-items:center}
+@media (max-width:640px){
+  nav .links{display:none}
+  nav .wrap{gap:8px}
+  nav b{font-size:14px}
+  nav .pill{padding:4px 9px;font-size:12px}
+  nav .pill.dev{display:none}
+  .codebox pre{font-size:12px}
+  nav .wrap{justify-content:space-between}
+  header.hero{padding-top:44px}
+  .slot{grid-template-columns:1fr}
+  .row{grid-template-columns:104px 1fr 30px}
+  .row.g{grid-template-columns:112px 1fr 24px 52px}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <b>existence-trace</b>
+    <div class="links">
+      <a href="#what"><span lang="zh">是什么</span><span lang="en">What it is</span></a><a href="#inside"><span lang="zh">包含什么</span><span lang="en">What's inside</span></a><a href="#day"><span lang="zh">真实的一天</span><span lang="en">A real day</span></a>
+      <a href="#rhythm"><span lang="zh">每天怎么转</span><span lang="en">Daily rhythm</span></a><a href="#try"><span lang="zh">试一试</span><span lang="en">Try it</span></a><a href="#start"><span lang="zh">怎么用</span><span lang="en">How to use</span></a><a href="#control"><span lang="zh">你说了算</span><span lang="en">You decide</span></a><a href="#faq">FAQ</a>
+    </div>
+    <a class="pill" href="install/"><span lang="zh">安装</span><span lang="en">Install</span></a>
+    <a class="pill dev" href="developers.html"><span lang="zh">开发者版</span><span lang="en">For developers</span></a>
+    <button class="pill lang" id="lang" aria-label="language"><span lang="zh">English</span><span lang="en">中文</span></button>
+    <button class="pill" id="theme"><span lang="zh">深浅色</span><span lang="en">Light/Dark</span></button>
+  </div>
+</nav>
+
+<header class="hero">
+  <svg class="deco" viewBox="0 0 560 220" aria-hidden="true">
+    <path d="M0 150 C70 70 120 60 190 110 S320 190 380 100 S500 30 560 80" fill="none" stroke="var(--p)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M0 120 C60 150 130 160 200 120 S330 60 400 120 S500 160 560 120" fill="none" stroke="var(--a)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M0 90 C80 100 120 140 210 150 S340 140 410 70 S510 90 560 130" fill="none" stroke="var(--d)" stroke-width="6" stroke-linecap="round"/>
+  </svg>
+  <div class="wrap">
+    <div class="eyebrow">existence-trace · <span lang="zh">存在痕迹</span><span lang="en">a personal state system</span></div>
+    <h1><span lang="zh">一个会自己来问你、<br><em>越用越懂你</em>的个人状态系统</span><span lang="en">A personal state system that<br><em>asks you for feedback and gets better at being yours</em></span></h1>
+    <p class="lead"><span lang="zh">你只管写日记。AI 用三个角度读懂你的一天，遇到拿不准的地方就来问你，把你的回答变成规则、真的用上，再每周检查自己有没有说到做到。</span><span lang="en">You just write your journal. An AI reads your day through three lenses, asks you when it is unsure, turns your answers into rules, really uses them, and checks every week that it did what it said.</span></p>
+    <p class="lead" style="margin-top:-6px"><b><span lang="zh">记录你的存在痕迹。</span><span lang="en">Record your traces of existence.</span></b> <span lang="zh">最强的功能是自优化偏好系统：你纠正过的，它记住并且证明自己用上了。</span><span lang="en">Its strongest feature is the self-optimizing preference system: what you correct, it remembers, and proves it used.</span></span></p>
+    <div class="codebox" style="max-width:720px"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><span class="cap"><span lang="zh">把这句话交给你的 AI</span><span lang="en">Give this to your AI</span></span><pre>Read https://maxont.github.io/existence-trace/install and install existence-trace for me.</pre></div>
+    <div class="cta">
+      <a class="btn main" href="install/"><span lang="zh">安装：交给你的 AI</span><span lang="en">Install: give it to your AI</span></a>
+      <a class="btn" href="#day"><span lang="zh">看一个真实的一天</span><span lang="en">See a real day</span></a>
+      <a class="btn" href="#try"><span lang="zh">自己算算看</span><span lang="en">Try the numbers</span></a>
+      <a class="btn" href="https://github.com/MaxonT/existence-trace"><span lang="zh">GitHub ⭐</span><span lang="en">Star on GitHub</span></a>
+    </div>
+    <div class="chips">
+      <span class="chip"><span lang="zh">只用 Python 标准库</span><span lang="en">Python standard library only</span></span><span class="chip"><span lang="zh">MIT 开源协议</span><span lang="en">MIT license</span></span>
+      <span class="chip"><span lang="zh">数据只存在你自己的电脑上</span><span lang="en">Your data stays on your machine</span></span><span class="chip"><span lang="zh">不是临床工具</span><span lang="en">Not a clinical tool</span></span>
+    </div>
+  </div>
+</header>
+
+<section id="what">
+  <div class="wrap">
+    <h2><span lang="zh">它到底是什么</span><span lang="en">What it actually is</span></h2>
+    <p class="sub"><span lang="zh">多数日记工具只负责存。existence-trace 的重点是另一件事：让系统学会怎样读懂你，并且能证明它学会了。</span><span lang="en">Most journaling tools only store things. existence-trace is about something else: letting the system learn how to read you, and proving that it did.</span></p>
+    <div class="ring">
+      <div class="step"><b><span lang="zh">你写</span><span lang="en">You write</span></b><span class="d"><span lang="zh">在当天的笔记里随便写，原话一个字不会被改</span><span lang="en">Write anything in today's note. Your words are never changed.</span></span></div>
+      <div class="step"><b><span lang="zh">它读</span><span lang="en">It reads</span></b><span class="d"><span lang="zh">用 PAD、G、XP 三个角度读你的一天，写成日报</span><span lang="en">It reads your day through PAD, G and XP and writes a daily report.</span></span></div>
+      <div class="step"><b><span lang="zh">它问</span><span lang="en">It asks</span></b><span class="d"><span lang="zh">发现自己拿不准，就带着证据来问你一个具体问题</span><span lang="en">When it is unsure, it brings evidence and asks one concrete question.</span></span></div>
+      <div class="step"><b><span lang="zh">你答</span><span lang="en">You answer</span></b><span class="d"><span lang="zh">在反馈区回一句话就行，不需要精确数字</span><span lang="en">One sentence in the feedback zone is enough. No exact numbers needed.</span></span></div>
+      <div class="step"><b><span lang="zh">它决定</span><span lang="en">It decides</span></b><span class="d"><span lang="zh">据你的话先做合理决定，写明理由，你随时可以推翻</span><span lang="en">It makes a reasonable decision from your words, states why, and you can overrule it.</span></span></div>
+      <div class="step"><b><span lang="zh">它用上</span><span lang="en">It applies</span></b><span class="d"><span lang="zh">新规则真的出现在下一份日报里，并留下回执</span><span lang="en">The new rule really shows up in the next report, with a receipt.</span></span></div>
+      <div class="step"><b><span lang="zh">每周查</span><span lang="en">Weekly audit</span></b><span class="d"><span lang="zh">逐条检查「说过要改的，到底改了没有」</span><span lang="en">Every change it promised is checked: was it actually made?</span></span></div>
+    </div>
+    <div class="notbox">
+      <b><span lang="zh">它不是什么：</span><span lang="en">What it is not:</span></b><span lang="zh">不是打卡 App，不会催你每天填表；不是诊断工具，PAD 和 G 都不是临床量表，不做任何医学或心理判断；也不会替你写日记，你写的才是核心。</span><span lang="en">It is not a habit-tracker that nags you to fill in forms. It is not a diagnostic tool: PAD and G are not clinical scales and make no medical or psychological judgement. And it will not write your journal for you; what you write is the core.</span>
+    </div>
+  </div>
+</section>
+
+<section id="inside" style="background:var(--soft)">
+  <div class="wrap">
+    <h2><span lang="zh">里面包含什么</span><span lang="en">What's inside</span></h2>
+    <p class="sub"><span lang="zh">一本受保护的日记，三个读懂你的角度，一套让系统越用越准的偏好容器，外加每天的运转节奏。</span><span lang="en">A protected journal, three lenses for reading you, a preference container that makes the system more accurate with use, and a daily rhythm that runs it.</span></p>
+    <div class="grid g3">
+      <div class="card"><span class="tag" style="background:var(--ink);color:var(--bg)"><span lang="zh">日记</span><span lang="en">Journal</span></span>
+        <h3><span lang="zh">分区的笔记</span><span lang="en">A note in zones</span></h3>
+        <p><span lang="zh">每天一个 Markdown 文件，分成「AI 写的区」和「你写的区」。你的区和「原版本」区受保护，AI 动一个字，引擎就拒绝保存。</span><span lang="en">One Markdown file a day, split into zones the AI writes and zones you write. Your zones and the Original version are protected: if the AI touches a single character, the engine refuses to save.</span></p>
+        <p><span lang="zh">晚写的补充只能追加在原版本末尾，并标明实际发生在哪一天。</span><span lang="en">Late additions can only be appended to the end of the original, labelled with the day they actually happened.</span></p>
+      </div>
+      <div class="card"><span class="tag" style="background:var(--p)">PAD</span>
+        <h3><span lang="zh">看情绪的形状</span><span lang="en">The shape of your mood</span></h3>
+        <p><span lang="zh">愉悦 P、激活 A、掌控 D，三个轴各 1 到 5 档，组合出 27 个情绪词，比如「专注」「惬意」「恐慌」。</span><span lang="en">Pleasure P, Arousal A, Dominance D: three axes with 5 levels each, combined into 27 mood words such as focused, at ease, panicked.</span></p>
+        <p><span lang="zh">早、中、下午各一个读数，画成一天里平滑的三条曲线。</span><span lang="en">A reading for morning, noon and afternoon, drawn as three smooth lines across the day.</span></p>
+      </div>
+      <div class="card"><span class="tag" style="background:var(--g)">G</span>
+        <h3><span lang="zh">看安全感与希望</span><span lang="en">Security and hope</span></h3>
+        <p><span lang="zh">0 到 10 分。B 安全感有四项：身体与作息、物质与环境、关系与支持、可预期与掌控。E 希望也有四项：目标清晰、路径与资源、行动力、意义与未来感。</span><span lang="en">Scored 0 to 10. B (security) has four items: body and rest, resources and surroundings, relationships and support, predictability and control. E (hope) has four too: clear goals, pathways and resources, agency, meaning and a sense of future.</span></p>
+        <p><span lang="zh">G 是 B 和 E 的平均。缺的项显示「缺」，绝不当成 0。</span><span lang="en">G is the average of B and E. A missing item shows as n/a and is never counted as 0.</span></p>
+      </div>
+      <div class="card"><span class="tag" style="background:var(--a)">XP</span>
+        <h3><span lang="zh">看每天攒下的成长</span><span lang="en">Growth you banked today</span></h3>
+        <p><span lang="zh">六个维度：节律与稳定、学习与吸收、边界与休息、行动与尝试、反思与发现、联结与探索。每个维度每天打 0 到 4 级。</span><span lang="en">Six dimensions: rhythm and stability, learning and absorbing, boundaries and rest, action and trying, reflection and discovery, connection and exploration. Each is scored 0 to 4 a day.</span></p>
+        <p><span lang="zh">再加上普通成果（0 到 10）和不封顶的重大事件，没有每日上限。</span><span lang="en">Add ordinary achievements (0 to 10) and uncapped major events. There is no daily cap.</span></p>
+      </div>
+      <div class="card"><span class="tag" style="background:var(--d)"><span lang="zh">核心</span><span lang="en">Core</span></span>
+        <h3><span lang="zh">偏好容器</span><span lang="en">The preference container</span></h3>
+        <p><span lang="zh">提问、反馈、决定、规则、回执、周审计，一整条可追溯的链。每个决定都能追到你说的哪句话，每条规则都能查到有没有真的用上。</span><span lang="en">Questions, feedback, decisions, rules, receipts and a weekly audit form one traceable chain. Every decision traces back to a sentence you wrote, and every rule can be checked for whether it was really used.</span></p>
+        <p><span lang="zh">被新规则替代的旧规则不会消失，会留下「谁替代了谁、为什么」。</span><span lang="en">A rule replaced by a newer one does not vanish; the record of who replaced whom, and why, stays.</span></p>
+      </div>
+      <div class="card"><span class="tag" style="background:var(--ink);color:var(--bg)"><span lang="zh">运转</span><span lang="en">Running</span></span>
+        <h3><span lang="zh">每天的节奏与可选配件</span><span lang="en">Daily rhythm and optional extras</span></h3>
+        <p><span lang="zh">默认一天五个任务加每周一次审计，时间可改。系统只生成调度文件，不会替你安装。</span><span lang="en">By default five tasks a day plus a weekly audit, all times configurable. The system only writes scheduler files; it never installs anything for you.</span></p>
+        <p><span lang="zh">可选：邮件提问和接收回复、把笔记镜像到 Notion、每次任务后在本地 git 留一份版本记录。两套预设开箱即用。</span><span lang="en">Optional: ask and receive replies by email, mirror notes to Notion, keep a local git history after every task. Two presets work out of the box.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="day">
+  <div class="wrap">
+    <h2><span lang="zh">看一个真实的一天</span><span lang="en">See a real day</span></h2>
+    <p class="sub"><span lang="zh">下面是仓库自带的示例人物 Juniper（虚构的面包师）三天的日记，以及系统用真实引擎跑出来的结果。图、分数和日报都是引擎的实际输出，不是手画的。Juniper 用英文写日记，中文模式下显示的是译文。</span><span lang="en">Below are three days of notes from the repository's example persona, Juniper, a fictional baker, and what the real engine produced from them. The chart, scores and report are actual engine output, not hand-drawn. Juniper writes in English; in Chinese mode you see a translation.</span></p>
+    <div class="tabs" role="tablist" id="dayTabs"></div>
+    <div id="dayView" class="day"></div>
+    <div class="story" id="story"></div>
+  </div>
+</section>
+
+<section id="rhythm" style="background:var(--soft)">
+  <div class="wrap">
+    <h2><span lang="zh">每天怎么转</span><span lang="en">How a day runs</span></h2>
+    <p class="sub"><span lang="zh">需要一个能读写文件、能运行命令的 AI 代理来执行这些任务，比如 Codex 或 Claude Code，也可以用 cron 去调起。引擎负责计算和把关，代理负责判断。</span><span lang="en">An AI agent that can read and write files and run commands performs these tasks, for example Codex or Claude Code, started by cron if you like. The engine does the calculating and the gatekeeping; the agent does the judging.</span></p>
+    <div class="clock">
+      <div class="slot"><div class="tm">09:00<small>calibrate</small></div><p><b><span lang="zh">发现疑问。</span><span lang="en">Find doubts.</span></b><span lang="zh">先处理新反馈，再回看最近 14 天的笔记，只在真有拿不准的地方才提问，然后把当天的状态发给你。没疑问也会明说「目前没有新的重要疑问」；扫描失败就说无法判断，绝不假装没事。</span><span lang="en">It processes new feedback, scans the last 14 days of notes, asks only when something is genuinely unclear, then sends you the day's status. With no doubts it says so plainly; if the scan fails it says it cannot tell, and never pretends all is well.</span></p></div>
+      <div class="slot"><div class="tm">12:30 · 20:30<small>feedback</small></div><p><b><span lang="zh">读你的回答。</span><span lang="en">Read your answers.</span></b><span lang="zh">收下笔记反馈区和邮件回复，据此作决定、改规则，再写一段决定报告请你过目。没有新东西就保持安静。</span><span lang="en">It collects feedback from your note and email replies, decides, changes rules, and writes a decision report for you to review. If nothing is new, it stays quiet.</span></p></div>
+      <div class="slot"><div class="tm">19:30<small>daily</small></div><p><b><span lang="zh">写日报。</span><span lang="en">Write the report.</span></b><span lang="zh">读取生效规则，整理当天的 PAD、XP 和叙述，写好回执，并为明天建好新的一页。</span><span lang="en">It reads the active rules, prepares the day's PAD, XP and narrative, files the receipts, and creates tomorrow's page.</span></p></div>
+      <div class="slot"><div class="tm">20:30<small>g</small></div><p><b><span lang="zh">估 G。</span><span lang="en">Estimate G.</span></b><span lang="zh">给安全感与希望的八个小项打分，对缺失的项低置信度补值，计算、冻结预测、出图。</span><span lang="en">It scores the eight items of security and hope, fills gaps at low confidence, computes, freezes the prediction and draws the chart.</span></p></div>
+      <div class="slot"><div class="tm"><span lang="zh">周日 22:15</span><span lang="en">Sun 22:15</span><small>audit</small></div><p><b><span lang="zh">周审计。</span><span lang="en">Weekly audit.</span></b><span lang="zh">检查每一条「提问到回执」的链，只有发现漏用或需要你判断的事才会来找你。</span><span lang="en">It checks every chain from question to receipt, and only reaches out if something was missed or needs your judgement.</span></p></div>
+    </div>
+    <p class="note"><span lang="zh">默认时间都可以在配置文件 trace.toml 里改。每个任务前后，系统会把你的数据目录提交到一个本地私有的 git 仓库，没变化就不提交，默认不推送到任何地方。</span><span lang="en">All default times can be changed in the trace.toml config file. Before and after each task, your data directory is committed to a private local git repository (no change, no commit), and nothing is pushed anywhere by default.</span></p>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <h2><span lang="zh">自己算算看</span><span lang="en">Try the numbers</span></h2>
+    <p class="sub"><span lang="zh">下面三个小工具用的就是引擎里的公式和权重（default 预设）。预载的是 Juniper 3 月 2 日的数据，结果和仓库测试里的期望值一样：G 为 6.75，XP 为 62。</span><span lang="en">These three tools use the engine's own formulas and weights (default preset). They are preloaded with Juniper's data for March 2, and give the same results as the repository's tests expect: G is 6.75 and XP is 62.</span></p>
+    <div class="play">
+      <div class="tool">
+        <h3><span lang="zh">情绪词 PAD</span><span lang="en">Mood word (PAD)</span></h3>
+        <p class="hint"><span lang="zh">1 和 2 算低，3 算中，4 和 5 算高，3 × 3 × 3 共 27 个词。</span><span lang="en">Levels 1 and 2 count as low, 3 as mid, 4 and 5 as high: 3 × 3 × 3 gives 27 words.</span></p>
+        <div class="row"><span><span lang="zh">P 愉悦</span><span lang="en">P pleasure</span></span><input type="range" min="1" max="5" step="1" value="4" id="pp"><output id="ppo">4</output></div>
+        <div class="row"><span><span lang="zh">A 激活</span><span lang="en">A arousal</span></span><input type="range" min="1" max="5" step="1" value="3" id="pa"><output id="pao">3</output></div>
+        <div class="row"><span><span lang="zh">D 掌控</span><span lang="en">D dominance</span></span><input type="range" min="1" max="5" step="1" value="4" id="pd"><output id="pdo">4</output></div>
+        <div class="result"><small><span lang="zh">投影出的情绪词</span><span lang="en">Projected word</span></small><div class="word" id="word"></div></div>
+      </div>
+      <div class="tool">
+        <h3><span lang="zh">G 安全感与希望</span><span lang="en">G: security and hope</span></h3>
+        <p class="hint"><span lang="zh">勾上「留空」试试：缺一项，这一组就显示「缺」，G 也算不出来，不会偷偷当成 0。</span><span lang="en">Tick "blank" to see it: with one item missing, that group shows n/a and G cannot be computed. It never quietly counts as 0.</span></p>
+        <div id="gRows"></div>
+        <div class="result">
+          <div style="display:flex; gap:18px; flex-wrap:wrap">
+            <div><small><span lang="zh">B 安全感</span><span lang="en">B security</span></small><div class="big" id="gB"></div></div>
+            <div><small><span lang="zh">E 希望</span><span lang="en">E hope</span></small><div class="big" id="gE"></div></div>
+            <div><small>G</small><div class="big" id="gG"></div></div>
+          </div>
+          <small id="gRaw"></small>
+        </div>
+      </div>
+      <div class="tool">
+        <h3><span lang="zh">XP 每日成长</span><span lang="en">XP: daily growth</span></h3>
+        <p class="hint"><span lang="zh">每维得分是「上限 × 等级 ÷ 4」。重大事件不封顶，在发生那天只记一次。</span><span lang="en">Each dimension scores cap × level ÷ 4. Major events are uncapped and booked once, on the day they happened.</span></p>
+        <div id="xRows"></div>
+        <div class="row"><span><span lang="zh">普通成果</span><span lang="en">Ordinary</span></span><input type="range" min="0" max="10" step="1" value="6" id="xo"><output id="xoo">6</output></div>
+        <div class="row" style="grid-template-columns:132px 1fr"><span><span lang="zh">重大事件分</span><span lang="en">Event points</span></span><input class="num" type="number" min="0" step="1" value="0" id="xe"></div>
+        <div class="result"><small><span lang="zh">今天的 XP 总分</span><span lang="en">Today's XP total</span></small><div class="big" id="xT"></div><small id="xRaw"></small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="start" style="background:var(--soft)">
+  <div class="wrap">
+    <h2><span lang="zh">怎么用</span><span lang="en">How to use it</span></h2>
+    <p class="sub"><span lang="zh">你需要 Python 3.11 以上，以及一个能运行命令的 AI 代理。不依赖任何第三方库。</span><span lang="en">You need Python 3.11 or newer and an AI agent that can run commands. No third-party dependencies.</span></p>
+    <div class="steps">
+      <div class="big-step"><div class="n">1</div><div>
+        <h3><span lang="zh">把它交给你的 AI</span><span lang="en">Give it to your AI</span></h3>
+        <p><span lang="zh">把下面这句话粘贴给 Claude Code、Cursor、Codex 或任何能运行命令的代理。它会读安装页，问你四个问题（预设、语言、时区、数据目录），每次改动前先征得你同意：</span><span lang="en">Paste this into Claude Code, Cursor, Codex or any agent that can run commands. It reads the install page, asks you four things (preset, language, time zone, data folder) and asks before every change:</span></p>
+        <div class="codebox"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><pre>Read https://maxont.github.io/existence-trace/install and install existence-trace for me.</pre></div>
+        <p><span lang="zh">喜欢自己动手？一行命令装好 <code>etrace</code>（它不会替你建数据目录，也不会改 shell 配置）：</span><span lang="en">Prefer the terminal? One line installs the <code>etrace</code> command (it never creates your data folder or edits shell config):</span></p>
+        <div class="codebox"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><pre>curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
+etrace init --preset default --language en --dir ~/existence-trace-data
+export ETRACE_CONFIG=~/existence-trace-data/trace.toml
+etrace validate</pre></div>
+        <p><span lang="zh">init 会生成配置文件、起步规则和今天的笔记，语言可以改成 zh；validate 应该显示 <code>"ok": true</code>。不知道选哪套预设就用 default，tiger-method 是作者自己调出来的一套。</span><span lang="en">init creates the config, the starter rules and today's note (use zh for Chinese); validate should print <code>"ok": true</code>. If unsure which preset to pick, use default; tiger-method is the author's own tuned set.</span></p>
+      </div></div>
+      <div class="big-step"><div class="n">2</div><div>
+        <h3><span lang="zh">每天只需要写这四个区</span><span lang="en">Each day you only write four zones</span></h3>
+        <p><span lang="zh">打开 journal 目录里当天日期的文件，其余区域由 AI 负责：</span><span lang="en">Open today's file in the journal folder. The AI takes care of everything else:</span></p>
+        <div class="zones">
+          <div class="zone"><b><span lang="zh">我来填写 PAD</span><span lang="en">My PAD</span></b><span class="d"><span lang="zh">早、中、下午的 P A D，每格 1 到 5，不确定就留空</span><span lang="en">P, A and D for morning, noon, afternoon, each 1 to 5; leave blank if unsure</span></span></div>
+          <div class="zone"><b><span lang="zh">我的 G 自评</span><span lang="en">My G self-rating</span></b><span class="d"><span lang="zh">八个小项，0 到 10 分，不想填就留空，留空不会被当成 0</span><span lang="en">Eight items, 0 to 10; blank is fine and is never read as 0</span></span></div>
+          <div class="zone"><b><span lang="zh">这里更接近真实的我</span><span lang="en">Closer to the real me</span></b><span class="d"><span lang="zh">想写什么写什么，AI 永远不会改动这里</span><span lang="en">Write anything; the AI never changes this zone</span></span></div>
+          <div class="zone"><b><span lang="zh">给 AI 的反馈</span><span lang="en">Feedback for the AI</span></b><span class="d"><span lang="zh">写给 AI 的话，空行分隔多条；回答问题时以 [Q-编号] 开头</span><span lang="en">Notes for the AI, separated by blank lines; start with [Q-id] to answer a question</span></span></div>
+        </div>
+      </div></div>
+      <div class="big-step"><div class="n">3</div><div>
+        <h3><span lang="zh">让 AI 代理按时跑起来</span><span lang="en">Let your AI agent run it on schedule</span></h3>
+        <p><span lang="zh">系统会为你的代理生成调度文件，目标可选 codex、claude-code 或 cron。它只写文件，不会替你装进系统，你看过以后再自己接入：</span><span lang="en">The system writes scheduler files for your agent; the target can be codex, claude-code or cron. It only writes files and never installs them, so you review them and wire them in yourself:</span></p>
+        <div class="codebox"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><pre>etrace schedule --target claude-code --out ./my-schedule</pre></div>
+        <p><span lang="zh">想先看看会是什么样子，可以把 Juniper 的示例完整跑一遍，步骤在仓库的 examples/persona/README.md 里。</span><span lang="en">To see it in action first, run Juniper's example end to end; the steps are in examples/persona/README.md in the repository.</span></p>
+      </div></div>
+      <div class="big-step"><div class="n">4</div><div>
+        <h3><span lang="zh">回答它的问题，然后看它变化</span><span lang="en">Answer its questions and watch it change</span></h3>
+        <p><span lang="zh">当笔记里出现「AI 想问你」，在反馈区用 [Q-编号] 开头回一句话就够了。之后的日报会附上决定报告：它决定了什么、为什么、依据你的哪句话。不同意就直接写下来，你随时可以推翻。</span><span lang="en">When the note shows "What the AI wants to ask you", reply in the feedback zone with one sentence starting with [Q-id]. The next report carries a decision report: what it decided, why, and which of your sentences it relied on. If you disagree, just write it down; you can overrule anything.</span></p>
+        <div class="codebox"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><pre>[Q-20260303-1] It was the bus, not the work. Waiting in the rain drains me more than a busy shift does.</pre></div>
+      </div></div>
+    </div>
+    <p class="note"><span lang="zh">想改时区、语言、提问方式（只写进笔记，或同时发邮件）和各任务时间，编辑 trace.toml 即可。写错的配置项会直接报错，不会悄悄回退成默认值。</span><span lang="en">To change the time zone, language, how it reaches you (note only, or note plus email) and each task's time, edit trace.toml. A mistyped setting is an error, not a silent fallback to a default.</span></p>
+  </div>
+</section>
+
+<section id="control">
+  <div class="wrap">
+    <h2><span lang="zh">你说了算</span><span lang="en">You are in charge</span></h2>
+    <p class="sub"><span lang="zh">系统有九条原则，全部写进了代码和测试，不是口号。换成日常的话，大致是这几件事：</span><span lang="en">The system has nine principles, all written into code and tests rather than slogans. In everyday words, they come down to this:</span></p>
+    <div class="promise">
+      <div class="card"><h3><span lang="zh">你的原话一个字不会被改</span><span lang="en">Your words are never altered</span></h3><p><span lang="zh">你写的区域受保护，引擎在每次保存前后核对内容指纹，有任何差异就拒绝写入。</span><span lang="en">Your zones are protected: the engine compares content fingerprints before and after every save and refuses to write on any difference.</span></p></div>
+      <div class="card"><h3><span lang="zh">你的自评是参考，不是命令</span><span lang="en">Your self-rating is a reference, not an order</span></h3><p><span lang="zh">你填的数永远原样保留，并被认真参考；AI 结合证据独立判断，如果和你的不同，必须写明理由。</span><span lang="en">The number you enter is always kept as is and weighed seriously. The AI judges independently from the evidence, and if it differs from you it must say why.</span></p></div>
+      <div class="card"><h3><span lang="zh">AI 的估计不会冒充你的话</span><span lang="en">AI estimates never pose as your words</span></h3><p><span lang="zh">每个数字都标明来源是「你自己说的」「AI 推断的」还是「补值」，还带着置信度。</span><span lang="en">Every number says whether it came from you, from AI inference or from gap filling, and carries a confidence.</span></p></div>
+      <div class="card"><h3><span lang="zh">没写，不等于 0</span><span lang="en">Blank does not mean 0</span></h3><p><span lang="zh">留空就是留空。补出来的值一律低置信度，而且从不用于训练或校准。</span><span lang="en">Blank stays blank. Filled values are always low confidence and never used for training or calibration.</span></p></div>
+      <div class="card"><h3><span lang="zh">决定你随时可以推翻</span><span lang="en">You can overrule any decision</span></h3><p><span lang="zh">AI 先决定、写理由、请你过目。没反馈就保持现状，沉默从不算作赞成。</span><span lang="en">The AI decides, gives reasons and invites your review. Without feedback things stay as they are, and silence is never counted as approval.</span></p></div>
+      <div class="card"><h3><span lang="zh">说过要改，就要真的改</span><span lang="en">If it says it will change, it must change</span></h3><p><span lang="zh">只有写出产物、读回核对、确认真的用上，才记作「已应用」。读过规则不算用过。</span><span lang="en">Only when the output is written, read back and confirmed does a rule count as applied. Having read a rule is not using it.</span></p></div>
+    </div>
+    <div class="warn" style="margin-top:22px"><b><span lang="zh">隐私：</span><span lang="en">Privacy:</span></b><span lang="zh">你的日记和所有数据只放在你自己指定的数据目录里，不进代码仓库。邮件只带回答一个问题所需的最少上下文，从不附整本日记。邮箱和 Notion 的密钥从你指定的文件里读取，不写进配置、日志或提示词。</span><span lang="en">Your journal and all data live only in the data directory you choose, never in the code repository. Email carries only the context one question needs, never the whole journal. Email and Notion credentials are read from files you name and are never written into config, logs or prompts.</span></div>
+  </div>
+</section>
+
+<section id="faq" style="background:var(--soft)">
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <details><summary><span lang="zh">我必须每天都填吗？</span><span lang="en">Do I have to fill it in every day?</span></summary><p><span lang="zh">不用。PAD 和 G 的自评可以留空，空就是空，系统会标成「待评分」或显示「缺」，不会当成 0。缺的 G 小项只会被低置信度补值，而且不进入任何校准统计。</span><span lang="en">No. PAD and G self-ratings can be left blank. Blank stays blank, marked pending or shown as n/a, never as 0. A missing G item is only filled at low confidence and never enters any calibration statistics.</span></p></details>
+    <details><summary><span lang="zh">它会改我写的日记吗？</span><span lang="en">Will it change what I write?</span></summary><p><span lang="zh">不会。「这里更接近真实的我」「给 AI 的反馈」和「原版本」都是受保护的区域。想补写时，只能追加在原版本末尾，并且会标明「补写于哪天，实际发生于哪天」。</span><span lang="en">No. "Closer to the real me", "Feedback for the AI" and "Original version" are protected. Late additions can only be appended to the end of the original, labelled with when they were written and when they actually happened.</span></p></details>
+    <details><summary><span lang="zh">需要用哪个 AI？</span><span lang="en">Which AI do I need?</span></summary><p><span lang="zh">不限。核心是一个只用 Python 标准库的引擎加一份配置，调度层可以生成给 Codex、Claude Code 或 cron 用的文件。代理负责读日记和做判断，引擎负责计算、校验和把关。</span><span lang="en">Any. The core is an engine using only the Python standard library plus a config file, and the scheduler layer can generate files for Codex, Claude Code or cron. The agent reads your journal and makes judgements; the engine computes, validates and guards.</span></p></details>
+    <details><summary><span lang="zh">它会自己联网，或把我的日记发到哪里吗？</span><span lang="en">Does it go online or send my journal anywhere?</span></summary><p><span lang="zh">引擎本身不联网。只有在你主动配置了邮件或 Notion 时才会发出内容：邮件只带必要的最少上下文，Notion 只是把当天笔记镜像过去，从不把 Notion 的内容读回你的笔记。你的 AI 代理自己怎么处理数据，取决于你选用的代理。</span><span lang="en">The engine itself does not go online. Content leaves only if you configure email or Notion: email carries the minimum context needed, and Notion only receives a mirror of the day's note and is never read back into your notes. How your AI agent handles data depends on the agent you choose.</span></p></details>
+    <details><summary><span lang="zh">这是心理测评或者诊断吗？</span><span lang="en">Is this a psychological test or a diagnosis?</span></summary><p><span lang="zh">不是。PAD、G、XP 都是个人反思的辅助，不是临床量表，不做医学或心理判断，也不能替代专业帮助。如果你正在挣扎，请联系合格的专业人士或当地的危机热线。</span><span lang="en">No. PAD, G and XP are personal reflection aids, not clinical scales. They make no medical or psychological judgement and are no substitute for professional care. If you are struggling, please reach out to a qualified professional or a local crisis line.</span></p></details>
+    <details><summary><span lang="zh">default 和 tiger-method 有什么区别？</span><span lang="en">What is the difference between default and tiger-method?</span></summary><p><span lang="zh">PAD 的 27 个词和 G 的模型完全一样。区别在 XP：tiger-method 的六个维度是作者按自己反复遇到的真实难题命名的，比如「停下优化与边界」「在不确定中行动」。想长出自己的维度，可以先用 default 写两三周，找出反复出现的难题再改名字。</span><span lang="en">The 27 PAD words and the G model are identical. The difference is XP: tiger-method's six dimensions are named after real difficulties the author kept running into, such as stopping over-optimizing and acting under uncertainty. To grow your own, journal with default for two or three weeks, find the difficulties that keep coming back, then rename the dimensions.</span></p></details>
+    <details><summary><span lang="zh">写出来的数据以后怎么看、怎么备份？</span><span lang="en">How do I read or back up the data later?</span></summary><p><span lang="zh">全部是你数据目录里的 Markdown 和 JSON 文件，直接能打开。目录还是一个本地 git 仓库，每次任务前后都有提交记录，没配置远端就永远不会推送出去。</span><span lang="en">It is all Markdown and JSON files in your data directory, openable as they are. The directory is also a local git repository with a commit around every task, and without a configured remote it is never pushed anywhere.</span></p></details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>existence-trace · MaxonT/existence-trace · MIT</span>
+    <a class="pill" href="developers.html"><span lang="zh">想知道仓库怎么实现的，看开发者版</span><span lang="en">Curious how it is built? See the developer version</span></a>
+  </div>
+</footer>
+
+<script>
+const DAYS=[{"label": {"zh": "3月2日 · 平稳的一天", "en": "March 2: a steady day"}, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1240\" height=\"590\" viewBox=\"0 0 1240 590\" font-family=\"-apple-system, 'PingFang SC', 'Noto Sans CJK SC', 'Helvetica Neue', Arial, sans-serif\"><rect x=\"0\" y=\"0\" width=\"1240\" height=\"590\" fill=\"#F3F5F7\" /><text x=\"80\" y=\"44\" font-size=\"24\" font-weight=\"600\" fill=\"#343A40\">PAD day trajectory 2026-03-02<\/text><text x=\"1200\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#1C7ED6\" text-anchor=\"end\">D dominance<\/text><text x=\"1016\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#F08C00\" text-anchor=\"end\">A arousal<\/text><text x=\"860\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#D6336C\" text-anchor=\"end\">P pleasure<\/text><g stroke=\"#DEE2E6\" stroke-width=\"1\"><line x1=\"80\" y1=\"490.0\" x2=\"1200\" y2=\"490.0\" /><line x1=\"80\" y1=\"408.0\" x2=\"1200\" y2=\"408.0\" /><line x1=\"80\" y1=\"326.0\" x2=\"1200\" y2=\"326.0\" /><line x1=\"80\" y1=\"244.0\" x2=\"1200\" y2=\"244.0\" /><line x1=\"80\" y1=\"162.0\" x2=\"1200\" y2=\"162.0\" /><line x1=\"80\" y1=\"80.0\" x2=\"1200\" y2=\"80.0\" /><\/g><text x=\"66\" y=\"414.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">1<\/text><text x=\"66\" y=\"332.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">2<\/text><text x=\"66\" y=\"250.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">3<\/text><text x=\"66\" y=\"168.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">4<\/text><text x=\"66\" y=\"86.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">5<\/text><text x=\"126.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">06:00<\/text><text x=\"266.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">09:00<\/text><text x=\"406.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">12:00<\/text><text x=\"546.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">15:00<\/text><text x=\"686.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">18:00<\/text><text x=\"826.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">21:00<\/text><text x=\"966.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">00:00<\/text><text x=\"1106.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">03:00<\/text><path d=\"M290.00,241.24 L291.27,240.55 L292.54,239.86 L293.81,239.18 L295.08,238.50 L296.35,237.82 L297.62,237.14 L298.88,236.47 L300.15,235.79 L301.42,235.12 L302.69,234.45 L303.96,233.78 L305.23,233.12 L306.50,232.46 L307.77,231.79 L309.04,231.14 L310.31,230.48 L311.58,229.83 L312.85,229.18 L314.11,228.53 L315.38,227.88 L316.65,227.24 L317.92,226.59 L319.19,225.95 L320.46,225.32 L321.73,224.68 L323.00,224.05 L324.27,223.42 L325.54,222.80 L326.81,222.17 L328.08,221.55 L329.34,220.94 L330.61,220.32 L331.88,219.71 L333.15,219.10 L334.42,218.49 L335.69,217.89 L336.96,217.29 L338.23,216.69 L339.50,216.09 L340.77,215.50 L342.04,214.91 L343.31,214.33 L344.57,213.74 L345.84,213.16 L347.11,212.59 L348.38,212.01 L349.65,211.44 L350.92,210.88 L352.19,210.31 L353.46,209.75 L354.73,209.19 L356.00,208.64 L357.27,208.09 L358.54,207.54 L359.80,207.00 L361.07,206.45 L362.34,205.92 L363.61,205.38 L364.88,204.85 L366.15,204.32 L367.42,203.80 L368.69,203.28 L369.96,202.76 L371.23,202.25 L372.50,201.74 L373.77,201.23 L375.03,200.73 L376.30,200.23 L377.57,199.73 L378.84,199.24 L380.11,198.75 L381.38,198.27 L382.65,197.79 L383.92,197.31 L385.19,196.84 L386.46,196.36 L387.73,195.90 L389.00,195.43 L390.26,194.97 L391.53,194.52 L392.80,194.07 L394.07,193.62 L395.34,193.17 L396.61,192.73 L397.88,192.29 L399.15,191.86 L400.42,191.43 L401.69,191.00 L402.96,190.58 L404.23,190.16 L405.50,189.74 L406.76,189.33 L408.03,188.92 L409.30,188.51 L410.57,188.11 L411.84,187.71 L413.11,187.32 L414.38,186.93 L415.65,186.54 L416.92,186.16 L418.19,185.78 L419.46,185.40 L420.73,185.03 L421.99,184.66 L423.26,184.29 L424.53,183.93 L425.80,183.57 L427.07,183.22 L428.34,182.87 L429.61,182.52 L430.88,182.17 L432.15,181.83 L433.42,181.49 L434.69,181.16 L435.96,180.83 L437.22,180.50 L438.49,180.18 L439.76,179.86 L441.03,179.54 L442.30,179.22 L443.57,178.91 L444.84,178.60 L446.11,178.30 L447.38,178.00 L448.65,177.70 L449.92,177.41 L451.19,177.12 L452.45,176.83 L453.72,176.54 L454.99,176.26 L456.26,175.98 L457.53,175.71 L458.80,175.43 L460.07,175.16 L461.34,174.90 L462.61,174.63 L463.88,174.37 L465.15,174.12 L466.42,173.86 L467.68,173.61 L468.95,173.36 L470.22,173.12 L471.49,172.88 L472.76,172.64 L474.03,172.40 L475.30,172.16 L476.57,171.93 L477.84,171.71 L479.11,171.48 L480.38,171.26 L481.65,171.04 L482.91,170.82 L484.18,170.61 L485.45,170.39 L486.72,170.18 L487.99,169.98 L489.26,169.77 L490.53,169.57 L491.80,169.37 L493.07,169.18 L494.34,168.98 L495.61,168.79 L496.88,168.60 L498.15,168.42 L499.41,168.23 L500.68,168.05 L501.95,167.87 L503.22,167.70 L504.49,167.52 L505.76,167.35 L507.03,167.18 L508.30,167.02 L509.57,166.85 L510.84,166.69 L512.11,166.53 L513.38,166.37 L514.64,166.22 L515.91,166.06 L517.18,165.91 L518.45,165.76 L519.72,165.62 L520.99,165.47 L522.26,165.33 L523.53,165.19 L524.80,165.05 L526.07,164.91 L527.34,164.78 L528.61,164.65 L529.87,164.52 L531.14,164.39 L532.41,164.26 L533.68,164.14 L534.95,164.02 L536.22,163.90 L537.49,163.78 L538.76,163.66 L540.03,163.55 L541.30,163.44 L542.57,163.32 L543.84,163.22 L545.10,163.11 L546.37,163.00 L547.64,162.90 L548.91,162.80 L550.18,162.70 L551.45,162.60 L552.72,162.50 L553.99,162.41 L555.26,162.31 L556.53,162.22 L557.80,162.13 L559.07,162.04 L560.33,161.96 L561.60,161.87 L562.87,161.79 L564.14,161.71 L565.41,161.62 L566.68,161.55 L567.95,161.47 L569.22,161.39 L570.49,161.32 L571.76,161.24 L573.03,161.17 L574.30,161.10 L575.56,161.03 L576.83,160.97 L578.10,160.90 L579.37,160.84 L580.64,160.77 L581.91,160.71 L583.18,160.65 L584.45,160.59 L585.72,160.53 L586.99,160.48 L588.26,160.42 L589.53,160.37 L590.79,160.31 L592.06,160.26 L593.33,160.21\" fill=\"none\" stroke=\"#D6336C\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"P\" /><path d=\"M290.00,323.24 L291.27,322.55 L292.54,321.86 L293.81,321.18 L295.08,320.50 L296.35,319.82 L297.62,319.14 L298.88,318.47 L300.15,317.79 L301.42,317.12 L302.69,316.45 L303.96,315.78 L305.23,315.12 L306.50,314.46 L307.77,313.79 L309.04,313.14 L310.31,312.48 L311.58,311.83 L312.85,311.18 L314.11,310.53 L315.38,309.88 L316.65,309.24 L317.92,308.59 L319.19,307.95 L320.46,307.32 L321.73,306.68 L323.00,306.05 L324.27,305.42 L325.54,304.80 L326.81,304.17 L328.08,303.55 L329.34,302.94 L330.61,302.32 L331.88,301.71 L333.15,301.10 L334.42,300.49 L335.69,299.89 L336.96,299.29 L338.23,298.69 L339.50,298.09 L340.77,297.50 L342.04,296.91 L343.31,296.33 L344.57,295.74 L345.84,295.16 L347.11,294.59 L348.38,294.01 L349.65,293.44 L350.92,292.88 L352.19,292.31 L353.46,291.75 L354.73,291.19 L356.00,290.64 L357.27,290.09 L358.54,289.54 L359.80,289.00 L361.07,288.45 L362.34,287.92 L363.61,287.38 L364.88,286.85 L366.15,286.32 L367.42,285.80 L368.69,285.28 L369.96,284.76 L371.23,284.25 L372.50,283.74 L373.77,283.23 L375.03,282.73 L376.30,282.23 L377.57,281.73 L378.84,281.24 L380.11,280.75 L381.38,280.27 L382.65,279.79 L383.92,279.31 L385.19,278.84 L386.46,278.36 L387.73,277.90 L389.00,277.43 L390.26,276.97 L391.53,276.52 L392.80,276.07 L394.07,275.62 L395.34,275.17 L396.61,274.73 L397.88,274.29 L399.15,273.86 L400.42,273.43 L401.69,273.00 L402.96,272.58 L404.23,272.16 L405.50,271.74 L406.76,271.33 L408.03,270.92 L409.30,270.51 L410.57,270.11 L411.84,269.71 L413.11,269.32 L414.38,268.93 L415.65,268.54 L416.92,268.16 L418.19,267.78 L419.46,267.40 L420.73,267.03 L421.99,266.66 L423.26,266.29 L424.53,265.93 L425.80,265.57 L427.07,265.22 L428.34,264.87 L429.61,264.52 L430.88,264.17 L432.15,263.83 L433.42,263.49 L434.69,263.16 L435.96,262.83 L437.22,262.50 L438.49,262.18 L439.76,261.86 L441.03,261.54 L442.30,261.22 L443.57,260.91 L444.84,260.60 L446.11,260.30 L447.38,260.00 L448.65,259.70 L449.92,259.41 L451.19,259.12 L452.45,258.83 L453.72,258.54 L454.99,258.26 L456.26,257.98 L457.53,257.71 L458.80,257.43 L460.07,257.16 L461.34,256.90 L462.61,256.63 L463.88,256.37 L465.15,256.12 L466.42,255.86 L467.68,255.61 L468.95,255.36 L470.22,255.12 L471.49,254.88 L472.76,254.64 L474.03,254.40 L475.30,254.16 L476.57,253.93 L477.84,253.71 L479.11,253.48 L480.38,253.26 L481.65,253.04 L482.91,252.82 L484.18,252.61 L485.45,252.39 L486.72,252.18 L487.99,251.98 L489.26,251.77 L490.53,251.57 L491.80,251.37 L493.07,251.18 L494.34,250.98 L495.61,250.79 L496.88,250.60 L498.15,250.42 L499.41,250.23 L500.68,250.05 L501.95,249.87 L503.22,249.70 L504.49,249.52 L505.76,249.35 L507.03,249.18 L508.30,249.02 L509.57,248.85 L510.84,248.69 L512.11,248.53 L513.38,248.37 L514.64,248.22 L515.91,248.06 L517.18,247.91 L518.45,247.76 L519.72,247.62 L520.99,247.47 L522.26,247.33 L523.53,247.19 L524.80,247.05 L526.07,246.91 L527.34,246.78 L528.61,246.65 L529.87,246.52 L531.14,246.39 L532.41,246.26 L533.68,246.14 L534.95,246.02 L536.22,245.90 L537.49,245.78 L538.76,245.66 L540.03,245.55 L541.30,245.44 L542.57,245.32 L543.84,245.22 L545.10,245.11 L546.37,245.00 L547.64,244.90 L548.91,244.80 L550.18,244.70 L551.45,244.60 L552.72,244.50 L553.99,244.41 L555.26,244.31 L556.53,244.22 L557.80,244.13 L559.07,244.04 L560.33,243.96 L561.60,243.87 L562.87,243.79 L564.14,243.71 L565.41,243.62 L566.68,243.55 L567.95,243.47 L569.22,243.39 L570.49,243.32 L571.76,243.24 L573.03,243.17 L574.30,243.10 L575.56,243.03 L576.83,242.97 L578.10,242.90 L579.37,242.84 L580.64,242.77 L581.91,242.71 L583.18,242.65 L584.45,242.59 L585.72,242.53 L586.99,242.48 L588.26,242.42 L589.53,242.37 L590.79,242.31 L592.06,242.26 L593.33,242.21\" fill=\"none\" stroke=\"#F08C00\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"A\" /><path d=\"M290.00,246.37 L291.27,246.32 L292.54,246.27 L293.81,246.22 L295.08,246.17 L296.35,246.11 L297.62,246.06 L298.88,246.00 L300.15,245.94 L301.42,245.88 L302.69,245.81 L303.96,245.75 L305.23,245.68 L306.50,245.61 L307.77,245.54 L309.04,245.47 L310.31,245.39 L311.58,245.32 L312.85,245.24 L314.11,245.16 L315.38,245.07 L316.65,244.99 L317.92,244.90 L319.19,244.81 L320.46,244.72 L321.73,244.63 L323.00,244.53 L324.27,244.43 L325.54,244.33 L326.81,244.23 L328.08,244.12 L329.34,244.02 L330.61,243.91 L331.88,243.80 L333.15,243.68 L334.42,243.56 L335.69,243.44 L336.96,243.32 L338.23,243.20 L339.50,243.07 L340.77,242.94 L342.04,242.81 L343.31,242.67 L344.57,242.54 L345.84,242.40 L347.11,242.25 L348.38,242.11 L349.65,241.96 L350.92,241.81 L352.19,241.65 L353.46,241.50 L354.73,241.34 L356.00,241.18 L357.27,241.01 L358.54,240.84 L359.80,240.67 L361.07,240.50 L362.34,240.32 L363.61,240.14 L364.88,239.96 L366.15,239.78 L367.42,239.59 L368.69,239.40 L369.96,239.20 L371.23,239.01 L372.50,238.81 L373.77,238.60 L375.03,238.40 L376.30,238.19 L377.57,237.98 L378.84,237.76 L380.11,237.54 L381.38,237.32 L382.65,237.10 L383.92,236.87 L385.19,236.64 L386.46,236.41 L387.73,236.17 L389.00,235.93 L390.26,235.69 L391.53,235.44 L392.80,235.19 L394.07,234.94 L395.34,234.68 L396.61,234.42 L397.88,234.16 L399.15,233.90 L400.42,233.63 L401.69,233.36 L402.96,233.08 L404.23,232.81 L405.50,232.53 L406.76,232.24 L408.03,231.95 L409.30,231.67 L410.57,231.37 L411.84,231.08 L413.11,230.78 L414.38,230.47 L415.65,230.17 L416.92,229.86 L418.19,229.55 L419.46,229.23 L420.73,228.92 L421.99,228.60 L423.26,228.27 L424.53,227.95 L425.80,227.62 L427.07,227.28 L428.34,226.95 L429.61,226.61 L430.88,226.27 L432.15,225.92 L433.42,225.58 L434.69,225.23 L435.96,224.87 L437.22,224.52 L438.49,224.16 L439.76,223.79 L441.03,223.43 L442.30,223.06 L443.57,222.69 L444.84,222.32 L446.11,221.94 L447.38,221.56 L448.65,221.18 L449.92,220.80 L451.19,220.41 L452.45,220.02 L453.72,219.62 L454.99,219.23 L456.26,218.83 L457.53,218.43 L458.80,218.03 L460.07,217.62 L461.34,217.21 L462.61,216.80 L463.88,216.39 L465.15,215.97 L466.42,215.55 L467.68,215.13 L468.95,214.70 L470.22,214.28 L471.49,213.85 L472.76,213.42 L474.03,212.98 L475.30,212.54 L476.57,212.11 L477.84,211.66 L479.11,211.22 L480.38,210.77 L481.65,210.33 L482.91,209.87 L484.18,209.42 L485.45,208.97 L486.72,208.51 L487.99,208.05 L489.26,207.59 L490.53,207.12 L491.80,206.65 L493.07,206.18 L494.34,205.71 L495.61,205.24 L496.88,204.76 L498.15,204.29 L499.41,203.81 L500.68,203.33 L501.95,202.84 L503.22,202.36 L504.49,201.87 L505.76,201.38 L507.03,200.89 L508.30,200.39 L509.57,199.89 L510.84,199.40 L512.11,198.90 L513.38,198.39 L514.64,197.89 L515.91,197.39 L517.18,196.88 L518.45,196.37 L519.72,195.86 L520.99,195.34 L522.26,194.83 L523.53,194.31 L524.80,193.79 L526.07,193.27 L527.34,192.75 L528.61,192.23 L529.87,191.70 L531.14,191.17 L532.41,190.64 L533.68,190.11 L534.95,189.58 L536.22,189.05 L537.49,188.51 L538.76,187.97 L540.03,187.43 L541.30,186.89 L542.57,186.35 L543.84,185.81 L545.10,185.26 L546.37,184.72 L547.64,184.17 L548.91,183.62 L550.18,183.07 L551.45,182.51 L552.72,181.96 L553.99,181.40 L555.26,180.85 L556.53,180.29 L557.80,179.73 L559.07,179.17 L560.33,178.60 L561.60,178.04 L562.87,177.47 L564.14,176.91 L565.41,176.34 L566.68,175.77 L567.95,175.20 L569.22,174.63 L570.49,174.05 L571.76,173.48 L573.03,172.90 L574.30,172.33 L575.56,171.75 L576.83,171.17 L578.10,170.59 L579.37,170.01 L580.64,169.42 L581.91,168.84 L583.18,168.25 L584.45,167.67 L585.72,167.08 L586.99,166.49 L588.26,165.90 L589.53,165.31 L590.79,164.72 L592.06,164.13 L593.33,163.53\" fill=\"none\" stroke=\"#1C7ED6\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"D\" /><text x=\"80\" y=\"560\" font-size=\"15\" fill=\"#868E96\" class=\"caption\">Note: readings with only a time slot are drawn at fixed slot positions, not exact clock times.<\/text><\/svg>", "pad": [["morning", 3, 2, 3, "calm", "self_report"], ["noon", 4, 3, 3, "happy", "self_report"], ["afternoon", 4, 3, 4, "proud", "self_report"]], "B": "6.6", "E": "6.9", "G": "6.8", "xp": 62, "callout": {"zh": "三项来源都是自述（self_report）。B 是 6.64，E 是 6.86，G 是 6.75，显示成 6.8。四舍五入只发生在显示的时候，计算过程中不取整。", "en": "Every item is self_report. B is 6.64 and E is 6.86, so G is 6.75, displayed as 6.8. Rounding happens only for display, never during computation."}, "journal": {"zh": "早上六点开门。新的酸面包流程管用了：第一批面包七点就出炉了。\n\n和 Ines 在后门台阶上吃午饭。之后我终于修好了那个响了一周的烤箱计时器。感觉今天的日子被我握在手里。", "en": "Opened the bakery at six. The new sourdough schedule worked: the first loaves were out by seven.\n\nLunch with Ines on the back step. After that I finally fixed the oven timer that has been beeping for a week. Felt like I had my hands on the day."}, "feedback": {"zh": "请把叙述写短一点。三四句话对我就够了。", "en": "Please keep the narrative short. Three or four sentences is enough for me."}, "headline": {"zh": "新的酸面包流程撑住了，烤箱计时器也终于修好了。", "en": "The new sourdough schedule held, and the oven timer is finally fixed."}, "narrative": {"zh": "Juniper 六点开门，七点就有了第一批出炉的面包。她在后门台阶上和 Ines 吃了午饭，接着修好了响了一周的烤箱计时器。这一天，方向盘握在她自己手里。", "en": "Juniper opened the bakery at six and had the first loaves out by seven. Lunch with Ines on the back step, then the oven timer that had beeped for a week got fixed. A day with her hands on the wheel."}, "question": null}, {"label": {"zh": "3月3日 · 下午变平了", "en": "March 3: the afternoon went flat"}, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1240\" height=\"590\" viewBox=\"0 0 1240 590\" font-family=\"-apple-system, 'PingFang SC', 'Noto Sans CJK SC', 'Helvetica Neue', Arial, sans-serif\"><rect x=\"0\" y=\"0\" width=\"1240\" height=\"590\" fill=\"#F3F5F7\" /><text x=\"80\" y=\"44\" font-size=\"24\" font-weight=\"600\" fill=\"#343A40\">PAD day trajectory 2026-03-03<\/text><text x=\"1200\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#1C7ED6\" text-anchor=\"end\">D dominance<\/text><text x=\"1016\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#F08C00\" text-anchor=\"end\">A arousal<\/text><text x=\"860\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#D6336C\" text-anchor=\"end\">P pleasure<\/text><g stroke=\"#DEE2E6\" stroke-width=\"1\"><line x1=\"80\" y1=\"490.0\" x2=\"1200\" y2=\"490.0\" /><line x1=\"80\" y1=\"408.0\" x2=\"1200\" y2=\"408.0\" /><line x1=\"80\" y1=\"326.0\" x2=\"1200\" y2=\"326.0\" /><line x1=\"80\" y1=\"244.0\" x2=\"1200\" y2=\"244.0\" /><line x1=\"80\" y1=\"162.0\" x2=\"1200\" y2=\"162.0\" /><line x1=\"80\" y1=\"80.0\" x2=\"1200\" y2=\"80.0\" /><\/g><text x=\"66\" y=\"414.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">1<\/text><text x=\"66\" y=\"332.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">2<\/text><text x=\"66\" y=\"250.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">3<\/text><text x=\"66\" y=\"168.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">4<\/text><text x=\"66\" y=\"86.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">5<\/text><text x=\"126.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">06:00<\/text><text x=\"266.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">09:00<\/text><text x=\"406.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">12:00<\/text><text x=\"546.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">15:00<\/text><text x=\"686.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">18:00<\/text><text x=\"826.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">21:00<\/text><text x=\"966.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">00:00<\/text><text x=\"1106.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">03:00<\/text><path d=\"M290.00,246.78 L292.25,247.99 L294.49,249.20 L296.74,250.41 L298.98,251.60 L301.23,252.79 L303.47,253.98 L305.72,255.15 L307.96,256.32 L310.21,257.49 L312.45,258.64 L314.70,259.79 L316.95,260.93 L319.19,262.06 L321.44,263.19 L323.68,264.30 L325.93,265.41 L328.17,266.51 L330.42,267.60 L332.66,268.68 L334.91,269.76 L337.15,270.82 L339.40,271.87 L341.65,272.92 L343.89,273.95 L346.14,274.98 L348.38,276.00 L350.63,277.00 L352.87,278.00 L355.12,278.98 L357.36,279.96 L359.61,280.92 L361.85,281.87 L364.10,282.81 L366.35,283.75 L368.59,284.67 L370.84,285.57 L373.08,286.47 L375.33,287.36 L377.57,288.23 L379.82,289.10 L382.06,289.95 L384.31,290.79 L386.56,291.62 L388.80,292.43 L391.05,293.24 L393.29,294.03 L395.54,294.81 L397.78,295.58 L400.03,296.34 L402.27,297.08 L404.52,297.81 L406.76,298.53 L409.01,299.24 L411.26,299.94 L413.50,300.62 L415.75,301.29 L417.99,301.95 L420.24,302.60 L422.48,303.23 L424.73,303.86 L426.97,304.47 L429.22,305.07 L431.46,305.65 L433.71,306.23 L435.96,306.79 L438.20,307.34 L440.45,307.88 L442.69,308.41 L444.94,308.92 L447.18,309.42 L449.43,309.91 L451.67,310.39 L453.92,310.86 L456.16,311.31 L458.41,311.75 L460.66,312.19 L462.90,312.60 L465.15,313.01 L467.39,313.41 L469.64,313.79 L471.88,314.16 L474.13,314.52 L476.37,314.87 L478.62,315.20 L480.86,315.52 L483.11,315.83 L485.36,316.13 L487.60,316.42 L489.85,316.69 L492.09,316.96 L494.34,317.21 L496.58,317.44 L498.83,317.67 L501.07,317.88 L503.32,318.08 L505.56,318.27 L507.81,318.44 L510.06,318.60 L512.30,318.75 L514.55,318.88 L516.79,319.00 L519.04,319.11 L521.28,319.20 L523.53,319.28 L525.77,319.34 L528.02,319.39 L530.26,319.43 L532.51,319.45 L534.76,319.46 L537.00,319.45 L539.25,319.43 L541.49,319.39 L543.74,319.34 L545.98,319.27 L548.23,319.19 L550.47,319.09 L552.72,318.98 L554.97,318.85 L557.21,318.70 L559.46,318.54 L561.70,318.36 L563.95,318.17 L566.19,317.96 L568.44,317.73 L570.68,317.49 L572.93,317.24 L575.17,316.96 L577.42,316.68 L579.67,316.37 L581.91,316.06 L584.16,315.72 L586.40,315.37 L588.65,315.01 L590.89,314.63 L593.14,314.24 L595.38,313.84 L597.63,313.42 L599.87,312.99 L602.12,312.55 L604.37,312.09 L606.61,311.62 L608.86,311.14 L611.10,310.65 L613.35,310.15 L615.59,309.64 L617.84,309.12 L620.08,308.58 L622.33,308.04 L624.57,307.49 L626.82,306.94 L629.07,306.37 L631.31,305.80 L633.56,305.22 L635.80,304.63 L638.05,304.03 L640.29,303.43 L642.54,302.83 L644.78,302.21 L647.03,301.60 L649.27,300.97 L651.52,300.35 L653.77,299.71 L656.01,299.08 L658.26,298.44 L660.50,297.79 L662.75,297.14 L664.99,296.49 L667.24,295.84 L669.48,295.18 L671.73,294.52 L673.97,293.85 L676.22,293.18 L678.47,292.51 L680.71,291.84 L682.96,291.16 L685.20,290.48 L687.45,289.80 L689.69,289.12 L691.94,288.43 L694.18,287.75 L696.43,287.06 L698.68,286.36 L700.92,285.67 L703.17,284.97 L705.41,284.27 L707.66,283.57 L709.90,282.87 L712.15,282.16 L714.39,281.46 L716.64,280.75 L718.88,280.04 L721.13,279.32 L723.38,278.61 L725.62,277.89 L727.87,277.17 L730.11,276.45 L732.36,275.73 L734.60,275.01 L736.85,274.28 L739.09,273.56 L741.34,272.83 L743.58,272.10 L745.83,271.36 L748.08,270.63 L750.32,269.90 L752.57,269.16 L754.81,268.42 L757.06,267.68 L759.30,266.94 L761.55,266.20 L763.79,265.45 L766.04,264.71 L768.28,263.96 L770.53,263.21 L772.78,262.46 L775.02,261.71 L777.27,260.96 L779.51,260.20 L781.76,259.45 L784.00,258.69 L786.25,257.93 L788.49,257.17 L790.74,256.41 L792.98,255.65 L795.23,254.89 L797.48,254.13 L799.72,253.36 L801.97,252.60 L804.21,251.83 L806.46,251.07 L808.70,250.30 L810.95,249.53 L813.19,248.76 L815.44,247.99 L817.68,247.22 L819.93,246.44 L822.18,245.67 L824.42,244.90 L826.67,244.12\" fill=\"none\" stroke=\"#D6336C\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"P\" /><path d=\"M290.00,246.77 L292.25,247.99 L294.49,249.20 L296.74,250.40 L298.98,251.60 L301.23,252.79 L303.47,253.97 L305.72,255.15 L307.96,256.32 L310.21,257.48 L312.45,258.64 L314.70,259.78 L316.95,260.92 L319.19,262.06 L321.44,263.18 L323.68,264.30 L325.93,265.41 L328.17,266.51 L330.42,267.60 L332.66,268.68 L334.91,269.75 L337.15,270.82 L339.40,271.87 L341.65,272.92 L343.89,273.95 L346.14,274.98 L348.38,275.99 L350.63,277.00 L352.87,277.99 L355.12,278.98 L357.36,279.96 L359.61,280.92 L361.85,281.87 L364.10,282.82 L366.35,283.75 L368.59,284.67 L370.84,285.58 L373.08,286.48 L375.33,287.37 L377.57,288.25 L379.82,289.11 L382.06,289.97 L384.31,290.81 L386.56,291.64 L388.80,292.46 L391.05,293.27 L393.29,294.06 L395.54,294.85 L397.78,295.62 L400.03,296.38 L402.27,297.13 L404.52,297.87 L406.76,298.59 L409.01,299.31 L411.26,300.01 L413.50,300.70 L415.75,301.38 L417.99,302.05 L420.24,302.70 L422.48,303.35 L424.73,303.98 L426.97,304.60 L429.22,305.21 L431.46,305.81 L433.71,306.40 L435.96,306.98 L438.20,307.54 L440.45,308.10 L442.69,308.64 L444.94,309.17 L447.18,309.69 L449.43,310.21 L451.67,310.71 L453.92,311.20 L456.16,311.68 L458.41,312.14 L460.66,312.60 L462.90,313.05 L465.15,313.49 L467.39,313.92 L469.64,314.34 L471.88,314.75 L474.13,315.15 L476.37,315.54 L478.62,315.92 L480.86,316.29 L483.11,316.65 L485.36,317.00 L487.60,317.34 L489.85,317.68 L492.09,318.00 L494.34,318.32 L496.58,318.63 L498.83,318.93 L501.07,319.22 L503.32,319.50 L505.56,319.77 L507.81,320.04 L510.06,320.30 L512.30,320.55 L514.55,320.79 L516.79,321.02 L519.04,321.25 L521.28,321.47 L523.53,321.68 L525.77,321.88 L528.02,322.08 L530.26,322.27 L532.51,322.45 L534.76,322.63 L537.00,322.80 L539.25,322.96 L541.49,323.12 L543.74,323.27 L545.98,323.41 L548.23,323.55 L550.47,323.68 L552.72,323.80 L554.97,323.92 L557.21,324.03 L559.46,324.14 L561.70,324.25 L563.95,324.34 L566.19,324.44 L568.44,324.52 L570.68,324.61 L572.93,324.69 L575.17,324.76 L577.42,324.83 L579.67,324.90 L581.91,324.96 L584.16,325.02 L586.40,325.07 L588.65,325.13 L590.89,325.17 L593.14,325.22 L595.38,325.26 L597.63,325.30 L599.87,325.34 L602.12,325.38 L604.37,325.41 L606.61,325.44 L608.86,325.47 L611.10,325.49 L613.35,325.52 L615.59,325.54 L617.84,325.56 L620.08,325.59 L622.33,325.60 L624.57,325.62 L626.82,325.64 L629.07,325.66 L631.31,325.67 L633.56,325.69 L635.80,325.70 L638.05,325.71 L640.29,325.72 L642.54,325.73 L644.78,325.75 L647.03,325.76 L649.27,325.77 L651.52,325.78 L653.77,325.78 L656.01,325.79 L658.26,325.80 L660.50,325.81 L662.75,325.82 L664.99,325.83 L667.24,325.83 L669.48,325.84 L671.73,325.85 L673.97,325.85 L676.22,325.86 L678.47,325.87 L680.71,325.87 L682.96,325.88 L685.20,325.88 L687.45,325.89 L689.69,325.89 L691.94,325.90 L694.18,325.90 L696.43,325.91 L698.68,325.91 L700.92,325.92 L703.17,325.92 L705.41,325.92 L707.66,325.93 L709.90,325.93 L712.15,325.94 L714.39,325.94 L716.64,325.94 L718.88,325.95 L721.13,325.95 L723.38,325.95 L725.62,325.96 L727.87,325.96 L730.11,325.96 L732.36,325.96 L734.60,325.97 L736.85,325.97 L739.09,325.97 L741.34,325.97 L743.58,325.97 L745.83,325.98 L748.08,325.98 L750.32,325.98 L752.57,325.98 L754.81,325.98 L757.06,325.98 L759.30,325.99 L761.55,325.99 L763.79,325.99 L766.04,325.99 L768.28,325.99 L770.53,325.99 L772.78,325.99 L775.02,325.99 L777.27,325.99 L779.51,325.99 L781.76,326.00 L784.00,326.00 L786.25,326.00 L788.49,326.00 L790.74,326.00 L792.98,326.00 L795.23,326.00 L797.48,326.00 L799.72,326.00 L801.97,326.00 L804.21,326.00 L806.46,326.00 L808.70,326.00 L810.95,326.00 L813.19,326.00 L815.44,326.00 L817.68,326.00 L819.93,326.00 L822.18,326.00 L824.42,326.00 L826.67,326.00\" fill=\"none\" stroke=\"#F08C00\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"A\" /><path d=\"M290.00,249.15 L292.25,250.28 L294.49,251.39 L296.74,252.50 L298.98,253.59 L301.23,254.68 L303.47,255.75 L305.72,256.81 L307.96,257.85 L310.21,258.88 L312.45,259.90 L314.70,260.90 L316.95,261.90 L319.19,262.87 L321.44,263.83 L323.68,264.78 L325.93,265.71 L328.17,266.62 L330.42,267.52 L332.66,268.40 L334.91,269.27 L337.15,270.12 L339.40,270.95 L341.65,271.76 L343.89,272.56 L346.14,273.34 L348.38,274.10 L350.63,274.84 L352.87,275.57 L355.12,276.27 L357.36,276.95 L359.61,277.62 L361.85,278.27 L364.10,278.89 L366.35,279.50 L368.59,280.08 L370.84,280.65 L373.08,281.19 L375.33,281.72 L377.57,282.22 L379.82,282.71 L382.06,283.17 L384.31,283.61 L386.56,284.03 L388.80,284.43 L391.05,284.81 L393.29,285.16 L395.54,285.50 L397.78,285.81 L400.03,286.10 L402.27,286.37 L404.52,286.62 L406.76,286.85 L409.01,287.06 L411.26,287.25 L413.50,287.41 L415.75,287.56 L417.99,287.68 L420.24,287.79 L422.48,287.87 L424.73,287.93 L426.97,287.98 L429.22,288.00 L431.46,288.00 L433.71,287.98 L435.96,287.95 L438.20,287.89 L440.45,287.82 L442.69,287.72 L444.94,287.61 L447.18,287.48 L449.43,287.33 L451.67,287.17 L453.92,286.98 L456.16,286.78 L458.41,286.56 L460.66,286.33 L462.90,286.07 L465.15,285.81 L467.39,285.52 L469.64,285.23 L471.88,284.91 L474.13,284.58 L476.37,284.24 L478.62,283.88 L480.86,283.51 L483.11,283.13 L485.36,282.73 L487.60,282.32 L489.85,281.90 L492.09,281.47 L494.34,281.03 L496.58,280.57 L498.83,280.11 L501.07,279.63 L503.32,279.15 L505.56,278.65 L507.81,278.15 L510.06,277.64 L512.30,277.13 L514.55,276.60 L516.79,276.07 L519.04,275.54 L521.28,275.00 L523.53,274.45 L525.77,273.90 L528.02,273.35 L530.26,272.79 L532.51,272.23 L534.76,271.67 L537.00,271.11 L539.25,270.55 L541.49,269.99 L543.74,269.43 L545.98,268.87 L548.23,268.31 L550.47,267.75 L552.72,267.20 L554.97,266.65 L557.21,266.10 L559.46,265.56 L561.70,265.03 L563.95,264.50 L566.19,263.97 L568.44,263.46 L570.68,262.95 L572.93,262.45 L575.17,261.95 L577.42,261.47 L579.67,260.99 L581.91,260.52 L584.16,260.06 L586.40,259.62 L588.65,259.18 L590.89,258.75 L593.14,258.33 L595.38,257.92 L597.63,257.52 L599.87,257.13 L602.12,256.76 L604.37,256.39 L606.61,256.03 L608.86,255.68 L611.10,255.34 L613.35,255.02 L615.59,254.70 L617.84,254.39 L620.08,254.09 L622.33,253.80 L624.57,253.51 L626.82,253.24 L629.07,252.97 L631.31,252.72 L633.56,252.46 L635.80,252.22 L638.05,251.98 L640.29,251.76 L642.54,251.53 L644.78,251.32 L647.03,251.10 L649.27,250.90 L651.52,250.70 L653.77,250.51 L656.01,250.32 L658.26,250.13 L660.50,249.95 L662.75,249.78 L664.99,249.61 L667.24,249.44 L669.48,249.27 L671.73,249.11 L673.97,248.96 L676.22,248.81 L678.47,248.66 L680.71,248.51 L682.96,248.37 L685.20,248.23 L687.45,248.09 L689.69,247.96 L691.94,247.83 L694.18,247.70 L696.43,247.57 L698.68,247.45 L700.92,247.33 L703.17,247.21 L705.41,247.10 L707.66,246.98 L709.90,246.87 L712.15,246.76 L714.39,246.66 L716.64,246.55 L718.88,246.45 L721.13,246.35 L723.38,246.26 L725.62,246.16 L727.87,246.07 L730.11,245.98 L732.36,245.89 L734.60,245.81 L736.85,245.72 L739.09,245.64 L741.34,245.56 L743.58,245.49 L745.83,245.41 L748.08,245.34 L750.32,245.27 L752.57,245.20 L754.81,245.13 L757.06,245.06 L759.30,245.00 L761.55,244.94 L763.79,244.88 L766.04,244.82 L768.28,244.77 L770.53,244.71 L772.78,244.66 L775.02,244.61 L777.27,244.56 L779.51,244.51 L781.76,244.46 L784.00,244.42 L786.25,244.38 L788.49,244.33 L790.74,244.30 L792.98,244.26 L795.23,244.22 L797.48,244.18 L799.72,244.15 L801.97,244.12 L804.21,244.09 L806.46,244.05 L808.70,244.03 L810.95,244.00 L813.19,243.97 L815.44,243.95 L817.68,243.92 L819.93,243.90 L822.18,243.88 L824.42,243.85 L826.67,243.83\" fill=\"none\" stroke=\"#1C7ED6\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"D\" /><text x=\"80\" y=\"560\" font-size=\"15\" fill=\"#868E96\" class=\"caption\">Note: readings with only a time slot are drawn at fixed slot positions, not exact clock times.<\/text><\/svg>", "pad": [["morning", 3, 3, 3, "focused", "self_report"], ["noon", 2, 2, 2, "helpless", "self_report"], ["afternoon", 2, 2, 3, "dejected", "self_report"], ["21:00", 3, 2, 3, "calm", "model_inference"]], "B": "5.1", "E": "5.5", "G": "5.3", "xp": 37, "callout": {"zh": "21:00 这一点是 AI 的推断（model_inference），置信度低，来源会写明。B1 她自评 5，AI 判断为 4，两个数都保留，并写明理由，不会悄悄改成一致。", "en": "The 21:00 point is an AI inference (model_inference) at low confidence, with its source stated. For B1 she rated 5 and the AI judged 4; both numbers are kept with the reason, and neither is quietly changed to match."}, "journal": {"zh": "上午有编程课，循环那道练习终于想通了。\n\n然后公交车抛锚，我在雨里站了四十分钟，错过了班次开头。整个下午都提不起劲，只做了最低限度的事。", "en": "Coding class in the morning, the loop exercise finally clicked.\n\nThen the bus broke down and I stood in the rain for forty minutes. Missed the start of my shift. Felt flat all afternoon and did the bare minimum."}, "feedback": null, "headline": {"zh": "一堂好课之后，在雨里等了四十分钟，把下午压扁了。", "en": "A good class, then a forty-minute wait in the rain flattened the afternoon."}, "narrative": {"zh": "上午的课上，循环那道练习想通了。公交车抛锚，Juniper 在雨里等车，错过了班次开头。这一天剩下的时间只做了最低限度的事。", "en": "The loop exercise clicked in the morning class. The bus broke down, Juniper waited in the rain and missed the start of her shift. The rest of the day ran on the bare minimum."}, "question": {"uncertainty": {"zh": "这个低落的下午，是因为通勤，还是因为工作？", "en": "Was the flat afternoon about the commute or about work?"}, "quote": {"zh": "整个下午都提不起劲，只做了最低限度的事。", "en": "Felt flat all afternoon and did the bare minimum."}, "a": {"zh": "雨中等车耗尽了她", "en": "the wait in the rain drained her"}, "b": {"zh": "班次本身很重", "en": "the shift itself was heavy"}}}, {"label": {"zh": "3月4日 · 她回答了问题", "en": "March 4: she answered the question"}, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1240\" height=\"590\" viewBox=\"0 0 1240 590\" font-family=\"-apple-system, 'PingFang SC', 'Noto Sans CJK SC', 'Helvetica Neue', Arial, sans-serif\"><rect x=\"0\" y=\"0\" width=\"1240\" height=\"590\" fill=\"#F3F5F7\" /><text x=\"80\" y=\"44\" font-size=\"24\" font-weight=\"600\" fill=\"#343A40\">PAD day trajectory 2026-03-04<\/text><text x=\"1200\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#1C7ED6\" text-anchor=\"end\">D dominance<\/text><text x=\"1016\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#F08C00\" text-anchor=\"end\">A arousal<\/text><text x=\"860\" y=\"44\" font-size=\"18\" font-weight=\"600\" fill=\"#D6336C\" text-anchor=\"end\">P pleasure<\/text><g stroke=\"#DEE2E6\" stroke-width=\"1\"><line x1=\"80\" y1=\"490.0\" x2=\"1200\" y2=\"490.0\" /><line x1=\"80\" y1=\"408.0\" x2=\"1200\" y2=\"408.0\" /><line x1=\"80\" y1=\"326.0\" x2=\"1200\" y2=\"326.0\" /><line x1=\"80\" y1=\"244.0\" x2=\"1200\" y2=\"244.0\" /><line x1=\"80\" y1=\"162.0\" x2=\"1200\" y2=\"162.0\" /><line x1=\"80\" y1=\"80.0\" x2=\"1200\" y2=\"80.0\" /><\/g><text x=\"66\" y=\"414.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">1<\/text><text x=\"66\" y=\"332.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">2<\/text><text x=\"66\" y=\"250.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">3<\/text><text x=\"66\" y=\"168.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">4<\/text><text x=\"66\" y=\"86.0\" font-size=\"16\" fill=\"#868E96\" text-anchor=\"end\">5<\/text><text x=\"126.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">06:00<\/text><text x=\"266.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">09:00<\/text><text x=\"406.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">12:00<\/text><text x=\"546.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">15:00<\/text><text x=\"686.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">18:00<\/text><text x=\"826.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">21:00<\/text><text x=\"966.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">00:00<\/text><text x=\"1106.67\" y=\"518\" font-size=\"15\" fill=\"#868E96\" text-anchor=\"middle\">03:00<\/text><path d=\"M290.00,162.00 L291.27,162.00 L292.54,162.00 L293.81,162.00 L295.08,162.00 L296.35,162.00 L297.62,162.00 L298.88,162.00 L300.15,162.00 L301.42,162.00 L302.69,162.00 L303.96,162.00 L305.23,162.00 L306.50,162.00 L307.77,162.00 L309.04,162.00 L310.31,162.00 L311.58,162.00 L312.85,162.00 L314.11,162.00 L315.38,162.00 L316.65,162.00 L317.92,162.00 L319.19,162.00 L320.46,162.00 L321.73,162.00 L323.00,162.00 L324.27,162.00 L325.54,162.00 L326.81,162.00 L328.08,162.00 L329.34,162.00 L330.61,162.00 L331.88,162.00 L333.15,162.00 L334.42,162.00 L335.69,162.00 L336.96,162.00 L338.23,162.00 L339.50,162.00 L340.77,162.00 L342.04,162.00 L343.31,162.00 L344.57,162.00 L345.84,162.00 L347.11,162.00 L348.38,162.00 L349.65,162.00 L350.92,162.00 L352.19,162.00 L353.46,162.00 L354.73,162.00 L356.00,162.00 L357.27,162.00 L358.54,162.00 L359.80,162.00 L361.07,162.00 L362.34,162.00 L363.61,162.00 L364.88,162.00 L366.15,162.00 L367.42,162.00 L368.69,162.00 L369.96,162.00 L371.23,162.00 L372.50,162.00 L373.77,162.00 L375.03,162.00 L376.30,162.00 L377.57,162.00 L378.84,162.00 L380.11,162.00 L381.38,162.00 L382.65,162.00 L383.92,162.00 L385.19,162.00 L386.46,162.00 L387.73,162.00 L389.00,162.00 L390.26,162.00 L391.53,162.00 L392.80,162.00 L394.07,162.00 L395.34,162.00 L396.61,162.00 L397.88,162.00 L399.15,162.00 L400.42,162.00 L401.69,162.00 L402.96,162.00 L404.23,162.00 L405.50,162.00 L406.76,162.00 L408.03,162.00 L409.30,162.00 L410.57,162.00 L411.84,162.00 L413.11,162.00 L414.38,162.00 L415.65,162.00 L416.92,162.00 L418.19,162.00 L419.46,162.00 L420.73,162.00 L421.99,162.00 L423.26,162.00 L424.53,162.00 L425.80,162.00 L427.07,162.00 L428.34,162.00 L429.61,162.00 L430.88,162.00 L432.15,162.00 L433.42,162.00 L434.69,162.00 L435.96,162.00 L437.22,162.00 L438.49,162.00 L439.76,162.00 L441.03,162.00 L442.30,162.00 L443.57,162.00 L444.84,162.00 L446.11,162.00 L447.38,162.00 L448.65,162.00 L449.92,162.00 L451.19,162.00 L452.45,162.00 L453.72,162.00 L454.99,162.00 L456.26,162.00 L457.53,162.00 L458.80,162.00 L460.07,162.00 L461.34,162.00 L462.61,162.00 L463.88,162.00 L465.15,162.00 L466.42,162.00 L467.68,162.00 L468.95,162.00 L470.22,162.00 L471.49,162.00 L472.76,162.00 L474.03,162.00 L475.30,162.00 L476.57,162.00 L477.84,162.00 L479.11,162.00 L480.38,162.00 L481.65,162.00 L482.91,162.00 L484.18,162.00 L485.45,162.00 L486.72,162.00 L487.99,162.00 L489.26,162.00 L490.53,162.00 L491.80,162.00 L493.07,162.00 L494.34,162.00 L495.61,162.00 L496.88,162.00 L498.15,162.00 L499.41,162.00 L500.68,162.00 L501.95,162.00 L503.22,162.00 L504.49,162.00 L505.76,162.00 L507.03,162.00 L508.30,162.00 L509.57,162.00 L510.84,162.00 L512.11,162.00 L513.38,162.00 L514.64,162.00 L515.91,162.00 L517.18,162.00 L518.45,162.00 L519.72,162.00 L520.99,162.00 L522.26,162.00 L523.53,162.00 L524.80,162.00 L526.07,162.00 L527.34,162.00 L528.61,162.00 L529.87,162.00 L531.14,162.00 L532.41,162.00 L533.68,162.00 L534.95,162.00 L536.22,162.00 L537.49,162.00 L538.76,162.00 L540.03,162.00 L541.30,162.00 L542.57,162.00 L543.84,162.00 L545.10,162.00 L546.37,162.00 L547.64,162.00 L548.91,162.00 L550.18,162.00 L551.45,162.00 L552.72,162.00 L553.99,162.00 L555.26,162.00 L556.53,162.00 L557.80,162.00 L559.07,162.00 L560.33,162.00 L561.60,162.00 L562.87,162.00 L564.14,162.00 L565.41,162.00 L566.68,162.00 L567.95,162.00 L569.22,162.00 L570.49,162.00 L571.76,162.00 L573.03,162.00 L574.30,162.00 L575.56,162.00 L576.83,162.00 L578.10,162.00 L579.37,162.00 L580.64,162.00 L581.91,162.00 L583.18,162.00 L584.45,162.00 L585.72,162.00 L586.99,162.00 L588.26,162.00 L589.53,162.00 L590.79,162.00 L592.06,162.00 L593.33,162.00\" fill=\"none\" stroke=\"#D6336C\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"P\" /><path d=\"M290.00,244.00 L291.27,243.66 L292.54,243.31 L293.81,242.97 L295.08,242.63 L296.35,242.28 L297.62,241.94 L298.88,241.60 L300.15,241.26 L301.42,240.91 L302.69,240.57 L303.96,240.23 L305.23,239.88 L306.50,239.54 L307.77,239.20 L309.04,238.85 L310.31,238.51 L311.58,238.17 L312.85,237.82 L314.11,237.48 L315.38,237.14 L316.65,236.79 L317.92,236.45 L319.19,236.11 L320.46,235.77 L321.73,235.42 L323.00,235.08 L324.27,234.74 L325.54,234.39 L326.81,234.05 L328.08,233.71 L329.34,233.36 L330.61,233.02 L331.88,232.68 L333.15,232.33 L334.42,231.99 L335.69,231.65 L336.96,231.31 L338.23,230.96 L339.50,230.62 L340.77,230.28 L342.04,229.93 L343.31,229.59 L344.57,229.25 L345.84,228.90 L347.11,228.56 L348.38,228.22 L349.65,227.87 L350.92,227.53 L352.19,227.19 L353.46,226.85 L354.73,226.50 L356.00,226.16 L357.27,225.82 L358.54,225.47 L359.80,225.13 L361.07,224.79 L362.34,224.44 L363.61,224.10 L364.88,223.76 L366.15,223.41 L367.42,223.07 L368.69,222.73 L369.96,222.38 L371.23,222.04 L372.50,221.70 L373.77,221.36 L375.03,221.01 L376.30,220.67 L377.57,220.33 L378.84,219.98 L380.11,219.64 L381.38,219.30 L382.65,218.95 L383.92,218.61 L385.19,218.27 L386.46,217.92 L387.73,217.58 L389.00,217.24 L390.26,216.90 L391.53,216.55 L392.80,216.21 L394.07,215.87 L395.34,215.52 L396.61,215.18 L397.88,214.84 L399.15,214.49 L400.42,214.15 L401.69,213.81 L402.96,213.46 L404.23,213.12 L405.50,212.78 L406.76,212.44 L408.03,212.09 L409.30,211.75 L410.57,211.41 L411.84,211.06 L413.11,210.72 L414.38,210.38 L415.65,210.03 L416.92,209.69 L418.19,209.35 L419.46,209.00 L420.73,208.66 L421.99,208.32 L423.26,207.97 L424.53,207.63 L425.80,207.29 L427.07,206.95 L428.34,206.60 L429.61,206.26 L430.88,205.92 L432.15,205.57 L433.42,205.23 L434.69,204.89 L435.96,204.54 L437.22,204.20 L438.49,203.86 L439.76,203.51 L441.03,203.17 L442.30,202.83 L443.57,202.49 L444.84,202.14 L446.11,201.80 L447.38,201.46 L448.65,201.11 L449.92,200.77 L451.19,200.43 L452.45,200.08 L453.72,199.74 L454.99,199.40 L456.26,199.05 L457.53,198.71 L458.80,198.37 L460.07,198.03 L461.34,197.68 L462.61,197.34 L463.88,197.00 L465.15,196.65 L466.42,196.31 L467.68,195.97 L468.95,195.62 L470.22,195.28 L471.49,194.94 L472.76,194.59 L474.03,194.25 L475.30,193.91 L476.57,193.56 L477.84,193.22 L479.11,192.88 L480.38,192.54 L481.65,192.19 L482.91,191.85 L484.18,191.51 L485.45,191.16 L486.72,190.82 L487.99,190.48 L489.26,190.13 L490.53,189.79 L491.80,189.45 L493.07,189.10 L494.34,188.76 L495.61,188.42 L496.88,188.08 L498.15,187.73 L499.41,187.39 L500.68,187.05 L501.95,186.70 L503.22,186.36 L504.49,186.02 L505.76,185.67 L507.03,185.33 L508.30,184.99 L509.57,184.64 L510.84,184.30 L512.11,183.96 L513.38,183.62 L514.64,183.27 L515.91,182.93 L517.18,182.59 L518.45,182.24 L519.72,181.90 L520.99,181.56 L522.26,181.21 L523.53,180.87 L524.80,180.53 L526.07,180.18 L527.34,179.84 L528.61,179.50 L529.87,179.15 L531.14,178.81 L532.41,178.47 L533.68,178.13 L534.95,177.78 L536.22,177.44 L537.49,177.10 L538.76,176.75 L540.03,176.41 L541.30,176.07 L542.57,175.72 L543.84,175.38 L545.10,175.04 L546.37,174.69 L547.64,174.35 L548.91,174.01 L550.18,173.67 L551.45,173.32 L552.72,172.98 L553.99,172.64 L555.26,172.29 L556.53,171.95 L557.80,171.61 L559.07,171.26 L560.33,170.92 L561.60,170.58 L562.87,170.23 L564.14,169.89 L565.41,169.55 L566.68,169.21 L567.95,168.86 L569.22,168.52 L570.49,168.18 L571.76,167.83 L573.03,167.49 L574.30,167.15 L575.56,166.80 L576.83,166.46 L578.10,166.12 L579.37,165.77 L580.64,165.43 L581.91,165.09 L583.18,164.74 L584.45,164.40 L585.72,164.06 L586.99,163.72 L588.26,163.37 L589.53,163.03 L590.79,162.69 L592.06,162.34 L593.33,162.00\" fill=\"none\" stroke=\"#F08C00\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"A\" /><path d=\"M290.00,244.00 L291.27,243.66 L292.54,243.31 L293.81,242.97 L295.08,242.63 L296.35,242.28 L297.62,241.94 L298.88,241.60 L300.15,241.26 L301.42,240.91 L302.69,240.57 L303.96,240.23 L305.23,239.88 L306.50,239.54 L307.77,239.20 L309.04,238.85 L310.31,238.51 L311.58,238.17 L312.85,237.82 L314.11,237.48 L315.38,237.14 L316.65,236.79 L317.92,236.45 L319.19,236.11 L320.46,235.77 L321.73,235.42 L323.00,235.08 L324.27,234.74 L325.54,234.39 L326.81,234.05 L328.08,233.71 L329.34,233.36 L330.61,233.02 L331.88,232.68 L333.15,232.33 L334.42,231.99 L335.69,231.65 L336.96,231.31 L338.23,230.96 L339.50,230.62 L340.77,230.28 L342.04,229.93 L343.31,229.59 L344.57,229.25 L345.84,228.90 L347.11,228.56 L348.38,228.22 L349.65,227.87 L350.92,227.53 L352.19,227.19 L353.46,226.85 L354.73,226.50 L356.00,226.16 L357.27,225.82 L358.54,225.47 L359.80,225.13 L361.07,224.79 L362.34,224.44 L363.61,224.10 L364.88,223.76 L366.15,223.41 L367.42,223.07 L368.69,222.73 L369.96,222.38 L371.23,222.04 L372.50,221.70 L373.77,221.36 L375.03,221.01 L376.30,220.67 L377.57,220.33 L378.84,219.98 L380.11,219.64 L381.38,219.30 L382.65,218.95 L383.92,218.61 L385.19,218.27 L386.46,217.92 L387.73,217.58 L389.00,217.24 L390.26,216.90 L391.53,216.55 L392.80,216.21 L394.07,215.87 L395.34,215.52 L396.61,215.18 L397.88,214.84 L399.15,214.49 L400.42,214.15 L401.69,213.81 L402.96,213.46 L404.23,213.12 L405.50,212.78 L406.76,212.44 L408.03,212.09 L409.30,211.75 L410.57,211.41 L411.84,211.06 L413.11,210.72 L414.38,210.38 L415.65,210.03 L416.92,209.69 L418.19,209.35 L419.46,209.00 L420.73,208.66 L421.99,208.32 L423.26,207.97 L424.53,207.63 L425.80,207.29 L427.07,206.95 L428.34,206.60 L429.61,206.26 L430.88,205.92 L432.15,205.57 L433.42,205.23 L434.69,204.89 L435.96,204.54 L437.22,204.20 L438.49,203.86 L439.76,203.51 L441.03,203.17 L442.30,202.83 L443.57,202.49 L444.84,202.14 L446.11,201.80 L447.38,201.46 L448.65,201.11 L449.92,200.77 L451.19,200.43 L452.45,200.08 L453.72,199.74 L454.99,199.40 L456.26,199.05 L457.53,198.71 L458.80,198.37 L460.07,198.03 L461.34,197.68 L462.61,197.34 L463.88,197.00 L465.15,196.65 L466.42,196.31 L467.68,195.97 L468.95,195.62 L470.22,195.28 L471.49,194.94 L472.76,194.59 L474.03,194.25 L475.30,193.91 L476.57,193.56 L477.84,193.22 L479.11,192.88 L480.38,192.54 L481.65,192.19 L482.91,191.85 L484.18,191.51 L485.45,191.16 L486.72,190.82 L487.99,190.48 L489.26,190.13 L490.53,189.79 L491.80,189.45 L493.07,189.10 L494.34,188.76 L495.61,188.42 L496.88,188.08 L498.15,187.73 L499.41,187.39 L500.68,187.05 L501.95,186.70 L503.22,186.36 L504.49,186.02 L505.76,185.67 L507.03,185.33 L508.30,184.99 L509.57,184.64 L510.84,184.30 L512.11,183.96 L513.38,183.62 L514.64,183.27 L515.91,182.93 L517.18,182.59 L518.45,182.24 L519.72,181.90 L520.99,181.56 L522.26,181.21 L523.53,180.87 L524.80,180.53 L526.07,180.18 L527.34,179.84 L528.61,179.50 L529.87,179.15 L531.14,178.81 L532.41,178.47 L533.68,178.13 L534.95,177.78 L536.22,177.44 L537.49,177.10 L538.76,176.75 L540.03,176.41 L541.30,176.07 L542.57,175.72 L543.84,175.38 L545.10,175.04 L546.37,174.69 L547.64,174.35 L548.91,174.01 L550.18,173.67 L551.45,173.32 L552.72,172.98 L553.99,172.64 L555.26,172.29 L556.53,171.95 L557.80,171.61 L559.07,171.26 L560.33,170.92 L561.60,170.58 L562.87,170.23 L564.14,169.89 L565.41,169.55 L566.68,169.21 L567.95,168.86 L569.22,168.52 L570.49,168.18 L571.76,167.83 L573.03,167.49 L574.30,167.15 L575.56,166.80 L576.83,166.46 L578.10,166.12 L579.37,165.77 L580.64,165.43 L581.91,165.09 L583.18,164.74 L584.45,164.40 L585.72,164.06 L586.99,163.72 L588.26,163.37 L589.53,163.03 L590.79,162.69 L592.06,162.34 L593.33,162.00\" fill=\"none\" stroke=\"#1C7ED6\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"pad-line\" data-axis=\"D\" /><text x=\"80\" y=\"560\" font-size=\"15\" fill=\"#868E96\" class=\"caption\">Note: readings with only a time slot are drawn at fixed slot positions, not exact clock times.<\/text><\/svg>", "pad": [["morning", 4, 3, 3, "happy", "self_report"], ["afternoon", 4, 4, 4, "exhilarated", "self_report"]], "B": "6.6", "E": "7.9", "G": "7.3", "xp": 89, "callout": {"zh": "中午没有读数，系统如实标出缺失，没有编一个。她写的「excited」被当作提示保留，引擎投影出的词是「exhilarated」。", "en": "There is no noon reading, and the system reports it as missing instead of inventing one. Her word \"excited\" is kept as a hint, while the engine projected \"exhilarated\"."}, "journal": {"zh": "睡了八个小时。特意坐了早一班的公交，还有时间坐下来歇一歇。\n\nDuarte 太太向我订了一个生日蛋糕，这是我在面包店之外的第一笔收费订单。我还没来得及说服自己退缩，就已经答应了。", "en": "Slept eight hours. Took the early bus on purpose and had time to sit.\n\nMrs. Duarte ordered a birthday cake from me, my first paid order outside the bakery. I said yes before I could talk myself out of it."}, "feedback": {"zh": "[Q-20260303-1] 是公交车的问题，不是工作的问题。在雨里等车比忙碌的一班更让我疲惫。\n\n当我在 PAD 表里写下一个词，请把它当作提示，而不是最终的词。", "en": "[Q-20260303-1] It was the bus, not the work. Waiting in the rain drains me more than a busy shift does.\n\nWhen I write a word in my PAD table, treat it as a hint, not as the final word."}, "headline": {"zh": "八小时睡眠，特意早一班的公交，还有第一笔收费的蛋糕订单。", "en": "Eight hours of sleep, an early bus by choice, and a first paid cake order."}, "narrative": {"zh": "Juniper 睡了八个小时，特意坐了早一班的公交。Duarte 太太订了一个生日蛋糕，是她在面包店之外的第一笔收费订单。她在疑虑开口之前就答应了。", "en": "Juniper slept eight hours and took the early bus on purpose. Mrs. Duarte ordered a birthday cake, her first paid order outside the bakery. She said yes before doubt could start talking."}, "question": null}];
+const STORY=[{"when": {"zh": "3月2日", "en": "March 2"}, "title": {"zh": "她提出一个偏好", "en": "She states a preference"}, "body": {"zh": "Juniper 在反馈区写下：「请把叙述写短一点。三四句话对我就够了。」这时系统里还没有对应的规则。", "en": "In the feedback zone, Juniper writes: \"Please keep the narrative short. Three or four sentences is enough for me.\" No rule covers this yet."}}, {"when": {"zh": "3月3日", "en": "March 3"}, "title": {"zh": "AI 发现自己拿不准", "en": "The AI notices it is unsure"}, "body": {"zh": "下午为什么低落？是通勤还是工作？证据只有一句话，两种读法都说得通。系统没有猜，而是登记了问题 <code>Q-20260303-1<\/code>，附上她的原话和两个候选解释，写进第二天的笔记。", "en": "Why was the afternoon flat, the commute or the work? The evidence is one sentence and both readings fit. Instead of guessing, the system files question <code>Q-20260303-1<\/code> with her own words and the two candidate readings, and places it in the next note."}}, {"when": {"zh": "3月4日", "en": "March 4"}, "title": {"zh": "她用一句话回答", "en": "She answers in one sentence"}, "body": {"zh": "她在反馈区以 <code>[Q-20260303-1]<\/code> 开头回答：是公交车的问题，不是工作的问题。另外她还写下：PAD 表里的词请当作提示。", "en": "In the feedback zone she replies, starting with <code>[Q-20260303-1]<\/code>: it was the bus, not the work. She also adds that the word in her PAD table should be treated as a hint."}}, {"when": {"zh": "3月4日", "en": "March 4"}, "title": {"zh": "AI 作决定，并写明理由", "en": "The AI decides and shows its reasons"}, "body": {"zh": "三条反馈合成 1 个决定，改动 3 条规则：<code>narrative-length<\/code>、<code>commute-first<\/code>、<code>pad-word-hint<\/code>。决定报告逐条写出依据了她的哪句话，并请她表态：同意哪些，不同意哪些。", "en": "Three pieces of feedback become 1 decision and 3 rule changes: <code>narrative-length<\/code>, <code>commute-first<\/code> and <code>pad-word-hint<\/code>. The decision report states which of her sentences each relied on, and asks which she agrees with and which not."}}, {"when": {"zh": "3月4日", "en": "March 4"}, "title": {"zh": "新规则真的用上了", "en": "The new rule is really applied"}, "body": {"zh": "这天的叙述只有三句话。系统把前后对比写进回执：改之前没有叙述长度规则，改之后叙述是三句话，状态 <code>changed<\/code>，并且读回核对过（<code>verified_readback<\/code>）。", "en": "That day's narrative has exactly three sentences. The receipt records before and after: no length rule before, three sentences after, status <code>changed<\/code>, and read back to confirm (<code>verified_readback<\/code>)."}}, {"when": {"zh": "每周审计", "en": "Weekly audit"}, "title": {"zh": "检查「说到做到了没有」", "en": "Checking whether it did what it said"}, "body": {"zh": "审计结果是通过：0 条断链，每个决定都有已核对的回执。她没有对决定表态，所以报告写的是「没有回复，沉默不算同意」。", "en": "The audit passes: 0 broken chains and every decision has a verified receipt. She did not react to the decision, so the report says \"no reply, silence is not approval\"."}}];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function bi(z,e){return '<span lang="zh">'+z+'</span><span lang="en">'+e+'</span>';}
+function bie(o){return bi(esc(o.zh),esc(o.en));}   /* 已是 {zh,en}，转义 */
+function bih(o){return bi(o.zh,o.en);}              /* 已是 {zh,en}，允许 HTML */
+
+/* 语言 */
+var TITLE={zh:'existence-trace 是什么，怎么用',en:'existence-trace: what it is and how to use it'};
+function applyLang(l){
+  document.documentElement.setAttribute('data-lang',l);
+  document.documentElement.lang=l==='zh'?'zh-CN':'en';
+  document.title=TITLE[l];
+  try{localStorage.setItem('et_lang',l);}catch(e){}
+}
+applyLang(document.documentElement.getAttribute('data-lang')||'zh');
+document.getElementById('lang').onclick=function(){
+  applyLang(document.documentElement.getAttribute('data-lang')==='zh'?'en':'zh');
+};
+document.getElementById('theme').onclick=function(){
+  var r=document.documentElement, cur=r.getAttribute('data-theme');
+  var dark=cur?cur==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;
+  r.setAttribute('data-theme',dark?'light':'dark');
+};
+document.querySelectorAll('[data-copy]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var t=b.parentNode.querySelector('pre').textContent;
+    function done(){b.classList.add('done'); setTimeout(function(){b.classList.remove('done');},1600);}
+    if(navigator.clipboard){navigator.clipboard.writeText(t).then(done,function(){});}
+  });
+});
+
+/* 真实的一天 */
+var WEN=['helpless','dejected','contemptuous','worried','irritated','dissatisfied','panicked','tense','angry','blank','calm','composed','confused','focused','assured','shocked','surprised','alert','attached','content','at ease','moved','happy','proud','delighted','excited','exhilarated'];
+var WZH=['无助','沮丧','轻蔑','担忧','烦躁','不满','恐慌','紧张','愤怒','茫然','平静','淡定','困惑','专注','笃定','震惊','惊讶','警觉','依恋','满足','惬意','感动','开心','自豪','惊喜','兴奋','豪迈'];
+var SLOT={morning:['早上','morning'],noon:['中午','noon'],afternoon:['下午','afternoon']};
+var SRC={self_report:['自述','self_report'],model_inference:['AI 推断','model_inference']};
+(function(){
+  var tabs=document.getElementById('dayTabs'), view=document.getElementById('dayView'), cur=2;
+  DAYS.forEach(function(d,i){
+    var b=document.createElement('button'); b.setAttribute('role','tab'); b.innerHTML=bie(d.label);
+    b.onclick=function(){cur=i;draw();}; tabs.appendChild(b);
+  });
+  function draw(){
+    Array.prototype.forEach.call(tabs.children,function(b,i){b.setAttribute('aria-selected',i===cur?'true':'false');});
+    var d=DAYS[cur];
+    var left='<div class="paper"><h4>'+bi('她写下的','What she wrote')+'</h4><div class="quote">'+bie(d.journal)+'</div>';
+    if(d.feedback){left+='<h4 style="margin-top:16px">'+bi('她留给 AI 的话','What she left for the AI')+'</h4><div class="quote" style="border-color:var(--d)">'+bie(d.feedback)+'</div>';}
+    if(d.question){
+      var q=d.question;
+      left+='<h4 style="margin-top:16px">'+bi('AI 想问她','What the AI wants to ask her')+'</h4><div class="callout"><b>'+bie(q.uncertainty)+'</b><br>'+bi('依据她写的：「','Based on what she wrote: "')+bie(q.quote)+bi('」','"')+'<br>'+bi('两种读法：A. ','Two readings: A. ')+bie(q.a)+bi('；B. ','; B. ')+bie(q.b)+'</div>';
+    }
+    left+='</div>';
+    var rows=d.pad.map(function(r){
+      var idx=WEN.indexOf(r[4]); var w=idx>=0?bi(WZH[idx],esc(r[4])):esc(r[4]);
+      var sl=SLOT[r[0]]?bi(SLOT[r[0]][0],SLOT[r[0]][1]):esc(r[0]);
+      var sr=SRC[r[5]]?bi(SRC[r[5]][0],SRC[r[5]][1]):esc(r[5]);
+      return '<tr><td>'+sl+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+w+'</td><td>'+sr+'</td></tr>';
+    }).join('');
+    var right='<div class="paper"><h4>'+bi('系统写出来的日报','The report the system wrote')+'</h4>'+
+      '<div class="quote" style="border-color:var(--a)"><b>'+bie(d.headline)+'</b></div>'+
+      '<div class="chart">'+d.svg+'</div>'+
+      '<table class="t"><thead><tr><th>'+bi('时段','Slot')+'</th><th>P</th><th>A</th><th>D</th><th>'+bi('情绪词','Word')+'</th><th>'+bi('来源','Source')+'</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<div class="kpis"><div class="kpi"><small>'+bi('B 安全感','B security')+'</small><b>'+esc(d.B)+'</b></div><div class="kpi"><small>'+bi('E 希望','E hope')+'</small><b>'+esc(d.E)+'</b></div><div class="kpi"><small>G</small><b>'+esc(d.G)+'</b></div><div class="kpi"><small>'+bi('当天 XP','XP today')+'</small><b>'+d.xp+'</b></div></div>'+
+      '<h4 style="margin-top:6px">'+bi('叙述','Narrative')+'</h4><div class="quote" style="border-color:var(--g)">'+bie(d.narrative)+'</div>'+
+      (d.callout?'<div class="callout">'+bih(d.callout)+'</div>':'')+'</div>';
+    view.innerHTML=left+right;
+  }
+  draw();
+  document.getElementById('story').innerHTML=STORY.map(function(b){
+    return '<div class="beat"><time>'+bie(b.when)+'</time><b>'+bie(b.title)+'</b><p>'+bih(b.body)+'</p></div>';
+  }).join('');
+})();
+
+/* 计算器 */
+(function(){
+  function half(v,n){var f=Math.pow(10,n);return Math.round((v+1e-9)*f)/f;}
+  function band(x){return x<=2?0:(x===3?1:2);}
+  function pad(){
+    var p=+document.getElementById('pp').value,a=+document.getElementById('pa').value,d=+document.getElementById('pd').value;
+    document.getElementById('ppo').textContent=p;document.getElementById('pao').textContent=a;document.getElementById('pdo').textContent=d;
+    var i=band(p)*9+band(a)*3+band(d);
+    document.getElementById('word').innerHTML=bi(WZH[i],WEN[i]);
+  }
+  ['pp','pa','pd'].forEach(function(id){document.getElementById(id).addEventListener('input',pad);}); pad();
+
+  var GB=[['B1','身体与作息','Body and rest',.28,7],['B2','物质与环境','Resources and surroundings',.18,6],['B3','关系与支持','Relationships and support',.36,7],['B4','可预期与掌控','Predictability and control',.18,6]];
+  var GE=[['E1','目标清晰','Clear goals',.22,7],['E2','路径与资源','Pathways and resources',.14,6],['E3','行动力','Agency',.36,7],['E4','意义与未来感','Meaning and a sense of future',.28,7]];
+  var gr=document.getElementById('gRows'), gitems=[];
+  GB.concat(GE).forEach(function(it,i){
+    var r=document.createElement('div'); r.className='row g';
+    r.innerHTML='<span>'+it[0]+' '+bi(it[1],it[2])+'</span><input type="range" min="0" max="10" step="1" value="'+it[4]+'"><output>'+it[4]+'</output><label class="blank"><input type="checkbox">'+bi('留空','blank')+'</label>';
+    gr.appendChild(r);
+    var rg=r.querySelector('input[type=range]'), out=r.querySelector('output'), cb=r.querySelector('input[type=checkbox]');
+    function upd(){out.innerHTML=cb.checked?bi('缺','n/a'):rg.value; rg.disabled=cb.checked; g();}
+    rg.addEventListener('input',upd); cb.addEventListener('change',upd);
+    gitems.push({w:it[3],rg:rg,cb:cb,grp:i<4?'B':'E'});
+  });
+  function g(){
+    var res={B:0,E:0}, miss={B:false,E:false};
+    gitems.forEach(function(x){ if(x.cb.checked){miss[x.grp]=true;} else {res[x.grp]+=x.w*(+x.rg.value);} });
+    var B=miss.B?null:res.B, E=miss.E?null:res.E, G=(B!==null&&E!==null)?(B+E)/2:null;
+    function show(v){return v===null?bi('缺','n/a'):half(v,1).toFixed(1);}
+    document.getElementById('gB').innerHTML=show(B);
+    document.getElementById('gE').innerHTML=show(E);
+    document.getElementById('gG').innerHTML=show(G);
+    var raw=G===null?bi('有项目留空，这一组或 G 不会被算出来，也不会被当成 0。','An item is blank, so this group or G is not computed, and nothing is counted as 0.')
+      :bi('未取整的值：B '+B.toFixed(2)+'，E '+E.toFixed(2)+'，G '+parseFloat(G.toFixed(3))+'。计算时不取整，只有显示给人看时才四舍五入到一位。',
+          'Unrounded: B '+B.toFixed(2)+', E '+E.toFixed(2)+', G '+parseFloat(G.toFixed(3))+'. Nothing is rounded during computation; only the displayed value is rounded to one decimal.');
+    document.getElementById('gRaw').innerHTML=raw;
+  }
+  g();
+
+  var XD=[['节律与稳定','Rhythm and stability',18,3],['学习与吸收','Learning and absorbing',16,2],['边界与休息','Boundaries and rest',16,2],['行动与尝试','Action and trying',14,3],['反思与发现','Reflection and discovery',14,2],['联结与探索','Connection and exploration',12,3]];
+  var xr=document.getElementById('xRows'), xs=[];
+  XD.forEach(function(d){
+    var r=document.createElement('div'); r.className='row';
+    r.innerHTML='<span>'+bi(d[0],d[1])+' ('+d[2]+')</span><input type="range" min="0" max="4" step="1" value="'+d[3]+'"><output>'+d[3]+'</output>';
+    xr.appendChild(r);
+    var rg=r.querySelector('input'), out=r.querySelector('output');
+    rg.addEventListener('input',function(){out.textContent=rg.value;x();}); xs.push({cap:d[2],rg:rg});
+  });
+  var xo=document.getElementById('xo'), xe=document.getElementById('xe');
+  xo.addEventListener('input',function(){document.getElementById('xoo').textContent=xo.value;x();}); xe.addEventListener('input',x);
+  function x(){
+    var s=0; xs.forEach(function(d){s+=d.cap*(+d.rg.value)/4;});
+    var ev=Math.max(0,+xe.value||0), raw=s+(+xo.value)+ev;
+    document.getElementById('xT').textContent=half(raw,0);
+    document.getElementById('xRaw').innerHTML=bi('六个维度合计 '+s+'，普通成果 '+xo.value+'，重大事件 '+ev+'，没有每日上限。','Dimensions total '+s+', ordinary '+xo.value+', events '+ev+'. There is no daily cap.');
+  }
+  x();
+})();
+</script>
+</body>
+</html>

@@ -1,16 +1,55 @@
-# existence-trace（存在痕迹）
+<p align="center"><img src="docs/banner.svg" alt="existence-trace banner" width="100%"></p>
 
-[English](README.md)
+# existence-trace（存在痕迹）：会读懂你日记的 AI 代理
 
-**一个会主动找你要反馈、每天迭代、越用越像你的个人状态系统。**
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3](https://img.shields.io/badge/python-3-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Dependencies: stdlib only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg)](#)
+[![Last commit](https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg)](https://github.com/MaxonT/existence-trace/commits)
+[![GitHub stars](https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social)](https://github.com/MaxonT/existence-trace/stargazers)
+
+[English](README.md) · [网站](https://maxont.github.io/existence-trace/) · [开发者版](https://maxont.github.io/existence-trace/developers.html) · [安装页](https://maxont.github.io/existence-trace/install/)
+
+**记录你的存在痕迹。**
 
 你每天写日记。AI 代理用三个视角去理解你的一天：PAD（情绪）、G（安全感与希望）、XP（成长），
-写成日报。只用 Python 3 标准库，MIT 协议。
+写成日报。但最重要的是接下来发生的事：一套**会自我迭代的偏好系统**。它在没把握的地方来问你，
+把你的回答变成规则，并且每周证明自己真的用上了。只用 Python 3 标准库，MIT 协议。
+
+> **说明。** 你的原话逐字保存，AI 只写自己的区块。每个数值都标明是你说的还是 AI 推断的。
+> 你的数据在你自己的文件夹里，不在本仓库。PAD、G、XP 是个人反思辅助，**不是临床量表**。
+
+⭐ 如果你也想让 AI 替你好好记住这些，点个 star 能帮更多人找到它。
+
+## 安装
+
+**交给你的 AI。** 把下面这句话贴给 Claude Code、Codex 或任何能运行 shell 命令的代理：
+
+```
+Read https://maxont.github.io/existence-trace/install and install existence-trace for me.
+```
+
+它会检查 Python、安装 `etrace` 命令、问你四个问题（预设、语言、时区、数据目录），然后创建你的日记。
+没有你的同意，它不会改动你的 shell 配置。
+
+**或者在终端里**（需要 Python 3.11+，会用 `uv`、`pipx` 或 `pip --user`）：
+
+```sh
+curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
+```
+
+加 `--dry-run` 可以先看它会做什么。然后：
+
+```sh
+etrace init --preset default --language zh --dir ~/existence-trace-data
+export ETRACE_CONFIG=~/existence-trace-data/trace.toml
+etrace validate            # {"ok": true, ...}
+etrace prompt daily --raw  # 代理跑日报时用的 prompt
+```
 
 ## 会自我迭代的偏好闭环
 
-日报不是核心，**偏好容器**（`etrace/container`）才是。系统发现自己哪里没把握，就来问你；
-你回答后，它把答案变成规则，在下一份真实日报里用上，并且每周审计自己有没有真的用上。
+<p align="center"><a href="https://maxont.github.io/existence-trace/developers.html#chain"><img src="docs/img/chain.png" alt="偏好容器：疑问、反馈、决定、规则、回执、审计" width="720"></a></p>
 
 ```
  发现疑问 ──> 问你 ──> 你的反馈 ──> 做决定 ──> 改规则
@@ -19,50 +58,17 @@
  每周审计 <── 使用回执 <── 读回核验 <── 用进真实笔记
 ```
 
-1. **疑问**：代理扫描最近的笔记，把真实的疑问连同证据和两个候选解释存下来（`question add`），
-   写进当天笔记；配置了邮件的话也会发信。
-2. **反馈**：你在笔记受保护的反馈区写字，或者直接回邮件。以 `[Q-id]` 开头就是回答某个疑问
-   （`feedback ingest`）。
-3. **决定**：代理不等精确数字，先做合理决定并写明理由，再改规则（`decide`）。同一适用范围内
-   最新反馈优先；被替代的规则退出生效集合，但历史保留。下一份笔记会出现决定报告，你随时可以推翻。
-4. **回执**：决定真的改变了日报时，代理读回文件核验，再记一条使用回执（`usage add`）。
-   读过规则不算用过。
-5. **审计**：每周 `audit weekly` 沿着每条链（疑问 → 反馈 → 决定 → 规则 → 回执）检查，
-   有决定从没落实就判失败。
+1. **疑问**：代理在你的笔记里找到真实的疑问，附上证据和两个候选解释。
+2. **反馈**：你在笔记受保护的反馈区回答，或直接回邮件。
+3. **决定**：代理不干等，先做有理由的决定，最新反馈优先；你随时可以推翻。
+4. **回执**：决定真的改变了日报，代理就读回文件核验并记录。读过规则不算用过。
+5. **审计**：每周 `audit weekly` 沿着每条链检查，有决定从没落实就判失败。
 
-`validate` 随时检查整条链，有任何问题就以退出码 1 结束。
+`etrace validate` 随时检查整条链，有任何问题就以退出码 1 结束。
 
-## 九条原则
+## 一天是什么样
 
-引擎用代码和测试强制执行；prompt 要求代理永远不要绕过。
-
-1. **原文保护**：你的原话逐字保存。AI 只写自己的区块；原版本只能在末尾追加带日期的补写。
-2. **AI 估计不冒充自述**：每个数值都带来源类型（self_report / model_inference / gap_fill）、
-   出处和置信度。
-3. **缺失不是 0**：没写就留空或标「待评分」。补值必须低置信度，且不进入校准。
-4. **事件只入账一次**：重大事件用唯一 event id，在发生日记一次。
-5. **冻结预测再训练**：先保存预测快照，反馈到了再评价；数值修正要过 10 日训练 + 10 日检验。
-6. **最新反馈优先**：同一适用范围内，按你原始表达的时间，新规则替代旧规则；旧反馈永远保留为证据。
-7. **先决定、再报告、邀请反馈**：先做有理由的合理决定，不干等；你可以推翻。
-8. **写后核验，读过不算用过**：只有真实产物里核验过的改动才算「已应用」。
-9. **手填是参考，不是命令**：你的自评原值永远保留并重点参考，AI 结合证据独立判断，
-   并说明采纳或偏离的理由。
-
-## 快速开始
-
-需要 Python 3.11 以上（用到 `tomllib`）。无需安装，在本仓库的克隆目录里运行。
-
-```sh
-python3 -m etrace init --preset default --language zh --dir ~/existence-trace-data
-export ETRACE_CONFIG=~/existence-trace-data/trace.toml
-
-python3 -m etrace validate           # {"ok": true, ...}
-python3 -m etrace prompt daily --raw # 代理跑日报时用的 prompt
-python3 -m etrace schedule --target claude-code --out ./my-schedule  # 只写文件，不安装
-```
-
-`init` 会生成 `trace.toml`、带今天笔记的 `journal/`、装好预设起步规则的 `data/`，以及
-`audits/`、`charts/`。在今天的笔记里写字，然后让代理按时运行任务：
+<p align="center"><a href="https://maxont.github.io/existence-trace/#day"><img src="docs/img/day.png" alt="一位虚构面包师的一天：笔记、疑问、反馈、日报" width="720"></a></p>
 
 | 默认时间 | 任务 | 做什么 |
 |---|---|---|
@@ -72,28 +78,26 @@ python3 -m etrace schedule --target claude-code --out ./my-schedule  # 只写文
 | 20:30 | `g` | G 估值、冻结预测、校准 |
 | 周日 22:15 | `audit` | 每周审计每条反馈链 |
 
-每个任务都会把数据目录提交到它自己的本地 git 仓库（`checkpoint`）。时间、语言、外联方式
-（`note` 或 `note+email`）和可选的 Notion 镜像都在 `trace.toml` 里设置，全部键见
+`etrace schedule --target codex|claude-code|cron --out DIR` 只写调度文件，不安装任何东西。
+虚构的完整示例在 [`examples/persona`](examples/persona)；`trace.toml` 的全部键见
 [`examples/trace.toml`](examples/trace.toml)。
 
-**预设**：`default` 是通用版。`tiger-method` 是一个人调出来的维度，不含任何个人事件；
-它的 [README](presets/tiger-method/README.md) 讲怎样长出你自己的维度。
+## 九条原则
 
-**示例**：[`examples/persona`](examples/persona) 是一位虚构面包师的三天日记和代理产出；
-`tests/test_example.py` 用它跑完整个闭环。
+引擎用代码和测试强制执行；prompt 要求代理永远不要绕过。
 
-## 目录
+1. **原文保护**：你的原话逐字保存。
+2. **AI 估计不冒充自述**。
+3. **缺失不是 0**。
+4. **事件只入账一次**。
+5. **冻结预测再训练**。
+6. **最新反馈优先**：同一适用范围内。
+7. **先决定、再报告、邀请反馈**。
+8. **写后核验，读过不算用过**。
+9. **手填是参考，不是命令**。
 
-```
-etrace/container/  偏好容器：questions、feedback、decisions、rules、usage、validate、audit
-etrace/models/     pad.py  g.py  xp.py
-etrace/outreach/   note.py  email.py（smtplib / imaplib）
-etrace/adapters/   调度（codex / claude-code / cron）、notion（可选输出）
-etrace/prompts/    zh/ 与 en/ 任务 prompt，共用 _principles.md
-presets/           default、tiger-method
-```
-
-测试：`python3 -m unittest discover -s tests -v`。只要仓库里出现邮箱、Notion 风格的 ID
+完整说明、架构和如何新增预设见[开发者版](https://maxont.github.io/existence-trace/developers.html)。
+测试：`python3 -m unittest discover -s tests -v`；只要仓库里出现邮箱、Notion 风格的 ID
 或用户主目录路径，`tests/test_privacy.py` 就会失败。
 
 ## 不是临床工具

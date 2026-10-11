@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "existence-trace"
+version = "0.1.0"
+description = "Record your traces of existence: a self-improving personal state system. An AI agent reads your journal, asks for feedback and turns it into rules."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "MaxonT" }]
+keywords = ["journaling", "self-tracking", "preference-learning", "ai-agent", "pad-model", "stdlib"]
+dependencies = []
+
+[project.urls]
+Homepage = "https://maxont.github.io/existence-trace/"
+Repository = "https://github.com/MaxonT/existence-trace"
+
+[project.scripts]
+etrace = "etrace.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["etrace*"]
+
+[tool.setuptools.package-data]
+etrace = ["preset_data/*/*", "prompts/*/*.md"]

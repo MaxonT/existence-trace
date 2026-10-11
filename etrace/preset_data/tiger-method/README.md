@@ -36,7 +36,7 @@ once, with a unique `event_id`, on the day it happened.
    ("acting under uncertainty", not "courage").
 4. Give the most painful ones the higher caps; keep six dimensions with caps
    18, 16, 16, 14, 14, 12 so totals stay comparable.
-5. Copy `presets/default` to a new folder, edit the labels (zh and en) in
+5. Copy `etrace/preset_data/default` to a new folder, edit the labels (zh and en) in
    `xp.json`, and load it with `etrace.presets.load(name, presets_dir)`; the
    validator tells you which field is wrong.
 6. Re-check after a month. Let a dimension go when the difficulty is gone.
@@ -56,7 +56,7 @@ PAD and G are not clinical scales and make no medical judgement.
 真实联结与自主探索（客气但空洞的交流、只跟着义务走的好奇）。封顶分数反映哪里最痛，而不是哪里最体面。
 
 **长出你自己的**：先用 `default` 写两三周 → 找出至少出现三次的难题 → 用你自己的话写成想看到的行为 →
-最痛的给最高上限（保持 18、16、16、14、14、12）→ 复制 `presets/default` 改 `xp.json` 的中英文名称 →
+最痛的给最高上限（保持 18、16、16、14、14、12）→ 复制 `etrace/preset_data/default` 改 `xp.json` 的中英文名称 →
 一个月后复查，难题消失就让维度退场。
 
 PAD 和 G 不是临床量表，不做医学判断。
