@@ -63,6 +63,14 @@ jobs:
           "$etrace" ai --pretty --no-color | grep -q "smoke"
           "$etrace" note --json | grep -q '"created"'
           "$etrace" run --help | grep -q "max-steps"
+          mkdir -p "$RUNNER_TEMP/diary/2025"
+          printf 'One.\n' > "$RUNNER_TEMP/diary/2025-03-04.md"
+          printf '# 2025-03-05\nTwo.\n\n## 2025-03-06\nThree.\n' > "$RUNNER_TEMP/diary/log.md"
+          "$etrace" import "$RUNNER_TEMP/diary" --dry-run --json | grep -q '"dry_run": true'
+          "$etrace" import "$RUNNER_TEMP/diary" --json | grep -q '"days": 3'
+          "$etrace" import "$RUNNER_TEMP/diary" --json | grep -q '"unchanged": 3'
+          "$etrace" validate --json | grep -q '"ok": true'
+          "$etrace" prompt daily --date 2025-03-04 --raw | grep -q "not today"
 
       - name: GitHub Release
         env:

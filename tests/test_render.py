@@ -25,6 +25,10 @@ RESULTS = {
     "audit weekly": {"week": "2026-W41", "passed": True, "broken": [], "report": "/data/audits/2026-W41.md"},
     "checkpoint": {"committed": True, "commit": "abcdef1234567890", "initialized": False, "pushed": False},
     "note": {"date": "2026-10-12", "created": True, "note": "/data/trace/journal/2026-10-12.md"},
+    "import": {"dry_run": False, "entries": 3, "days": 2, "first": "2025-03-04", "last": "2025-03-05",
+               "added": 2, "unchanged": 1, "new_notes": 2, "imported": [], "ran": [],
+               "created_folder": "/data/trace",
+               "skipped": [{"path": "loose.txt", "reason": "no date in the name, folder, front matter or first line"}]},
     "ai": {"provider": "openai", "service": "DeepSeek", "base_url": "https://api.deepseek.com/v1",
            "model": "deepseek-chat",
            "key": {"needed": True, "found": True, "masked": "…0123", "source": "ETRACE_AI_KEY",
@@ -134,6 +138,26 @@ class RenderTest(unittest.TestCase):
         self.assertIn("export ETRACE_CONFIG=/data/trace/trace.toml", text)
         for step in ("etrace ai set", "etrace note", "etrace run daily"):
             self.assertIn(step, text)
+
+    def test_import_view(self):
+        text = plain(PLAIN, "import")
+        for needle in ("Made your data folder", "Imported 3 entries", "2025-03-04 to 2025-03-05", "1 skipped",
+                       "loose.txt", "etrace import PATH --run"):
+            self.assertIn(needle, text)
+        dry = plain(PLAIN, "import", dict(RESULTS["import"], dry_run=True, created_folder=None))
+        self.assertIn("Would import 3 entries", dry)
+        self.assertNotIn("Next", dry)
+        none = plain(PLAIN, "import", dict(RESULTS["import"], entries=0, days=0, first=None, last=None,
+                                           skipped=[], created_folder=None))
+        self.assertIn("Nothing to import", none)
+        many = dict(RESULTS["import"], skipped=[{"path": f"f{i}.txt", "reason": "empty"} for i in range(12)])
+        self.assertIn("4 more", plain(PLAIN, "import", many))
+        ran = dict(RESULTS["import"], ran=[{"date": "2025-03-05", "finished": True, "steps": 6},
+                                           {"date": "2025-03-06", "finished": False, "steps": 2, "error": "boom"}])
+        text = plain(PLAIN, "import", ran)
+        self.assertIn("2025-03-05  the AI finished", text)
+        self.assertIn("stopped", text)
+        self.assertIn("boom", text)
 
     def test_ai_views(self):
         self.assertIn("etrace ai set openai", plain(PLAIN, "ai", {"provider": None}))

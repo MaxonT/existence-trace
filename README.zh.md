@@ -41,13 +41,30 @@ curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
 加 `--dry-run` 可以先看它会做什么。然后：
 
 ```sh
-etrace init                # 在 ~/existence-trace-data 建好数据目录，不需要别的配置
-etrace ai set              # 接入 AI（会问你，见下）
-etrace note                # 今天的日记：在标好的区域里写
-etrace run daily           # AI 读完并写日报
+etrace ai set                            # 接入 AI（会问你，见“接入 AI”）
+etrace import ~/Documents/diary --run    # 导入你的旧日记，并让 AI 去读
 ```
 
+`--run` 需要 AI，所以先接入（只导入、不加 `--run` 随时都行）。两条命令都会在数据目录还没有时顺手建好。
+还没有旧日记？`etrace init`，然后 `etrace note` 打开今天这页，`etrace run daily` 让 AI 来读。
+
 <p align="center"><img src="docs/img/cli.png" alt="终端里的 etrace 命令：渐变横幅、带进度条的 G 报告、趋势折线和帮助页（虚构演示数据）" width="720"></p>
+
+## 导入你的日记
+
+```sh
+etrace import ~/Documents/diary             # 文件夹（任意层级）、文件或 Day One 导出
+etrace import ~/Documents/diary --dry-run   # 先看它会做什么，不改任何东西
+etrace import ~/Documents/diary --run       # 导入后让 AI 读最近 7 天（--days N）
+```
+
+支持 `.md`、`.txt` 和 Day One 的 `.json`。每天的日期取自文件名（`2026-03-04.md`、`20260304.txt`、
+`2026年3月4日.md`）、文件夹（`2026/03/04.txt`）、`date:` 行或日期标题；一个文件里有多个日期标题
+（`## 2026-03-04`、`## 2026-03-05`……）会按天拆开。认不出日期的文件会列出来，绝不瞎猜
+（单个文件可加 `--date 日期`，或用 `--mtime` 取文件自己的日期）。你的原话逐字进入当天笔记受保护的
+“原版本”区，任何人都改不了；重复导入不会有变化，文件改了会追加一段带日期的补写。
+还没有数据目录时，`import` 会替你建（语言按你的文字判断，时区取自本机）。
+想手动让 AI 处理某个过去的日子：`etrace run daily --date 2026-03-04`。
 
 ## 接入 AI
 
@@ -81,6 +98,7 @@ etrace ai models           # 这个服务提供哪些模型
 | `etrace init` | 创建数据目录 |
 | `etrace ai [set\|test\|models]` | 接入并检查 AI API |
 | `etrace run TASK` | 让 AI 做 `daily`、`g`、`feedback`、`calibrate` 或 `audit` |
+| `etrace import PATH...` | 导入旧日记（文件夹、文件、Day One）；`--run` 让 AI 去读 |
 | `etrace note [-e]` | 创建今天的笔记并告诉你在哪；`-e` 直接打开 |
 | `etrace validate` | 检查数据链和笔记，有问题就以退出码 1 结束 |
 | `etrace pad` / `g` / `xp` | 三个视角：记录点、图表（`pad chart`、`g chart`）、打分 |

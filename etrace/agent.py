@@ -25,7 +25,7 @@ import tempfile
 
 from etrace import ai, prompts
 
-BLOCKED = ("init", "schedule", "ai", "run")
+BLOCKED = ("init", "schedule", "ai", "run", "import")
 READABLE = ("journal", "data", "audits", "presets")
 MAX_OUTPUT = 12000          # characters of command output / file text handed back to the model
 MAX_LIST = 200
@@ -166,16 +166,25 @@ def _describe(call):
     return call.name
 
 
-def run_task(cfg, client, task, store, language=None, max_steps=DEFAULT_STEPS, progress=None):
-    """Run TASK to the end. Returns the run record; raises AgentError (with .result) if it cannot finish."""
+def run_task(cfg, client, task, store, language=None, max_steps=DEFAULT_STEPS, progress=None, day=None):
+    """Run TASK to the end. Returns the run record; raises AgentError (with .result) if it cannot finish.
+
+    DAY (YYYY-MM-DD) points daily or g at that day instead of today.
+    """
     if task not in prompts.TASKS:
         raise AgentError(f"task: unknown task {task!r}; expected one of {', '.join(prompts.TASKS)}")
-    system = PREFACE + prompts.render(task, cfg, store, language)
+    try:
+        system = PREFACE + prompts.render(task, cfg, store, language, day=day)
+    except prompts.PromptError as exc:
+        raise AgentError(str(exc)) from None
     sandbox = Sandbox(cfg.source or os.path.join(cfg.data_dir, "trace.toml"), cfg.data_dir)
     messages = [{"role": "system", "content": system},
-                {"role": "user", "content": f"Run the {task} task now."}]
+                {"role": "user", "content": f"Run the {task} task now." if not day
+                 else f"Run the {task} task now, for the day {day}."}]
     record = {"task": task, "provider": cfg.ai.provider, "model": cfg.ai.model, "steps": [],
               "usage": {"input": 0, "output": 0}, "final": "", "finished": False}
+    if day:
+        record["date"] = day
     for _ in range(max_steps):
         try:
             reply = client.chat(messages, TOOLS)

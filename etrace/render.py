@@ -251,7 +251,10 @@ def ai_status(style, key, r):
 
 
 def ai_set(style, key, r):
-    out = [_head(style, key), "", _msg(style, "ok", "Saved", "the key is not in trace.toml"), ""]
+    out = [_head(style, key), ""]
+    if r.get("created_folder"):
+        out += [_msg(style, "ok", "Made your data folder"), "  " + r["created_folder"], ""]
+    out += [_msg(style, "ok", "Saved", "the key is not in trace.toml"), ""]
     out += _ai_lines(style, r)
     tests = _test_lines(style, r.get("test"))
     if tests:
@@ -316,11 +319,52 @@ def run(style, key, r):
     return "\n".join(out)
 
 
+def import_view(style, key, r):
+    out = [_head(style, key, f"{r['days']} day(s)"), ""]
+    if r.get("created_folder"):
+        out += [_msg(style, "ok", "Made your data folder"), "  " + r["created_folder"], ""]
+    if not r["entries"]:
+        out.append(_msg(style, "warn", "Nothing to import",
+                        "no dated .md, .txt or Day One .json entries were found"))
+    else:
+        span = f"{r['first']} to {r['last']}" if r["first"] != r["last"] else r["first"]
+        if r["dry_run"]:
+            out.append(_msg(style, "info", f"Would import {r['entries']} entr{'y' if r['entries'] == 1 else 'ies'}",
+                            f"{r['days']} day(s), {span}; nothing was changed"))
+        else:
+            out.append(_msg(style, "ok", f"Imported {r['entries']} entr{'y' if r['entries'] == 1 else 'ies'}",
+                            f"{r['days']} day(s), {span}"))
+            out.append(ui.kv(style, [("  added", str(r["added"])), ("  already there", str(r["unchanged"])),
+                                      ("  new notes", str(r["new_notes"]))]))
+        out.append(style.muted("  words kept as written, in 'Original version'"))
+    skipped = r.get("skipped") or []
+    if skipped:
+        out += ["", style.warn(f"{len(skipped)} skipped")]
+        for item in skipped[:8]:
+            lines = textwrap.wrap(f"{item['path']}: {item['reason']}", max(30, style.width - 6))
+            out += [style.muted("    " + lines[0])] + [style.muted("      " + x) for x in lines[1:]]
+        if len(skipped) > 8:
+            out.append(style.muted(f"    ... and {len(skipped) - 8} more (etrace --json import shows all)"))
+    ran = r.get("ran") or []
+    if ran:
+        out.append("")
+        for x in ran:
+            ok = x["finished"]
+            out.append(_msg(style, "ok" if ok else "fail", f"{x['date']}  the AI " + ("finished" if ok else "stopped"),
+                            f"{x['steps']} step(s)" + ("" if ok else f", {x.get('error', '')}")))
+    elif r["entries"] and not r["dry_run"]:
+        out += ["", "  " + style.head("Next"),
+                "  " + style.paint(style.icon("arrow"), ui.PINK, True) + " etrace ai set        connect an AI, once",
+                "  " + style.paint(style.icon("arrow"), ui.AMBER, True) + " etrace run daily --date " + r["last"],
+                "  " + style.paint(style.icon("arrow"), ui.BLUE, True) + " etrace import PATH --run   AI reads latest days"]
+    return "\n".join(out)
+
+
 RENDERERS = {
     "init": init, "validate": validate, "xp score": xp_score, "g report": g_report,
     "g chart": g_chart, "pad chart": pad_chart, "rules list": rules_list,
     "audit weekly": audit_weekly, "checkpoint": checkpoint, "note": note, "ai": ai_status, "ai set": ai_set,
-    "ai test": ai_test, "ai models": ai_models, "run": run,
+    "ai test": ai_test, "ai models": ai_models, "run": run, "import": import_view,
 }
 
 SITE = "https://maxont.github.io/existence-trace/"

@@ -43,13 +43,32 @@ curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
 Add `--dry-run` to see what it would do first. Then:
 
 ```sh
-etrace init --language en  # creates ~/existence-trace-data, nothing else to configure
-etrace ai set              # connect an AI (asks you, see below)
-etrace note                # today's journal: write in the marked zones
-etrace run daily           # the AI reads it and writes the report
+etrace ai set                            # connect an AI (asks you; see "Connect an AI")
+etrace import ~/Documents/diary --run    # bring in your old diary and let the AI read it
 ```
 
+`--run` needs the AI, so connect it first (plain `etrace import PATH` works any time). Each command
+creates your data folder if it is not there yet. No old diary? `etrace init --language en`, then
+`etrace note` opens today's page and `etrace run daily` reads it.
+
 <p align="center"><img src="docs/img/cli.png" alt="The etrace command in a terminal: gradient banner, G report with bars, trend sparklines and a help page (synthetic demo data)" width="720"></p>
+
+## Bring in your diary
+
+```sh
+etrace import ~/Documents/diary          # a folder (any depth), files, or a Day One export
+etrace import ~/Documents/diary --dry-run   # see what it would do first, change nothing
+etrace import ~/Documents/diary --run    # then let the AI read the latest 7 days (--days N)
+```
+
+It reads `.md`, `.txt` and Day One `.json`. Each day's date comes from the file name
+(`2026-03-04.md`, `20260304.txt`, `2026年3月4日.md`), the folder (`2026/03/04.txt`), a `date:` line, or a
+date heading; a file with many dates (`## 2026-03-04`, `## 2026-03-05`...) is split into days. Files it
+cannot place are listed, never guessed (`--date DAY` for one file, `--mtime` to use the file's own date).
+Your words go word for word into each day's protected "Original version" block, which nothing can
+rewrite; running it again changes nothing, and a changed file adds a dated addition. With no data folder
+yet, `import` makes one (language guessed from your text, time zone from your machine).
+To have the AI process a past day by hand: `etrace run daily --date 2026-03-04`.
 
 ## Connect an AI
 
@@ -85,6 +104,7 @@ tool, and `init`, `schedule`, `ai` and `run` are blocked for the AI. It stops af
 | `etrace init` | create your data folder |
 | `etrace ai [set\|test\|models]` | connect and check an AI API |
 | `etrace run TASK` | let the AI do `daily`, `g`, `feedback`, `calibrate` or `audit` |
+| `etrace import PATH...` | bring in your old diary (folder, files, Day One); `--run` lets the AI read it |
 | `etrace note [-e]` | create today's note and show where it is; `-e` opens it |
 | `etrace validate` | check the data chain and notes; exit 1 on any failure |
 | `etrace pad` / `g` / `xp` | the three lenses: points, charts (`pad chart`, `g chart`), scores |

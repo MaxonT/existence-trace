@@ -30,7 +30,7 @@ import subprocess
 import sys
 from zoneinfo import ZoneInfo
 
-from etrace import __version__, agent, ai, chart, checkpoint, config, journal, presets, prompts, render, ui
+from etrace import __version__, agent, ai, chart, checkpoint, config, importer, journal, presets, prompts, render, ui
 from etrace.adapters import notion, scheduler
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
@@ -76,7 +76,7 @@ class _Parser(argparse.ArgumentParser):
 # How `etrace --help` groups the commands; test_cli_pretty checks that every command is listed.
 HELP_GROUPS = (
     ("Start", ("init", "ai", "run", "validate")),
-    ("Journal", ("note",)),
+    ("Journal", ("note", "import")),
     ("Lenses", ("pad", "g", "xp")),
     ("The loop", ("question", "feedback", "decide", "usage", "outreach", "rules", "audit")),
     ("Tools", ("prompt", "schedule", "checkpoint", "notion")),
@@ -247,7 +247,7 @@ def find_config(path=None):
     for candidate in candidates:
         if candidate and (path or os.path.exists(candidate)):
             return candidate
-    raise config.ConfigError("no trace.toml found; run `python3 -m etrace init --preset NAME` "
+    raise config.ConfigError("no trace.toml found; run `etrace init` (or `etrace import PATH`) first, "
                              f"or pass --config / set ${ENV_CONFIG}")
 
 
@@ -396,7 +396,8 @@ def cmd_note_write(ctx, args):
 
 
 def cmd_prompt(ctx, args):
-    text = prompts.render(args.task, ctx.cfg, ctx.store, args.language)
+    day = ctx.day(args.date) if args.date else None
+    text = prompts.render(args.task, ctx.cfg, ctx.store, args.language, day=day)
     if args.raw:
         return RawText(text)
     return {"task": args.task, "language": args.language or ctx.lang, "chars": len(text), "prompt": text}
@@ -776,9 +777,153 @@ def cmd_run(ctx, args):
     client = _client(ctx.cfg)
     try:
         return agent.run_task(ctx.cfg, client, args.task, ctx.store, args.language, args.max_steps,
-                              getattr(args, "progress", None))
+                              getattr(args, "progress", None), day=ctx.day(args.date) if args.date else None)
     except agent.AgentError as exc:
         raise Failure(str(exc), exc.result) from None
+
+
+# --- import: `etrace import PATH` -------------------------------------------------------------
+
+def _within(path, folder):
+    path, folder = os.path.realpath(path), os.path.realpath(folder)
+    return path == folder or path.startswith(folder + os.sep)
+
+
+def cmd_import(ctx, args):
+    """Bring an existing diary in: each day's text goes into that day's note, in the protected
+    'Original version' block (append-only), so the words stay word for word."""
+    paths = [os.path.abspath(os.path.expanduser(p)) for p in args.paths]
+    for p in paths:
+        if not os.path.exists(p):
+            raise InputError(f"paths: not found: {p}")
+        if _within(p, ctx.journal) or _within(ctx.journal, p):
+            raise InputError(f"paths: {p} is your own journal folder (or holds it); "
+                             "point at the diary you want to bring in")
+    if args.days < 1:
+        raise InputError("days: must be at least 1")
+    client = _client(ctx.cfg) if args.run and not args.dry_run else None  # fail before touching anything
+    default = datetime.date.fromisoformat(ctx.day(args.date)) if args.date else None
+    entries, skipped = importer.scan(paths, ctx.tz, default, args.mtime)
+    today = ctx.today()
+    imported, kept = [], []
+    for e in entries:
+        if e["date"] > today:
+            skipped.append({"path": f"{e['source']} ({e['date'].isoformat()})", "reason": "a date in the future"})
+        elif journal._ANY_MARKER.search(e["text"]):
+            skipped.append({"path": f"{e['source']} ({e['date'].isoformat()})",
+                            "reason": "contains an etrace marker comment (<!-- trace: ...); remove it first"})
+        else:
+            kept.append(e)
+    for e in kept:
+        day = e["date"].isoformat()
+        path = journal.note_path(ctx.journal, day)
+        created = not os.path.exists(path)
+        row = {"date": day, "source": e["source"], "chars": len(e["text"]), "created": created,
+               "status": "would add" if args.dry_run else "added"}
+        if not args.dry_run:
+            try:
+                doc = (journal.new_note(day, ctx.cfg.preset, ctx.lang) if created else journal.load(path))
+                before = doc.render()
+                journal.append_verbatim(doc, e["text"], written_on=today, happened_on=day, language=ctx.lang)
+                if doc.render() == before:
+                    row["status"] = "already there"
+                else:
+                    journal.save(doc, path)
+            except journal.JournalError as exc:
+                skipped.append({"path": f"{e['source']} ({day})", "reason": str(exc)})
+                continue
+        imported.append(row)
+    days = sorted({r["date"] for r in imported})
+    out = {"dry_run": bool(args.dry_run), "entries": len(imported), "days": len(days),
+           "first": days[0] if days else None, "last": days[-1] if days else None,
+           "added": sum(r["status"] == "added" for r in imported),
+           "unchanged": sum(r["status"] == "already there" for r in imported),
+           "new_notes": sum(r["created"] and r["status"] != "already there" for r in imported),
+           "imported": imported, "skipped": skipped, "ran": []}
+    if client and days:
+        progress = getattr(args, "progress", None)
+        for day in days[-args.days:]:
+            try:
+                rec = agent.run_task(ctx.cfg, client, "daily", ctx.store, None, agent.DEFAULT_STEPS, progress, day=day)
+            except agent.AgentError as exc:
+                out["ran"].append({"date": day, "finished": False, "steps": len((exc.result or {}).get("steps", [])),
+                                   "error": str(exc)})
+                raise Failure(f"the AI stopped on {day}: {exc}", out) from None
+            out["ran"].append({"date": day, "finished": rec["finished"], "steps": len(rec["steps"]),
+                               "usage": rec["usage"]})
+            if not rec["finished"]:
+                raise Failure(f"the AI did not finish {day}", out)
+    return out
+
+
+def _system_timezone():
+    """The machine's IANA timezone name, or the default if it cannot be told."""
+    target = os.path.realpath("/etc/localtime")
+    if "zoneinfo/" in target:
+        name = target.split("zoneinfo/", 1)[1]
+        try:
+            ZoneInfo(name)
+            return name
+        except (ValueError, OSError):
+            pass
+    return config.Config.timezone
+
+
+def _guess_language(entries):
+    """'zh' if most of the imported text is Chinese, else 'en'."""
+    text = "".join(e["text"][:2000] for e in entries[:50])
+    letters = [c for c in text if c.isalpha()]
+    cjk = sum("\u4e00" <= c <= "\u9fff" for c in letters)
+    return "zh" if letters and cjk / len(letters) > 0.3 else "en"
+
+
+def _locale_language():
+    for name in ("LC_ALL", "LC_MESSAGES", "LANG"):
+        value = os.environ.get(name, "")
+        if value:
+            return "zh" if value.lower().startswith("zh") else "en"
+    return "en"
+
+
+def _config_or_new(args, entries=None):
+    """(path to trace.toml, init result or None): the user's data folder, made first if there is none."""
+    try:
+        return find_config(args.config), None
+    except config.ConfigError:
+        pass
+    made = cmd_init(argparse.Namespace(preset="default", dir=None, timezone=_system_timezone(),
+                                       language=_guess_language(entries) if entries else _locale_language()))
+    return made["config"], made
+
+
+def cmd_import_start(args):
+    """`etrace import`: finds your data folder, or makes one first, then imports."""
+    made = None
+    try:
+        cfg_path = find_config(args.config)
+    except config.ConfigError:
+        if args.dry_run:
+            raise InputError("config: no data folder yet; run `etrace init`, or drop --dry-run "
+                             "(import then creates one for you)") from None
+        paths = [os.path.abspath(os.path.expanduser(p)) for p in args.paths]
+        missing = [p for p in paths if not os.path.exists(p)]
+        if missing:
+            raise InputError(f"paths: not found: {missing[0]}") from None
+        entries, _ = importer.scan(paths, ZoneInfo(_system_timezone()))
+        cfg_path, made = _config_or_new(args, entries)
+    out = cmd_import(Context(config.load(cfg_path)), args)
+    if made:
+        out["created_folder"] = made["root"]
+    return out
+
+
+def cmd_ai_set_start(args):
+    """`etrace ai set` works on a fresh machine too: it makes the data folder first."""
+    cfg_path, made = _config_or_new(args)
+    out = cmd_ai_set(Context(config.load(cfg_path)), args)
+    if made:
+        out["created_folder"] = made["root"]
+    return out
 
 
 def cmd_g_report(ctx, args):
@@ -994,6 +1139,7 @@ def build_parser():
     s.add_argument("task", choices=prompts.TASKS)
     s.add_argument("--language", choices=prompts.LANGUAGES, help="default: language in trace.toml")
     s.add_argument("--raw", action="store_true", help="print the prompt text instead of JSON")
+    s.add_argument("--date", help="for daily and g: a past day instead of today")
     s.set_defaults(func=cmd_prompt)
 
     nt = group("notion", "optional Notion mirror (local Markdown stays the source of truth)")
@@ -1021,7 +1167,7 @@ def build_parser():
     x.add_argument("--key-file", help="where to store the key (default ~/.config/etrace/ai.toml)")
     x.add_argument("--key-stdin", action="store_true", help="read the key from standard input")
     x.add_argument("--no-test", action="store_true", help="save without calling the API")
-    x.set_defaults(func=cmd_ai_set)
+    x.set_defaults(func=cmd_ai_set_start, needs_ctx=False)
     x = a.add_parser("test", help="call the API once; also checks that the model supports tools")
     x.set_defaults(func=cmd_ai_test)
     x = a.add_parser("models", help="list the models the service offers")
@@ -1031,7 +1177,17 @@ def build_parser():
     s.add_argument("task", choices=prompts.TASKS, help="daily, g, feedback, calibrate or audit")
     s.add_argument("--language", choices=config.LANGUAGES, help="language of the prompt (default: trace.toml)")
     s.add_argument("--max-steps", type=int, default=agent.DEFAULT_STEPS, help="stop after this many AI turns")
+    s.add_argument("--date", help="for daily and g: work on this past day instead of today")
     s.set_defaults(func=cmd_run)
+
+    s = sub.add_parser("import", help="bring in your existing diary: folders, files or a Day One export")
+    s.add_argument("paths", nargs="+", metavar="PATH", help="folders or files with the diary (.md, .txt, Day One .json)")
+    s.add_argument("--run", action="store_true", help="then let the AI read the latest days (needs `etrace ai set`)")
+    s.add_argument("--days", type=int, default=7, help="with --run: how many of the latest days (default 7)")
+    s.add_argument("--date", help="the day for a single file that has no date in it")
+    s.add_argument("--mtime", action="store_true", help="use a file's modified date when it has no other date")
+    s.add_argument("--dry-run", action="store_true", help="show what would happen and change nothing")
+    s.set_defaults(func=cmd_import_start, needs_ctx=False)
     _describe(p)
     return p
 

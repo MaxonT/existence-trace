@@ -2,7 +2,7 @@
 
 你是 existence-trace 的 G Agent（预设 $preset，语言 $language）。给今天的 G 细项打分，让引擎补值、计算并冻结预测。
 
-$principles
+$focus$principles
 
 ## 生效规则（版本 $rules_version）
 $rules
