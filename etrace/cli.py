@@ -875,30 +875,16 @@ def _system_timezone():
     return config.Config.timezone
 
 
-def _guess_language(entries):
-    """'zh' if most of the imported text is Chinese, else 'en'."""
-    text = "".join(e["text"][:2000] for e in entries[:50])
-    letters = [c for c in text if c.isalpha()]
-    cjk = sum("\u4e00" <= c <= "\u9fff" for c in letters)
-    return "zh" if letters and cjk / len(letters) > 0.3 else "en"
+def _config_or_new(args):
+    """(path to trace.toml, init result or None): the user's data folder, made first if there is none.
 
-
-def _locale_language():
-    for name in ("LC_ALL", "LC_MESSAGES", "LANG"):
-        value = os.environ.get(name, "")
-        if value:
-            return "zh" if value.lower().startswith("zh") else "en"
-    return "en"
-
-
-def _config_or_new(args, entries=None):
-    """(path to trace.toml, init result or None): the user's data folder, made first if there is none."""
+    A new folder is in English unless --language says otherwise."""
     try:
         return find_config(args.config), None
     except config.ConfigError:
         pass
     made = cmd_init(argparse.Namespace(preset="default", dir=None, timezone=_system_timezone(),
-                                       language=_guess_language(entries) if entries else _locale_language()))
+                                       language=getattr(args, "language", None) or config.Config.language))
     return made["config"], made
 
 
@@ -912,15 +898,14 @@ def cmd_import_start(args):
         missing = [p for p in paths if not os.path.exists(p)]
         if missing:
             raise InputError(f"paths: not found: {missing[0]}") from None
-        entries, _ = importer.scan(paths, ZoneInfo(_system_timezone()))
         if args.dry_run:  # no folder yet: preview against a throwaway one, leave nothing behind
             with tempfile.TemporaryDirectory(prefix="etrace-preview-") as tmp:
                 fresh = cmd_init(argparse.Namespace(preset="default", dir=os.path.join(tmp, "d"), timezone=_system_timezone(),
-                                                    language=_guess_language(entries)))
+                                                    language=args.language or config.Config.language))
                 out = cmd_import(Context(config.load(fresh["config"])), args)
             out["no_folder_yet"] = True
             return out
-        cfg_path, made = _config_or_new(args, entries)
+        cfg_path, made = _config_or_new(args)
     out = cmd_import(Context(config.load(cfg_path)), args)
     if made:
         out["created_folder"] = made["root"]
@@ -1177,6 +1162,8 @@ def build_parser():
     x.add_argument("--key-file", help="where to store the key (default ~/.config/etrace/ai.toml)")
     x.add_argument("--key-stdin", action="store_true", help="read the key from standard input")
     x.add_argument("--no-test", action="store_true", help="save without calling the API")
+    x.add_argument("--language", choices=config.LANGUAGES,
+                   help="notes language, only if this has to create your data folder (default en)")
     x.set_defaults(func=cmd_ai_set_start, needs_ctx=False)
     x = a.add_parser("test", help="call the API once; also checks that the model supports tools")
     x.set_defaults(func=cmd_ai_test)
@@ -1197,6 +1184,8 @@ def build_parser():
     s.add_argument("--date", help="the day for a single file that has no date in it")
     s.add_argument("--mtime", action="store_true", help="use a file's modified date when it has no other date")
     s.add_argument("--dry-run", action="store_true", help="show what would happen and change nothing")
+    s.add_argument("--language", choices=config.LANGUAGES,
+                   help="notes language, only if this has to create your data folder (default en)")
     s.set_defaults(func=cmd_import_start, needs_ctx=False)
     _describe(p)
     return p

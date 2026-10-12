@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from zoneinfo import ZoneInfo
 
-from etrace import agent, importer, journal
+from etrace import agent, config, importer, journal
 from tests.test_cli_ai import AICliTest
 
 TZ = ZoneInfo("America/Chicago")
@@ -226,7 +226,7 @@ class ImportCommandTest(AICliTest):
         """A fresh machine: no data folder yet, `etrace import PATH` makes one in the right language."""
         zh = os.path.join(self.tmp, "zh")
         write(zh, "2025-03-04.md", "今天去跑步，感觉很轻松。我想把这些记下来。\n")
-        code, out, err = self.js("import", zh, config=False)
+        code, out, err = self.js("import", zh, "--language", "zh", config=False)
         self.assertEqual(code, 0, err)
         folder = os.path.join(self.tmp, "existence-trace-data")
         self.assertEqual(os.path.realpath(out["created_folder"]), os.path.realpath(folder))
@@ -237,10 +237,19 @@ class ImportCommandTest(AICliTest):
         self.assertEqual(code, 0)
         self.assertNotIn("created_folder", out)
 
-    def test_one_command_from_nothing_in_english(self):
-        code, out, err = self.js("import", self.diary, config=False)
+    def test_english_is_always_the_default_even_for_a_chinese_diary(self):
+        zh = os.path.join(self.tmp, "zh")
+        write(zh, "2025-03-04.md", "今天去跑步，感觉很轻松。\n")
+        code, out, err = self.js("import", zh, config=False, env={"LANG": "zh_CN.UTF-8"})
         self.assertEqual(code, 0, err)
         with open(os.path.join(self.tmp, "existence-trace-data", "trace.toml"), encoding="utf-8") as fh:
+            self.assertIn('language = "en"', fh.read())
+
+    def test_init_and_the_config_default_to_english(self):
+        self.assertEqual(config.Config.language, "en")
+        root = os.path.join(self.tmp, "plain")
+        self.assertEqual(self.js("init", "--dir", root, config=False)[0], 0)
+        with open(os.path.join(root, "trace.toml"), encoding="utf-8") as fh:
             self.assertIn('language = "en"', fh.read())
 
     def test_dry_run_without_a_data_folder_previews_and_creates_nothing(self):
@@ -254,9 +263,9 @@ class ImportCommandTest(AICliTest):
         self.assertIn("No data folder yet", text)
 
     def test_ai_set_on_a_fresh_machine_makes_the_data_folder_first(self):
-        env = {"LANG": "zh_CN.UTF-8", "LC_ALL": "", "LC_MESSAGES": ""}
         code, out, err = self.js("ai", "set", "custom", "--url", self.api.url, "--model", "alpha-1",
-                                 "--key-stdin", "--no-test", stdin="sk-abc-123456\n", config=False, env=env)
+                                 "--key-stdin", "--no-test", "--language", "zh", stdin="sk-abc-123456\n",
+                                 config=False)
         self.assertEqual(code, 0, err)
         folder = os.path.join(self.tmp, "existence-trace-data")
         self.assertEqual(os.path.realpath(out["created_folder"]), os.path.realpath(folder))
