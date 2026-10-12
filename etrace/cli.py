@@ -28,6 +28,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from zoneinfo import ZoneInfo
 
 from etrace import __version__, agent, ai, chart, checkpoint, config, importer, journal, presets, prompts, render, ui
@@ -902,14 +903,18 @@ def cmd_import_start(args):
     try:
         cfg_path = find_config(args.config)
     except config.ConfigError:
-        if args.dry_run:
-            raise InputError("config: no data folder yet; run `etrace init`, or drop --dry-run "
-                             "(import then creates one for you)") from None
         paths = [os.path.abspath(os.path.expanduser(p)) for p in args.paths]
         missing = [p for p in paths if not os.path.exists(p)]
         if missing:
             raise InputError(f"paths: not found: {missing[0]}") from None
         entries, _ = importer.scan(paths, ZoneInfo(_system_timezone()))
+        if args.dry_run:  # no folder yet: preview against a throwaway one, leave nothing behind
+            with tempfile.TemporaryDirectory(prefix="etrace-preview-") as tmp:
+                fresh = cmd_init(argparse.Namespace(preset="default", dir=os.path.join(tmp, "d"), timezone=_system_timezone(),
+                                                    language=_guess_language(entries)))
+                out = cmd_import(Context(config.load(fresh["config"])), args)
+            out["no_folder_yet"] = True
+            return out
         cfg_path, made = _config_or_new(args, entries)
     out = cmd_import(Context(config.load(cfg_path)), args)
     if made:

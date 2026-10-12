@@ -323,6 +323,8 @@ def import_view(style, key, r):
     out = [_head(style, key, f"{r['days']} day(s)"), ""]
     if r.get("created_folder"):
         out += [_msg(style, "ok", "Made your data folder"), "  " + r["created_folder"], ""]
+    if r.get("no_folder_yet"):
+        out += [style.info(style.muted("No data folder yet: a real import makes one for you")), ""]
     if not r["entries"]:
         out.append(_msg(style, "warn", "Nothing to import",
                         "no dated .md, .txt or Day One .json entries were found"))
@@ -444,14 +446,16 @@ def home_screen(style, status=None):
             ("data folder", style.paint(status["root"], ui.INK)),
             ("preset", f"{status['preset']}  {style.muted('·')}  {status['language']}  {style.muted('·')}  {status['timezone']}"),
             ("today's note", (style.ok(status["note"]) if status["note_exists"] else
-                              style.paint(style.icon("warn"), ui.AMBER, True) + " " + style.muted("not created yet: etrace note new today")))]), ""]
+                              style.paint(style.icon("warn"), ui.AMBER, True) + " " + style.muted("not created yet: etrace note")))]), ""]
     else:
         out += [style.info(style.muted("No data folder found yet.")), ""]
-    steps = [
-        style.paint(style.icon("arrow"), ui.PINK, True) + " etrace init --preset default --dir ~/existence-trace-data",
-        style.paint(style.icon("arrow"), ui.AMBER, True) + " etrace validate",
-        style.paint(style.icon("arrow"), ui.BLUE, True) + " etrace --help",
-    ]
+    arrow = lambda rgb: style.paint(style.icon("arrow"), rgb, True)
+    if status:
+        steps = [arrow(ui.PINK) + " etrace note", arrow(ui.AMBER) + " etrace run daily",
+                 arrow(ui.BLUE) + " etrace --help"]
+    else:
+        steps = [arrow(ui.PINK) + " etrace ai set", arrow(ui.AMBER) + " etrace import ~/path/to/diary --run",
+                 arrow(ui.BLUE) + " etrace --help"]
     if style.width >= 66:
         out.append(ui.panel(style, steps, title="Start here", width=min(style.width, 78)))
     else:  # too narrow for a box that would cut a command people copy
