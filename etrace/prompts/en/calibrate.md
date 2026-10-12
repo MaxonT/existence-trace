@@ -9,7 +9,7 @@ $rules
 
 ## Steps
 1. `python3 -m etrace checkpoint "calibrate: before"`
-2. `python3 -m etrace feedback ingest`. If it added feedback, handle it as in the feedback task (decide + report) before asking anything new.
+2. `python3 -m etrace feedback ingest`. If it added feedback or `pending` is not empty, handle it as in the feedback task (decide + report) before asking anything new.
 3. `python3 -m etrace rules list`, then read the journal notes of the last 14 days. Look for real uncertainty: a local feeling that conflicts with the day's tone, a self-rating that disagrees with the evidence, a rule that does not fit what happened.
 4. For each real question write this JSON and run `python3 -m etrace question add FILE`:
    `{"source": "journal/YYYY-MM-DD.md#user:journal", "date": "YYYY-MM-DD", "evidence": {"kind": "quote", "text": "the user's exact words"}, "candidates": ["reading A", "reading B"], "uncertainty": "what exactly you cannot tell", "dimensions": ["pad"], "dedupe_key": "stable-key"}`

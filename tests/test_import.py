@@ -219,7 +219,7 @@ class ImportCommandTest(AICliTest):
         code, text, _ = self.cli("--pretty", "--no-color", "import", self.diary)
         self.assertEqual(code, 0)
         for needle in ("Imported 4 entries", "2025-03-04 to 2025-04-02", "1 skipped", "loose.txt",
-                       "Original version", "etrace import PATH --run"):
+                       "Original version", "etrace ai set", "--run", self.diary, "+ 2025-03-04", "chars"):
             self.assertIn(needle, text)
 
     def test_one_command_from_nothing(self):
@@ -274,6 +274,33 @@ class ImportCommandTest(AICliTest):
         self.assertIn("import", agent.BLOCKED)
 
 
+class ImportNextStepsTest(AICliTest):
+    def setUp(self):
+        super().setUp()
+        self.diary = os.path.join(self.tmp, "diary")
+        write(self.diary, "2025-03-04.md", "One.\n")
+
+    def test_next_steps_skip_ai_set_once_an_ai_is_connected(self):
+        _, text, _ = self.cli("--pretty", "--no-color", "import", self.diary)
+        self.assertIn("etrace ai set", text)
+        self.setup_ai("--no-test")
+        _, text, _ = self.cli("--pretty", "--no-color", "import", self.diary)
+        self.assertNotIn("etrace ai set", text)
+        self.assertIn("etrace run daily --date 2025-03-04", text)
+        _, text, _ = self.cli("--pretty", "--no-color", "import", self.diary, "--dry-run")
+        self.assertIn("Next", text)
+        self.assertIn("etrace import ", text.split("Next", 1)[1])
+
+    def test_dry_run_lists_every_day(self):
+        write(self.diary, "2025-03-05.md", "Two.\n")
+        _, text, _ = self.cli("--pretty", "--no-color", "import", self.diary, "--dry-run")
+        self.assertIn("+ 2025-03-04  2025-03-04.md", text)
+        self.assertIn("+ 2025-03-05  2025-03-05.md", text)
+        self.js("import", self.diary)
+        _, text, _ = self.cli("--pretty", "--no-color", "import", self.diary)
+        self.assertIn("= 2025-03-05", text)
+
+
 class ImportRunTest(AICliTest):
     def setUp(self):
         super().setUp()
@@ -301,6 +328,19 @@ class ImportRunTest(AICliTest):
         self.assertTrue(any("2025-03-05" in p and "not today" in p for p in prompts_sent))
         self.assertTrue(any("2025-03-06" in p for p in prompts_sent))
         self.assertFalse(any("2025-03-04" in p for p in prompts_sent))
+
+    def test_pretty_run_marks_each_day_and_does_not_repeat_the_steps(self):
+        self.setup_ai("--no-test")
+        for _ in range(2):
+            self.api.call(("etrace", {"args": ["rules", "list"]}))
+            self.api.say("Done.")
+        code, out, err = self.cli("--pretty", "--no-color", "import", self.diary, "--run", "--days", "2")
+        self.assertEqual(code, 0, err)
+        self.assertIn("── 2025-03-05", err)
+        self.assertIn("── 2025-03-06", err)
+        self.assertIn("etrace rules list", err)
+        self.assertNotIn("etrace rules list", out)
+        self.assertIn("2025-03-06  the AI finished", out)
 
     def test_a_day_the_ai_cannot_finish_stops_with_exit_1(self):
         self.setup_ai("--no-test")
@@ -347,6 +387,40 @@ class PastDayPromptTest(AICliTest):
         code, _, err = self.js("run", "audit", "--date", "2025-03-04")
         self.assertEqual(code, 1)
         self.assertIn("only daily and g", err)
+
+
+class PendingFeedbackTest(AICliTest):
+    """A feedback run that stopped halfway must not lose the feedback: ingest lists what has no decision."""
+
+    def write_feedback(self, text):
+        path = self.js("note")[1]["note"]            # the user types in their own zone, as in an editor
+        with open(path, encoding="utf-8") as fh:
+            raw = fh.read()
+        head = "<!-- trace:user:feedback -->\n## Feedback for the AI\n"
+        start = raw.index(head) + len(head)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(raw[:start] + "\n" + text + "\n\n" + raw[raw.index("<!-- trace:ai:narrative -->"):])
+
+    def test_pending_lists_feedback_until_it_is_decided(self):
+        self.write_feedback("Please keep PAD near the middle on mixed days.")
+        code, out, err = self.js("feedback", "ingest")
+        self.assertEqual(code, 0, err)
+        [fid] = out["added"]
+        self.assertEqual(out["pending"], [fid])
+        _, again, _ = self.js("feedback", "ingest")                # the run "died" here; nothing is new now
+        self.assertEqual((again["added"], again["pending"]), ([], [fid]))
+        decision = os.path.join(self.tmp, "d.json")
+        write(self.tmp, "d.json", json.dumps({"feedback_ids": [fid], "decision_text": "Keep PAD near the middle.",
+                                                "value_source": "user"}))
+        self.assertEqual(self.js("decide", decision)[0], 0)
+        _, done, _ = self.js("feedback", "ingest")
+        self.assertEqual(done["pending"], [])
+
+    def test_prompts_tell_the_agent_to_use_pending(self):
+        for lang in ("en", "zh"):
+            for task in ("feedback", "calibrate"):
+                _, text, _ = self.cli("prompt", task, "--language", lang, "--raw")
+                self.assertIn("`pending`", text, (lang, task))
 
 
 if __name__ == "__main__":

@@ -9,8 +9,8 @@ $rules
 
 ## Steps
 1. `python3 -m etrace checkpoint "feedback: before"`
-2. `python3 -m etrace feedback ingest`. It stores new feedback from notes (and email if configured) and marks questions answered. If nothing was added, skip to step 5 and stay quiet.
-3. For each new feedback entry (read the stored text in data/feedback.jsonl, not your memory), run `python3 -m etrace rules list` and make a decision. Write this JSON and run `python3 -m etrace decide FILE`:
+2. `python3 -m etrace feedback ingest`. It stores new feedback from notes (and email if configured) and marks questions answered. `pending` lists every stored feedback entry that has no decision yet (new ones, and any left over from a run that stopped). If `pending` is empty, skip to step 5 and stay quiet.
+3. For each feedback entry in `pending` (read the stored text in data/feedback.jsonl, not your memory), run `python3 -m etrace rules list` and make a decision. Write this JSON and run `python3 -m etrace decide FILE`:
    `{"feedback_ids": ["..."], "decision_text": "what you decided and why, citing the user's words", "value_source": "user", "rule_changes": [{"rule_id": "new-id", "scope": "pad:focus", "text": "the rule", "expressed_at": "ISO datetime with offset when the user wrote it", "source_feedback_id": "...", "reason": "..."}]}`
    value_source is "user" when the user gave the value, "agent_decision" when you chose it. Reuse an existing scope to replace its rule; rule_changes may be omitted when no rule changes.
 4. `python3 -m etrace outreach send --scan ok --kind report --decision D-... --summary "one or two sentences"` (one `--decision` per decision). Use `--scan failed` if ingest reported an error.

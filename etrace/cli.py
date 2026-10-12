@@ -442,6 +442,8 @@ def cmd_feedback_ingest(ctx, args):
             out["email_error"] = replies.error
             problems.append(f"email: {replies.error}")
     out["answered"] = _answer_questions(ctx, new)
+    decided = {fid for d in decisions.all_decisions(ctx.store) for fid in d.get("feedback_ids") or []}
+    out["pending"] = [r["id"] for r in feedback.current(ctx.store) if r["id"] not in decided]
     out["scan_ok"] = not problems
     if problems:
         raise Failure("; ".join(problems), out)
@@ -840,10 +842,13 @@ def cmd_import(ctx, args):
            "added": sum(r["status"] == "added" for r in imported),
            "unchanged": sum(r["status"] == "already there" for r in imported),
            "new_notes": sum(r["created"] and r["status"] != "already there" for r in imported),
-           "imported": imported, "skipped": skipped, "ran": []}
+           "imported": imported, "skipped": skipped, "ran": [],
+           "paths": list(args.paths), "ai_ready": bool(ctx.cfg.ai.configured)}
     if client and days:
         progress = getattr(args, "progress", None)
         for day in days[-args.days:]:
+            if progress:
+                progress({"day": day})
             try:
                 rec = agent.run_task(ctx.cfg, client, "daily", ctx.store, None, agent.DEFAULT_STEPS, progress, day=day)
             except agent.AgentError as exc:
@@ -1227,12 +1232,12 @@ def _is_tty(stream):
     return bool(getattr(stream, "isatty", lambda: False)())
 
 
-def _emit(obj, stream, key, pretty, style):
+def _emit(obj, stream, key, pretty, style, streamed=False):
     if isinstance(obj, RawText):
         stream.write(obj if obj.endswith("\n") else obj + "\n")
         return
     if pretty:
-        text = render.render(style, key, obj)
+        text = render.render(style, key, obj, streamed=streamed)
         if text is not None:
             stream.write(text + "\n")
             return
@@ -1294,7 +1299,7 @@ def main(argv=None):
         return 1 if is_validate else 2
     except Failure as exc:
         if exc.result is not None:
-            _emit(exc.result, out, key, pretty, out_style)
+            _emit(exc.result, out, key, pretty, out_style, streamed=args.progress is not None)
         say("failed", exc)
         return 1
     except _INPUT_ERRORS as exc:
@@ -1304,5 +1309,5 @@ def main(argv=None):
     except (StoreError, checkpoint.CheckpointError, ai.AIError, OSError) as exc:
         say("failed", exc)
         return 1
-    _emit(result, out, key, pretty, out_style)
+    _emit(result, out, key, pretty, out_style, streamed=args.progress is not None)
     return 0

@@ -8,6 +8,7 @@ whenever stdout is not a terminal.
 """
 
 import os
+import shlex
 import textwrap
 
 from etrace import __version__, ui
@@ -284,6 +285,8 @@ def ai_models(style, key, r):
 
 def progress_line(style, step):
     """One line per tool call while `etrace run` works (printed to stderr)."""
+    if step.get("day"):
+        return "\n  " + style.head(("── " if style.unicode else "-- ") + step["day"])
     call = ui.fit(step["call"], max(20, style.width - 14))
     if step.get("error"):
         return "  " + style.paint(style.icon("fail"), ui.RED, True) + " " + call + style.muted("  " + str(step["error"])[:60])
@@ -297,13 +300,16 @@ def progress_line(style, step):
 
 def run(style, key, r):
     steps = r["steps"]
-    bad = sum(1 for x in steps if x.get("error") or x.get("exit_code") not in (0, None))
+    failed = lambda x: x.get("error") or x.get("exit_code") not in (0, None)
+    bad = sum(1 for x in steps if failed(x))
     out = [_head(style, key, r["task"], f"{r['provider']} {r['model']}"), ""]
-    for step in steps[-12:]:
+    shown = [x for x in steps if failed(x)] if r.get("_streamed") else steps  # the rest was printed as it ran
+    for step in shown[-12:]:
         out.append(progress_line(style, step))
-    if len(steps) > 12:
-        out.insert(2, style.muted(f"  … {len(steps) - 12} earlier step(s)"))
-    out.append("")
+    if len(shown) > 12:
+        out.insert(2, style.muted(f"  … {len(shown) - 12} earlier step(s)"))
+    if shown:
+        out.append("")
     summary = f"{len(steps)} step(s)" + (f", {bad} failed" if bad else "")
     if r["finished"]:
         out.append(_msg(style, "ok", "The AI finished", summary))
@@ -339,6 +345,17 @@ def import_view(style, key, r):
             out.append(ui.kv(style, [("  added", str(r["added"])), ("  already there", str(r["unchanged"])),
                                       ("  new notes", str(r["new_notes"]))]))
         out.append(style.muted("  words kept as written, in 'Original version'"))
+        rows = r.get("imported") or []
+        if rows:
+            out.append("")
+            for x in rows[:12]:
+                mark = "=" if x["status"] == "already there" else "+"
+                out.append(style.muted("  " + mark + " ") + x["date"] + "  " + ui.pad(ui.fit(x["source"], 28), 28)
+                           + style.muted(f"  {x['chars']} chars"))
+            if len(rows) > 12:
+                out.append(style.muted(f"  ... and {len(rows) - 12} more   (+ new, = already there)"))
+            else:
+                out.append(style.muted("  + new, = already there"))
     skipped = r.get("skipped") or []
     if skipped:
         out += ["", style.warn(f"{len(skipped)} skipped")]
@@ -354,11 +371,22 @@ def import_view(style, key, r):
             ok = x["finished"]
             out.append(_msg(style, "ok" if ok else "fail", f"{x['date']}  the AI " + ("finished" if ok else "stopped"),
                             f"{x['steps']} step(s)" + ("" if ok else f", {x.get('error', '')}")))
-    elif r["entries"] and not r["dry_run"]:
-        out += ["", "  " + style.head("Next"),
-                "  " + style.paint(style.icon("arrow"), ui.PINK, True) + " etrace ai set        connect an AI, once",
-                "  " + style.paint(style.icon("arrow"), ui.AMBER, True) + " etrace run daily --date " + r["last"],
-                "  " + style.paint(style.icon("arrow"), ui.BLUE, True) + " etrace import PATH --run   AI reads latest days"]
+    elif r["entries"]:
+        out += ["", "  " + style.head("Next")]
+        path = " ".join(shlex.quote(p) for p in r.get("paths") or ["PATH"])
+        if r["dry_run"]:
+            rows = [(f"etrace import {path}", "do it for real")]
+        elif r.get("ai_ready"):
+            rows = [(f"etrace import {path} --run", "the AI reads the latest 7 days"),
+                    (f"etrace run daily --date {r['last']}", "or just one day")]
+        else:
+            rows = [("etrace ai set", "connect an AI, once"),
+                    (f"etrace import {path} --run", "then the AI reads the latest days")]
+        for (cmd, why), rgb in zip(rows, (ui.PINK, ui.AMBER)):
+            line = "  " + style.paint(style.icon("arrow"), rgb, True) + " " + cmd
+            if ui.visible_len(line) + len(why) + 3 <= style.width:  # a command is never cut; a comment may go
+                line += "   " + style.muted(why)
+            out.append(line)
     return "\n".join(out)
 
 
@@ -463,8 +491,12 @@ def home_screen(style, status=None):
     return "\n".join(out)
 
 
-def render(style, key, result):
-    """The pretty text for RESULT, or None if it cannot be drawn (caller prints JSON)."""
+def render(style, key, result, streamed=False):
+    """The pretty text for RESULT, or None if it cannot be drawn (caller prints JSON).
+
+    STREAMED: the steps of a run were already printed while it worked, so the view skips them."""
+    if streamed and key == "run" and isinstance(result, dict):
+        result = dict(result, _streamed=True)
     try:
         text = RENDERERS.get(key, generic)(style, key, result)
     except (KeyError, TypeError, ValueError, AttributeError, IndexError):

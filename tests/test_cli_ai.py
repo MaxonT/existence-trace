@@ -303,6 +303,8 @@ class RunCommandTest(AICliTest):
         self.assertIn("✘ etrace init", err)
         self.assertIn("The AI finished", out)
         self.assertIn("Finished with one refusal.", out)
+        self.assertNotIn("etrace rules list", out)                  # streamed already, not repeated
+        self.assertIn("✘ etrace init", out)                         # but a failure is repeated
         self.assertIn("tokens", out)
 
     def test_run_that_does_not_finish_exits_1_and_prints_what_happened(self):
