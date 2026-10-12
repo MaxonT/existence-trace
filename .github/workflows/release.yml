@@ -45,6 +45,20 @@ jobs:
           python -m pip install --quiet build
           python -m build --outdir dist .
 
+      - name: Smoke test the built wheel (fresh venv, the real command)
+        run: |
+          python -m venv "$RUNNER_TEMP/smoke"
+          etrace="$RUNNER_TEMP/smoke/bin/etrace"
+          "$RUNNER_TEMP/smoke/bin/pip" install --quiet dist/*.whl
+          "$etrace" --version
+          "$etrace" --pretty --no-color | grep -q "record your traces of existence"
+          "$etrace" --pretty --no-color --help | grep -q "The loop"
+          "$etrace" init --preset default --dir "$RUNNER_TEMP/smoke-data" --language en --timezone America/Chicago --json
+          export ETRACE_CONFIG="$RUNNER_TEMP/smoke-data/trace.toml"
+          "$etrace" validate --json | grep -q '"ok": true'
+          "$etrace" validate --pretty --no-color | grep -q "All clear"
+          "$etrace" prompt daily --raw | grep -q -- "--json"
+
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
