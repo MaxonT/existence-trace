@@ -26,7 +26,7 @@ class LoadConfigTest(unittest.TestCase):
         cfg = config.load(self.write(""))
         self.assertEqual(cfg.timezone, "America/Chicago")
         self.assertEqual(cfg.preset, "default")
-        self.assertEqual(cfg.language, "zh")
+        self.assertEqual(cfg.language, "en")
         self.assertEqual(cfg.outreach, "note")
         self.assertFalse(cfg.email_enabled)
         self.assertEqual(cfg.tasks["calibrate"], ["09:00"])

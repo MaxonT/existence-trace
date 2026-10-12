@@ -48,7 +48,7 @@ etrace import ~/Documents/diary --run    # bring in your old diary and let the A
 ```
 
 `--run` needs the AI, so connect it first (plain `etrace import PATH` works any time). Each command
-creates your data folder if it is not there yet. No old diary? `etrace init --language en`, then
+creates your data folder if it is not there yet. No old diary? `etrace init`, then
 `etrace note` opens today's page and `etrace run daily` reads it.
 
 <p align="center"><img src="docs/img/cli.png" alt="The etrace command in a terminal: gradient banner, G report with bars, trend sparklines and a help page (synthetic demo data)" width="720"></p>

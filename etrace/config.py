@@ -57,7 +57,7 @@ class Config:
     timezone: str = "America/Chicago"
     data_dir: str = "~/existence-trace-data"
     preset: str = "default"
-    language: str = "zh"
+    language: str = "en"
     outreach: str = "note"
     # Git URL that checkpoints push to. None (default) keeps history local only.
     git_remote: str | None = None
