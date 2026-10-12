@@ -27,7 +27,7 @@ RESULTS = {
     "note": {"date": "2026-10-12", "created": True, "note": "/data/trace/journal/2026-10-12.md"},
     "import": {"dry_run": False, "entries": 3, "days": 2, "first": "2025-03-04", "last": "2025-03-05",
                "added": 2, "unchanged": 1, "new_notes": 2, "imported": [], "ran": [],
-               "created_folder": "/data/trace",
+               "created_folder": "/data/trace", "paths": ["/data/my diary"], "ai_ready": False,
                "skipped": [{"path": "loose.txt", "reason": "no date in the name, folder, front matter or first line"}]},
     "ai": {"provider": "openai", "service": "DeepSeek", "base_url": "https://api.deepseek.com/v1",
            "model": "deepseek-chat",
@@ -142,11 +142,11 @@ class RenderTest(unittest.TestCase):
     def test_import_view(self):
         text = plain(PLAIN, "import")
         for needle in ("Made your data folder", "Imported 3 entries", "2025-03-04 to 2025-03-05", "1 skipped",
-                       "loose.txt", "etrace import PATH --run"):
+                       "loose.txt", "etrace import '/data/my diary' --run"):
             self.assertIn(needle, text)
         dry = plain(PLAIN, "import", dict(RESULTS["import"], dry_run=True, created_folder=None))
         self.assertIn("Would import 3 entries", dry)
-        self.assertNotIn("Next", dry)
+        self.assertIn("Next", dry)
         none = plain(PLAIN, "import", dict(RESULTS["import"], entries=0, days=0, first=None, last=None,
                                            skipped=[], created_folder=None))
         self.assertIn("Nothing to import", none)
@@ -158,6 +158,49 @@ class RenderTest(unittest.TestCase):
         self.assertIn("2025-03-05  the AI finished", text)
         self.assertIn("stopped", text)
         self.assertIn("boom", text)
+
+    def test_import_next_steps_follow_what_the_user_has_done(self):
+        base = dict(RESULTS["import"], created_folder=None)
+        text = plain(PLAIN, "import", base)
+        self.assertIn("etrace ai set", text)
+        self.assertIn("etrace import '/data/my diary' --run", text)        # the path as typed, quoted
+        ready = plain(PLAIN, "import", dict(base, ai_ready=True))
+        self.assertNotIn("etrace ai set", ready)
+        self.assertIn("etrace import '/data/my diary' --run", ready)
+        self.assertIn("etrace run daily --date 2025-03-05", ready)
+        dry = plain(PLAIN, "import", dict(base, dry_run=True))
+        self.assertIn("etrace import '/data/my diary'", dry)
+        self.assertIn("do it for real", dry)
+        ran = plain(PLAIN, "import", dict(base, ran=[{"date": "2025-03-05", "finished": True, "steps": 3}]))
+        self.assertNotIn("Next", ran)
+        narrow = ui.strip_ansi(render.render(ui.Style(width=40), "import", dict(base, ai_ready=True)))
+        self.assertIn("etrace import '/data/my diary' --run", narrow)   # a command is never cut
+
+    def test_import_lists_the_days(self):
+        rows = [{"date": f"2025-03-{d:02d}", "source": f"2025-03-{d:02d}.md", "chars": 40 + d, "created": True,
+                 "status": "already there" if d == 2 else "added"} for d in range(1, 15)]
+        text = plain(PLAIN, "import", dict(RESULTS["import"], imported=rows, entries=14, days=14))
+        self.assertIn("+ 2025-03-01  2025-03-01.md", text)
+        self.assertIn("= 2025-03-02", text)
+        self.assertIn("41 chars", text)
+        self.assertIn("and 2 more", text)
+        self.assertNotIn("2025-03-14", text)
+
+    def test_run_view_does_not_repeat_streamed_steps(self):
+        shown = ui.strip_ansi(render.render(PLAIN, "run", RESULTS["run"], streamed=True))
+        self.assertNotIn("etrace note today", shown)          # it was printed while it ran
+        self.assertIn("etrace validate", shown)               # a failure is repeated
+        self.assertIn("etrace bad", shown)
+        self.assertIn("The AI finished", shown)
+        self.assertIn("etrace note today", plain(PLAIN, "run"))   # not streamed: the full list
+        clean = dict(RESULTS["run"], steps=[{"call": "etrace rules list", "exit_code": 0}])
+        self.assertNotIn("etrace rules list", ui.strip_ansi(render.render(PLAIN, "run", clean, streamed=True)))
+
+    def test_progress_day_separator(self):
+        line = ui.strip_ansi(render.progress_line(PLAIN, {"day": "2025-03-05"}))
+        self.assertIn("2025-03-05", line)
+        self.assertIn("2025-03-05", render.progress_line(ASCII, {"day": "2025-03-05"}))
+        self.assertTrue(render.progress_line(ASCII, {"day": "2025-03-05"}).isascii())
 
     def test_ai_views(self):
         self.assertIn("etrace ai set openai", plain(PLAIN, "ai", {"provider": None}))
