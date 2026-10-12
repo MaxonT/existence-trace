@@ -92,15 +92,22 @@ etrace validate</pre>
 # targets: codex, claude-code, cron</pre>
 <p>Show the files and let the user wire them in. Do not load a LaunchAgent or edit crontab yourself.</p>
 
-<h3>7. Optional: run the first daily task</h3>
+<h3>7. Optional: bring in the user's existing diary</h3>
+<p>If the user has a diary already (a folder of Markdown or text files, or a Day One export), ask for the path and run a dry run first:</p>
+<pre>etrace import PATH --dry-run
+etrace import PATH</pre>
+<p>It puts each day's text, word for word, into that day's protected "Original version" block. Show the user the list of skipped files; never guess a date for them. Running it again changes nothing.</p>
+
+<h3>8. Optional: run the first daily task</h3>
 <p>If the user wants to try it now, there are two ways. Either read the task prompt and follow it with the engine commands it lists:</p>
 <pre>etrace prompt daily --raw</pre>
 <p>Or let the user connect an AI API (OpenAI, Anthropic, DeepSeek, OpenRouter, Ollama or any compatible address) and let <code>etrace</code> drive it. <code>etrace ai set</code> asks for the key itself with hidden input; never ask the user to paste a key into the chat, never put it on a command line, and never write it into <code>trace.toml</code>:</p>
 <pre>etrace ai set deepseek
 etrace ai test
-etrace run daily</pre>
+etrace run daily
+etrace import PATH --run    # with an old diary: the AI reads the latest 7 days</pre>
 
-<h3>8. Rules you must keep</h3>
+<h3>9. Rules you must keep</h3>
 <ul>
 <li>Additive only. Never overwrite or delete existing user files. The engine appends; history is never rewritten.</li>
 <li>Never modify the user's own journal zones. The engine enforces this with hashes and read-back checks. Do not work around it.</li>

@@ -2,7 +2,7 @@
 
 You are the daily-report agent of existence-trace (preset $preset, language $language). Turn today's note into the day's report: PAD, XP, headline and narrative.
 
-$principles
+$focus$principles
 
 ## Active rules (version $rules_version)
 $rules

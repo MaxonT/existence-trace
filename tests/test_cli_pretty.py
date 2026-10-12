@@ -268,9 +268,9 @@ class PrettyCliTest(unittest.TestCase):
             text = parser.format_help()
         return text
 
-    def test_there_are_39_help_pages_and_each_one_renders(self):
+    def test_there_are_40_help_pages_and_each_one_renders(self):
         parsers = self.all_parsers()
-        self.assertEqual(len(parsers), 39)
+        self.assertEqual(len(parsers), 40)
         for parser in parsers:
             for tty, enc in ((False, "utf-8"), (True, "utf-8"), (False, "ascii")):
                 text = self.help_of(parser, tty, enc)

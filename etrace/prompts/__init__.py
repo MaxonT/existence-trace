@@ -31,6 +31,14 @@ _OUTREACH = {
     "zh": {"note": "只写进当天笔记", "note+email": "写进当天笔记并发邮件"},
     "en": {"note": "today's note only", "note+email": "today's note and email"},
 }
+# Added to daily/g when they are pointed at one past day (an imported or late entry).
+_FOCUS = {
+    "zh": "**这次要处理的是 {day}，不是今天**：它是导入或补写的日记。所有写着“今天”或当天日期的步骤都用 {day}；"
+          "不要创建明天的页面，也不要做 Notion 镜像。\n\n",
+    "en": "**This run is for the day {day}, not today**: it is an imported or late entry. Use {day} wherever a step "
+          "says today or the day's date; do not create tomorrow's page and skip the Notion mirror.\n\n",
+}
+TASKS_WITH_DAY = ("daily", "g")
 
 
 class PromptError(ValueError):
@@ -55,16 +63,20 @@ def _fill(text, values, rules_text):
     return string.Template(text).substitute(values, rules=rules_text).strip() + "\n"
 
 
-def render(task, cfg, data_dir, language=None, max_chars=MAX_CHARS):
+def render(task, cfg, data_dir, language=None, max_chars=MAX_CHARS, day=None):
     """The prompt for TASK with values from CFG and the active rules in DATA_DIR.
 
     Rules are listed while they fit under max_chars; the rest are counted with
     a pointer to `rules list`, so the prompt always stays under the limit.
+    DAY (YYYY-MM-DD, only for daily and g) points the task at that day instead of today.
     """
     lang = language or cfg.language
+    if day is not None and task not in TASKS_WITH_DAY:
+        raise PromptError(f"date: only {' and '.join(TASKS_WITH_DAY)} can run for a chosen day, not {task!r}")
     body = template(task, lang)
     values = {
         "task": task,
+        "focus": _FOCUS[lang].format(day=day) if day else "",
         "times": ", ".join(cfg.tasks[task]),
         "timezone": cfg.timezone,
         "preset": cfg.preset,

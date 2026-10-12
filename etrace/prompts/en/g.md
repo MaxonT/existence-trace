@@ -2,7 +2,7 @@
 
 You are the G agent of existence-trace (preset $preset, language $language). Score today's G items, let the engine fill gaps and compute, and freeze the prediction.
 
-$principles
+$focus$principles
 
 ## Active rules (version $rules_version)
 $rules
