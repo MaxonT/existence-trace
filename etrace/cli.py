@@ -66,6 +66,9 @@ class _Parser(argparse.ArgumentParser):
     def error(self, message):
         raise InputError(f"usage: {message}")
 
+    def format_help(self):
+        return render.command_help(ui.style_for(sys.stdout), *_help_parts(self)) + "\n"
+
 
 # How `etrace --help` groups the commands; test_cli_pretty checks that every command is listed.
 HELP_GROUPS = (
@@ -75,6 +78,100 @@ HELP_GROUPS = (
     ("The loop", ("question", "feedback", "decide", "usage", "outreach", "rules", "audit")),
     ("Data", ("checkpoint", "notion")),
 )
+
+
+# One line for each subcommand that argparse was given no help text for.
+COMMAND_HELP = {
+    "note new": "create the note for a day",
+    "question add": "file an evidence-backed question for the user",
+    "feedback ingest": "take new feedback from the notes and close answered questions",
+    "usage add": "store a usage receipt (the write must be read back first)",
+    "outreach send": "send the day's questions or a report to the user",
+    "pad add": "record PAD readings",
+    "pad chart": "draw the PAD chart and write it into the note",
+    "g predict": "freeze a G prediction for a day",
+    "g feedback": "record feedback on a frozen G prediction",
+    "g report": "write the G report block, with the calibration status",
+    "g chart": "draw the B / E / G trend chart",
+    "xp score": "score a day's XP and record it",
+    "audit weekly": "audit every feedback chain of a week",
+    "rules list": "list the preference rules",
+}
+DEFAULT_ARG_HELP = {  # arguments that had no help text
+    "file": "agent JSON file; '-' reads stdin",
+    "date": "YYYY-MM-DD, 'today' or 'yesterday'",
+    "block": "which ai block of the note to write",
+    "task": "which agent task to render the prompt for",
+    "kind": "what to send: the day's open questions, or a report",
+    "summary": "one or two sentences for the report",
+    "as_of": "any date inside the week to audit (default today)",
+    "message": "commit message for the checkpoint",
+    "scope": "only rules of this scope",
+    "target": "which agent runner to write files for",
+    "preset": "which bundled preset to start from",
+    "language": "language of the notes and prompts",
+    "timezone": "IANA timezone that decides what 'today' is",
+}
+
+
+def _walk(parser):
+    yield parser
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for child in action.choices.values():
+                yield from _walk(child)
+
+
+def _describe(root):
+    """Fill in the summaries and argument help that --help shows."""
+    for parser in _walk(root):
+        for action in parser._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                helped = {c.dest: c.help for c in action._choices_actions}
+                for name, child in action.choices.items():
+                    path = child.prog.removeprefix("etrace").strip()
+                    child.description = child.description or helped.get(name) or COMMAND_HELP.get(path)
+            elif action.help is None and action.dest in DEFAULT_ARG_HELP:
+                action.help = DEFAULT_ARG_HELP[action.dest]
+
+
+def _invocation(action):
+    if not action.option_strings:
+        return action.metavar or (f"{{{','.join(action.choices)}}}" if action.choices else action.dest)
+    names = ", ".join(action.option_strings)
+    if action.nargs == 0:
+        return names
+    value = action.metavar or (f"{{{','.join(action.choices)}}}" if action.choices else action.dest.upper())
+    return f"{names} {value}"
+
+
+def _arg_text(action):
+    text = action.help or ""
+    skip = (None, False, argparse.SUPPRESS)
+    if (action.option_strings and action.nargs != 0 and action.default not in skip
+            and "default" not in text.lower()):
+        text = f"{text} (default {action.default})".strip()
+    return text
+
+
+def _help_parts(parser):
+    """(path, usage, summary, sections) for render.command_help."""
+    # Python 3.14's argparse colours its own usage line in a terminal: strip that first.
+    usage = " ".join(ui.strip_ansi(parser.format_usage()).split()).removeprefix("usage:").strip().replace("[-h] ", "")
+    commands, arguments, options = [], [], []
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            commands = [(name, child.description or "") for name, child in action.choices.items()]
+        elif isinstance(action, argparse._HelpAction) or action.help == argparse.SUPPRESS:
+            continue
+        elif action.option_strings:
+            options.append((_invocation(action), _arg_text(action)))
+        else:
+            arguments.append((_invocation(action), _arg_text(action)))
+    options.append(("-h, --help", "this screen"))
+    path = parser.prog.removeprefix("etrace").strip()
+    return path, usage, parser.description or "", [("Commands", commands), ("Arguments", arguments),
+                                                    ("Options", options)]
 
 
 class _Root(_Parser):
@@ -718,6 +815,7 @@ def build_parser():
 
     s = sub.add_parser("validate", help="check the data chain and notes; exit 1 on any failure")
     s.set_defaults(func=cmd_validate)
+    _describe(p)
     return p
 
 

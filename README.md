@@ -45,9 +45,11 @@ Add `--dry-run` to see what it would do first. Then:
 ```sh
 etrace init --preset default --language en --dir ~/existence-trace-data
 export ETRACE_CONFIG=~/existence-trace-data/trace.toml
-etrace validate            # {"ok": true, ...}
+etrace validate            # All clear  (add --json for machine-readable output)
 etrace prompt daily --raw  # the prompt an agent runs for the daily report
 ```
+
+<p align="center"><img src="docs/img/cli.png" alt="The etrace command in a terminal: gradient banner, G report with bars, trend sparklines and a help page (synthetic demo data)" width="720"></p>
 
 **Other ways:** `pip install` the wheel from the [latest release](https://github.com/MaxonT/existence-trace/releases/latest),
 or run the container from GitHub Packages: `docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`.

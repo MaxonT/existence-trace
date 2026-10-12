@@ -217,16 +217,55 @@ def help_screen(style, groups, commands):
     width = max(len(n) for n in commands) + 2
     out = [ui.banner(style, __version__, compact=not style.color), "",
            "  " + style.head("usage") + "  etrace [options] " + style.paint("COMMAND", ui.AMBER, True) + " ...", ""]
+    def rows(first, text, rgb, col):
+        """FIRST (already painted) plus TEXT wrapped under a hanging indent."""
+        wrapped = textwrap.wrap(text, max(20, style.width - 6 - col)) or [""]
+        return (["      " + first + style.muted(wrapped[0])]
+                + [" " * (6 + col) + style.muted(line) for line in wrapped[1:]])
+
     for i, (title, names) in enumerate(groups):
-        out.append("  " + style.paint(style.icon("arrow"), colors[i % len(colors)], True) + " " + style.head(title))
+        rgb = colors[i % len(colors)]
+        out.append("  " + style.paint(style.icon("arrow"), rgb, True) + " " + style.head(title))
         for name in names:
-            out.append("      " + style.paint(ui.pad(name, width), colors[i % len(colors)], True)
-                       + style.muted(commands[name]))
+            out += rows(style.paint(ui.pad(name, width), rgb, True), commands[name], rgb, width)
         out.append("")
     out.append("  " + style.head("options"))
     opt_w = max(len(o) for o, _ in OPTIONS) + 2
-    out += ["      " + ui.pad(style.paint(o, ui.INK), opt_w) + style.muted(d) for o, d in OPTIONS]
+    for o, d in OPTIONS:
+        out += rows(ui.pad(style.paint(o, ui.INK), opt_w), d, ui.INK, opt_w)
     out += ["", "  " + style.muted("docs  ") + SITE, "  " + style.muted("PAD, G and XP are reflection aids, not clinical scales.")]
+    return "\n".join(out)
+
+
+GLOBAL_FLAGS = "--json  --pretty  --no-color  --config PATH"
+
+
+def command_help(style, path, usage, summary, sections):
+    """`etrace COMMAND --help`. SECTIONS: [(title, [(name, text)])] with titles Commands / Arguments / Options."""
+    colors = {"Commands": ui.PINK, "Arguments": ui.AMBER, "Options": ui.BLUE}
+    longest = max((len(n) for _, items in sections for n, _ in items), default=0)
+    col = min(longest, 26) + 2  # a longer name gets a line of its own
+    out = [ui.header(style, path), ""]
+    lines = textwrap.wrap(usage, max(30, style.width - 9), subsequent_indent="  ") or [usage]
+    out.append("  " + style.head("usage") + "  " + lines[0])
+    out += ["         " + line for line in lines[1:]]
+    if summary:
+        out += ["", "  " + style.paint(summary, ui.INK)]
+    for title, items in sections:
+        if not items:
+            continue
+        rgb = colors.get(title, ui.GRAY)
+        out += ["", "  " + style.paint(style.icon("arrow"), rgb, True) + " " + style.head(title)]
+        for name, text in items:
+            wrapped = textwrap.wrap(text, max(20, style.width - 6 - col)) or [""]
+            if len(name) > col - 2:
+                out.append("      " + style.paint(name, rgb, True))
+                out += [" " * (6 + col) + style.muted(line) for line in wrapped if text]
+                continue
+            out.append("      " + style.paint(ui.pad(name, col), rgb, True) + style.muted(wrapped[0]))
+            out += [" " * (6 + col) + style.muted(line) for line in wrapped[1:]]
+    foot = textwrap.wrap(GLOBAL_FLAGS + "   (see etrace --help)", max(20, style.width - 12))
+    out += ["", "  " + style.muted("global  ") + foot[0]] + ["          " + line for line in foot[1:]]
     return "\n".join(out)
 
 
