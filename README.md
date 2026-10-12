@@ -51,7 +51,7 @@ etrace import ~/Documents/diary --run    # bring in your old diary and let the A
 creates your data folder if it is not there yet. No old diary? `etrace init`, then
 `etrace note` opens today's page and `etrace run daily` reads it.
 
-<p align="center"><img src="docs/img/cli.png" alt="The etrace command in a terminal: gradient banner, G report with bars, trend sparklines and a help page (synthetic demo data)" width="720"></p>
+<p align="center"><img src="docs/img/cli.png" alt="The etrace command in a terminal: a gradient pixel logo, the one-command diary import with its day list, and the AI status (synthetic demo data)" width="720"></p>
 
 ## Bring in your diary
 
@@ -114,7 +114,7 @@ tool, and `init`, `schedule`, `ai` and `run` are blocked for the AI. It stops af
 | `etrace schedule` / `checkpoint` / `notion` | scheduler files, git commit, optional Notion mirror |
 
 `etrace COMMAND --help` explains one command. Piped output is JSON; in a terminal you get the
-pretty view (`--json` and `--pretty` switch it, `--no-color` or `NO_COLOR` turn colour off).
+pretty view (`--json` and `--pretty` switch it, `--no-color` or `NO_COLOR` turn colour off). The logo is drawn with plain full blocks only, so it looks the same in any terminal font.
 
 **Other ways:** `pip install` the wheel from the [latest release](https://github.com/MaxonT/existence-trace/releases/latest),
 or run the container from GitHub Packages: `docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`.
