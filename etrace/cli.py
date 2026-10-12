@@ -1,6 +1,9 @@
 """The `python3 -m etrace` command line: one entry point for users and agents.
 
-Every command prints one JSON object on stdout. Exit codes:
+Every command prints one JSON object on stdout when the output is piped (agents,
+scripts). In a terminal it prints a pretty, coloured view instead; --json and
+--pretty force one or the other, --no-color turns colour off (NO_COLOR works,
+FORCE_COLOR turns it on). The three flags may sit anywhere on the line. Exit codes:
 
     0  done
     1  the command ran but something failed (validate problems, a failed
@@ -24,7 +27,7 @@ import shutil
 import sys
 from zoneinfo import ZoneInfo
 
-from etrace import __version__, chart, checkpoint, config, journal, presets, prompts
+from etrace import __version__, chart, checkpoint, config, journal, presets, prompts, render, ui
 from etrace.adapters import notion, scheduler
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
@@ -62,6 +65,27 @@ class RawText(str):
 class _Parser(argparse.ArgumentParser):
     def error(self, message):
         raise InputError(f"usage: {message}")
+
+
+# How `etrace --help` groups the commands; test_cli_pretty checks that every command is listed.
+HELP_GROUPS = (
+    ("Start", ("init", "validate", "prompt", "schedule")),
+    ("Journal", ("note",)),
+    ("Lenses", ("pad", "g", "xp")),
+    ("The loop", ("question", "feedback", "decide", "usage", "outreach", "rules", "audit")),
+    ("Data", ("checkpoint", "notion")),
+)
+
+
+class _Root(_Parser):
+    """The top-level parser: its --help is the banner screen, not argparse's default."""
+
+    def format_help(self):
+        commands = {}
+        for action in self._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                commands = {a.dest: a.help or "" for a in action._choices_actions}
+        return render.help_screen(ui.style_for(sys.stdout), HELP_GROUPS, commands) + "\n"
 
 
 # --- context -------------------------------------------------------------------
@@ -466,7 +490,8 @@ def cmd_g_chart(ctx, args):
     os.makedirs(ctx.charts, exist_ok=True)
     path = os.path.join(ctx.charts, f"{end}-g-{args.days}d.svg")
     write_text_atomic(path, svg)
-    return {"chart": path, "days": len(series), "points": counts}
+    trend = {k: [v[k] for _, v in series] for k in chart.G_LINES}
+    return {"chart": path, "days": len(series), "points": counts, "trend": trend}
 
 
 def cmd_g_report(ctx, args):
@@ -574,7 +599,7 @@ def cmd_schedule(ctx, args):
 # --- parser ----------------------------------------------------------------------
 
 def build_parser():
-    p = _Parser(prog="etrace", description="existence-trace: record your traces of existence, "
+    p = _Root(prog="etrace", description="existence-trace: record your traces of existence, "
                                            "with a self-improving preference loop. "
                                            "(also runs as `python3 -m etrace`)")
     p.add_argument("--version", action="version", version=f"etrace {__version__}")
@@ -703,25 +728,83 @@ _INPUT_ERRORS = (questions.QuestionError, decisions.DecisionError, usage.UsageEr
                  prompts.PromptError, scheduler.SchedulerError, notion.NotionError, ValueError)
 
 
-def _print(obj, stream):
+FORMAT_FLAGS = {"--json": "json", "--pretty": "pretty"}
+
+
+def _take_flags(argv):
+    """(argv without the output flags, 'json' | 'pretty' | None, no_color). Flags may sit anywhere."""
+    rest, fmt, no_color = [], None, False
+    for i, arg in enumerate(argv):
+        if arg == "--":
+            rest += argv[i:]
+            break
+        if arg in FORMAT_FLAGS:
+            fmt = FORMAT_FLAGS[arg]
+        elif arg == "--no-color":
+            no_color = True
+        else:
+            rest.append(arg)
+    return rest, fmt, no_color
+
+
+def _is_tty(stream):
+    return bool(getattr(stream, "isatty", lambda: False)())
+
+
+def _emit(obj, stream, key, pretty, style):
     if isinstance(obj, RawText):
         stream.write(obj if obj.endswith("\n") else obj + "\n")
         return
+    if pretty:
+        text = render.render(style, key, obj)
+        if text is not None:
+            stream.write(text + "\n")
+            return
     stream.write(json.dumps(obj, ensure_ascii=False, indent=2, default=str) + "\n")
+
+
+def _home_status():
+    """Where the data lives, for bare `etrace`; None if there is no usable config."""
+    try:
+        ctx = Context(config.load(find_config(None)))
+        note_file = journal.note_path(ctx.journal, ctx.today().isoformat())
+        return {"root": ctx.root, "preset": ctx.cfg.preset, "language": ctx.lang,
+                "timezone": ctx.cfg.timezone, "note": note_file, "note_exists": os.path.exists(note_file)}
+    except (config.ConfigError, InputError, OSError, ValueError, KeyError):
+        return None
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else list(argv)
+    argv, fmt, no_color = _take_flags(argv)
     out, err = sys.stdout, sys.stderr
+    env = dict(os.environ)
+    if no_color:
+        env.pop("FORCE_COLOR", None)
+        env["NO_COLOR"] = "1"
+    out_style, err_style = ui.style_for(out, env), ui.style_for(err, env)
+
+    def say(kind, line):
+        if err_style.color:
+            err.write(f"{err_style.paint(err_style.icon('fail'), ui.RED, True)} "
+                      f"{err_style.paint(kind + ':', ui.RED, True)} {line}\n")
+        else:
+            err.write(f"{kind}: {line}\n")
+
+    if not argv:
+        out.write(render.home_screen(out_style, _home_status()) + "\n")
+        return 0
     try:
         args = build_parser().parse_args(argv)
     except InputError as exc:
         for line in exc.errors:
-            err.write(f"error: {line}\n")
+            say("error", line)
         return 2
     except SystemExit as exc:  # --help
         return exc.code if isinstance(exc.code, int) else 0
 
+    key = " ".join(x for x in (args.command, getattr(args, "action", None)) if x)
+    pretty = fmt == "pretty" or (fmt is None and _is_tty(out))
     is_validate = args.func is cmd_validate
     try:
         if getattr(args, "needs_ctx", True):
@@ -730,19 +813,19 @@ def main(argv=None):
             result = args.func(args)
     except InputError as exc:
         for line in exc.errors:
-            err.write(f"error: {line}\n")
+            say("error", line)
         return 1 if is_validate else 2
     except Failure as exc:
         if exc.result is not None:
-            _print(exc.result, out)
-        err.write(f"failed: {exc}\n")
+            _emit(exc.result, out, key, pretty, out_style)
+        say("failed", exc)
         return 1
     except _INPUT_ERRORS as exc:
         for line in _errors(exc):
-            err.write(f"error: {line}\n")
+            say("error", line)
         return 1 if is_validate else 2
     except (StoreError, checkpoint.CheckpointError, OSError) as exc:
-        err.write(f"failed: {exc}\n")
+        say("failed", exc)
         return 1
-    _print(result, out)
+    _emit(result, out, key, pretty, out_style)
     return 0

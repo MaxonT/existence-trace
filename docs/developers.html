@@ -358,7 +358,7 @@ ol.life li{min-width:0}
         <li><b>Context(cfg)</b><span><span lang="zh">懒加载 Store、预设和时钟，所有命令共用，测试里可以注入固定时间。</span><span lang="en">Lazily builds the Store, the preset and the clock for all commands; tests can inject a fixed time.</span></span></li>
         <li><b>cmd_*(ctx, args)</b><span><span lang="zh">读代理给的 JSON 文件，<code class="k">check_fields</code> 先挡住缺字段和多余字段，再交给领域模块。</span><span lang="en">Reads the agent's JSON file; <code class="k">check_fields</code> stops missing and unknown fields before the domain module sees them.</span></span></li>
         <li><b><span lang="zh">异常归类</span><span lang="en">Exception mapping</span></b><span><span lang="zh">领域异常（PadError、XPError、DecisionError...）全部带 <code class="k">.errors</code>，统一成退出码 2；<code class="k">StoreError</code>、<code class="k">OSError</code>、<code class="k">CheckpointError</code> 则是 1。</span><span lang="en">Domain exceptions (PadError, XPError, DecisionError...) all carry <code class="k">.errors</code> and become exit 2; <code class="k">StoreError</code>, <code class="k">OSError</code> and <code class="k">CheckpointError</code> become exit 1.</span></span></li>
-        <li><b>_print(result)</b><span><span lang="zh">成功时只向 stdout 打印一个 JSON 对象，便于代理解析。</span><span lang="en">On success exactly one JSON object goes to stdout, easy for the agent to parse.</span></span></li>
+        <li><b>_emit(result)</b><span><span lang="zh">输出被管道接走（代理、脚本）时只向 stdout 打印一个 JSON 对象；在终端里由 <code class="k">render.py</code> 画成彩色视图。<code class="k">--json</code> / <code class="k">--pretty</code> / <code class="k">--no-color</code> 可放在命令行任意位置，也认 NO_COLOR 和 FORCE_COLOR。</span><span lang="en">When output is piped (agents, scripts) exactly one JSON object goes to stdout; in a terminal <code class="k">render.py</code> draws a coloured view. <code class="k">--json</code>, <code class="k">--pretty</code> and <code class="k">--no-color</code> may sit anywhere on the line; NO_COLOR and FORCE_COLOR are honoured.</span></span></li>
       </ol>
       <div>
         <div class="codebox err"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><span class="cap">$ python3 -m etrace pad add bad_pad.json   # exit 2</span><pre>error: points[0].P: must be within 0-5, got 9
@@ -384,6 +384,9 @@ except (StoreError, checkpoint.CheckpointError, OSError) as exc:
     return 1</pre></div>
       </div>
     </div>
+    <h3 style="margin:30px 0 10px"><span lang="zh">终端里的样子</span><span lang="en">What it looks like in a terminal</span></h3>
+    <p><span lang="zh">横幅、进度条、趋势折线、对勾提示都是真实输出（演示数据是虚构的）。不是终端时自动退回 JSON，Unicode 不可用时退回 ASCII。</span><span lang="en">Banner, bars, trend sparklines and check marks are real output (the demo data is synthetic). Output that is not a terminal falls back to JSON, and a terminal without Unicode falls back to ASCII.</span></p>
+    <p><img src="img/cli.png" alt="etrace in a terminal: gradient banner, G report with bars, trend sparklines, validate" style="max-width:100%;border-radius:12px;border:1px solid var(--line)"></p>
     <h3 style="margin:30px 0 10px"><span lang="zh">17 个顶层命令</span><span lang="en">The 17 top-level commands</span></h3>
     <div class="scroll"><table class="tbl"><thead><tr><th><span lang="zh">命令</span><span lang="en">Command</span></th><th><span lang="zh">做什么</span><span lang="en">What it does</span></th><th><span lang="zh">落到哪个模块</span><span lang="en">Module</span></th></tr></thead><tbody>
       <tr><td><code class="k">init</code></td><td><span lang="zh">从预设创建新数据目录、配置和今天的笔记</span><span lang="en">Creates a data directory, config and today's note from a preset</span></td><td>cli, presets, journal</td></tr>
@@ -942,7 +945,9 @@ None.
   do not pass paths you invented.
 - Never edit data/*.jsonl, rules.json or note files by hand;
   put agent JSON in a temporary file and pass it as FILE.
-- Each command prints one JSON object. Exit 2 = your JSON or
+- Put `--json` right after `etrace` on every command: then each
+  command prints one JSON object. Without it, a terminal gets a
+  human-friendly coloured view. Exit 2 = your JSON or
   arguments were wrong (fix them from the `error:` lines, at
   most two retries). Exit 1 = it ran but failed: do not hide it.</pre></div>
     </div>

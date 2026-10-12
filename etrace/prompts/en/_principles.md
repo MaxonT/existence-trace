@@ -12,4 +12,4 @@
 ## Working with the engine
 - Every step is a `python3 -m etrace ...` command. It finds trace.toml via $$ETRACE_CONFIG or the current directory; do not pass paths you invented.
 - Never edit data/*.jsonl, rules.json or note files by hand; put agent JSON in a temporary file and pass it as FILE.
-- Each command prints one JSON object. Exit 2 = your JSON or arguments were wrong (fix them from the `error:` lines, at most two retries). Exit 1 = it ran but failed: do not hide it.
+- Put `--json` right after `etrace` on every command (`python3 -m etrace --json validate`): then each command prints one JSON object. Without it, a command run in a terminal prints a human-friendly coloured view instead, and some agent tools attach a terminal. Exit 2 = your JSON or arguments were wrong (fix them from the `error:` lines, at most two retries). Exit 1 = it ran but failed: do not hide it.

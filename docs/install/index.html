@@ -80,7 +80,7 @@ etrace --version</pre>
 <pre>etrace init --preset default --language en --timezone America/Chicago --dir ~/existence-trace-data
 export ETRACE_CONFIG=~/existence-trace-data/trace.toml
 etrace validate</pre>
-<p><code>validate</code> must print <code>"ok": true</code>. If it does not, show the user the errors; do not edit files to force it through. If the folder already exists, do not overwrite it: ask whether to use it or pick another path.</p>
+<p>When you run <code>etrace</code> yourself, add <code>--json</code> (<code>etrace --json validate</code>): in a terminal it otherwise prints a coloured view meant for people. <code>validate</code> must print <code>"ok": true</code>. If it does not, show the user the errors; do not edit files to force it through. If the folder already exists, do not overwrite it: ask whether to use it or pick another path.</p>
 <p>To make <code>ETRACE_CONFIG</code> permanent, tell the user the line to add to their shell profile and let them decide. Do not append it yourself.</p>
 
 <h3>5. Show the user the four zones they write in</h3>

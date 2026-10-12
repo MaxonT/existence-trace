@@ -12,4 +12,4 @@
 ## 怎样使用引擎
 - 每一步都是 `python3 -m etrace ...` 命令。它通过 $$ETRACE_CONFIG 或当前目录找到 trace.toml；不要自己编路径。
 - 永远不要手改 data/*.jsonl、rules.json 或笔记文件；把 Agent JSON 写进临时文件，作为 FILE 传入。
-- 每个命令输出一个 JSON 对象。退出码 2 = 你的 JSON 或参数有误（按 `error:` 行修正，最多重试两次）。退出码 1 = 运行了但失败：不要隐瞒。
+- 每个命令都在 `etrace` 后面加 `--json`（如 `python3 -m etrace --json validate`），这样每个命令输出一个 JSON 对象。不加的话，在终端里运行会输出给人看的彩色版，而有些代理工具会给命令挂上终端。退出码 2 = 你的 JSON 或参数有误（按 `error:` 行修正，最多重试两次）。退出码 1 = 运行了但失败：不要隐瞒。
