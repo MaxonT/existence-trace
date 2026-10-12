@@ -23,7 +23,10 @@ import unicodedata
 PINK, AMBER, BLUE = (232, 51, 109), (240, 140, 30), (31, 120, 209)  # P, A, D
 GREEN, VIOLET = (43, 154, 102), (112, 72, 232)                      # B, E
 RED, GRAY, INK = (224, 49, 49), (134, 142, 150), (233, 236, 239)
+RAIL = (52, 58, 66)                                                  # the empty part of a bar
 BRAND = (PINK, AMBER, BLUE)
+TEAL = (24, 178, 164)
+LOGO_STOPS = (PINK, AMBER, TEAL, BLUE)      # pink -> amber -> teal -> blue: no muddy grey in the middle
 
 ICONS = {  # name -> (unicode, ascii)
     "ok": ("✔", "+"), "fail": ("✘", "x"), "warn": ("▲", "!"), "info": ("◆", "*"),
@@ -34,15 +37,18 @@ BLOCKS = " ▏▎▍▌▋▊▉█"          # eighths, for smooth bars
 SPARKS = "▁▂▃▄▅▆▇█"
 ASCII_SPARKS = "_.-=+*#@"
 
-# ANSI Shadow lettering for "ETRACE": six rows, 49 columns.
-LOGO = (
-    "███████╗████████╗██████╗  █████╗  ██████╗███████╗",
-    "██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝",
-    "█████╗     ██║   ██████╔╝███████║██║     █████╗  ",
-    "██╔══╝     ██║   ██╔══██╗██╔══██║██║     ██╔══╝  ",
-    "███████╗   ██║   ██║  ██║██║  ██║╚██████╗███████╗",
-    "╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝",
-)
+# "ETRACE" as a 3x5 pixel font, each pixel two columns of the full block. Only U+2588 and spaces:
+# every monospace font draws it the same, unlike the box-drawing shadows of figlet-style lettering,
+# which break apart (gaps, wrong joins) in many fonts.
+_PIXELS = {
+    "E": ("###", "#..", "##.", "#..", "###"),
+    "T": ("###", ".#.", ".#.", ".#.", ".#."),
+    "R": ("##.", "#.#", "##.", "#.#", "#.#"),
+    "A": (".#.", "#.#", "###", "#.#", "#.#"),
+    "C": (".##", "#..", "#..", "#..", ".##"),
+}
+LOGO = tuple("  ".join("".join("██" if px == "#" else "  " for px in _PIXELS[ch][row]) for ch in "ETRACE")
+             for row in range(5))
 TAGLINE = "record your traces of existence"
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -187,12 +193,13 @@ def bar(style, value, vmax, width=24, rgb=GREEN, stops=None):
     eighths = round(frac * width * 8)
     full, part = divmod(eighths, 8)
     cells = "█" * full + (BLOCKS[part] if part and full < width else "")
-    track = "░" * (width - len(cells))
+    # coloured: a flat dark rail (the dotted ░ shade looks noisy); without colour the shade is the only cue
+    track = ("█" if style.color else "░") * (width - len(cells))
     if stops:
         head = style.gradient(cells, stops) if cells else ""
     else:
         head = style.paint(cells, rgb)
-    return head + style.paint(track, GRAY, dim=True)
+    return head + (style.paint(track, RAIL) if style.color else track)
 
 
 def sparkline(style, values, vmin=None, vmax=None, rgb=BLUE):
@@ -213,7 +220,7 @@ def sparkline(style, values, vmin=None, vmax=None, rgb=BLUE):
     return style.paint("".join(out), rgb)
 
 
-def wave(style, width, phase=0.0):
+def wave(style, width, phase=0.0, stops=BRAND):
     """A deterministic 'trace': layered sines drawn with block characters."""
     chars = SPARKS if style.unicode else ASCII_SPARKS
     vals = []
@@ -222,7 +229,7 @@ def wave(style, width, phase=0.0):
              + 0.15 * math.sin(x * 0.9 + 0.4))
         vals.append(min(1.0, max(0.0, 0.5 + 0.62 * v)))
     text = "".join(chars[min(len(chars) - 1, max(0, round(v * (len(chars) - 1))))] for v in vals)
-    return style.gradient(text)
+    return style.gradient(text, stops)
 
 
 def panel(style, lines, title=None, width=None):
@@ -278,8 +285,8 @@ def banner(style, version, compact=False):
     """The logo block for `etrace`, `--help` and `init`; one line when COMPACT or the terminal is narrow."""
     ver = style.muted("v" + version)
     if style.unicode and style.width >= 56 and not compact:
-        lines = [style.gradient(row, bold=True) for row in LOGO]
-        lines.append(wave(style, len(LOGO[0])))
+        lines = [style.gradient(row, LOGO_STOPS, bold=True) for row in LOGO]
+        lines.append(wave(style, len(LOGO[0]), stops=LOGO_STOPS))
         lines.append(style.head(TAGLINE) + "  " + style.paint(style.icon("bullet"), GRAY) + "  " + ver
                      + "  " + style.paint(style.icon("bullet"), GRAY) + "  " + style.muted("PAD  G  XP"))
         return "\n".join(lines)

@@ -126,6 +126,13 @@ class PieceTest(unittest.TestCase):
         self.assertEqual(ui.bar(ASCII, 5, 10, 8), "####----")
         self.assertEqual(ui.visible_len(ui.bar(PLAIN, 3, 0, 8)), 8)  # vmax 0 is safe
 
+    def test_bar_rail_is_flat_in_colour_and_shaded_without(self):
+        coloured = ui.bar(styled(), 5, 10, 8)
+        self.assertEqual(ui.strip_ansi(coloured), "████████")          # fill and rail are both full blocks...
+        self.assertIn(styled().paint("████", ui.RAIL), coloured)         # ...told apart by colour
+        self.assertNotIn("░", coloured)
+        self.assertIn("░", ui.bar(PLAIN, 5, 10, 8))
+
     def test_bar_gradient(self):
         text = ui.bar(styled(), 10, 10, 10, stops=ui.BRAND)
         self.assertEqual(ui.strip_ansi(text), "█" * 10)
@@ -187,13 +194,31 @@ class PieceTest(unittest.TestCase):
 
 class BannerTest(unittest.TestCase):
     def test_logo_rows_are_equal_width(self):
-        self.assertEqual({ui.visible_len(r) for r in ui.LOGO}, {49})
-        self.assertEqual(len(ui.LOGO), 6)
+        self.assertEqual({ui.visible_len(r) for r in ui.LOGO}, {46})
+        self.assertEqual(len(ui.LOGO), 5)
+
+    def test_logo_gradient_has_no_grey_middle(self):
+        """Amber straight to blue passes through grey; the logo goes through teal instead."""
+        mid = ui.color_at(ui.LOGO_STOPS, 0.67)
+        self.assertGreater(max(mid) - min(mid), 80)               # clearly a colour, not grey
+
+    def test_logo_uses_only_the_full_block_and_spaces(self):
+        """Box-drawing lettering renders broken in many fonts; the full block never does."""
+        self.assertEqual(set("".join(ui.LOGO)), {"█", " "})
+        self.assertTrue(all(row.strip() for row in ui.LOGO))     # no empty row
+
+    def test_logo_spells_etrace(self):
+        for letter, rows in ui._PIXELS.items():
+            self.assertEqual({len(r) for r in rows}, {3}, letter)
+            self.assertEqual(len(rows), 5, letter)
+        self.assertEqual(ui.LOGO[0], "██████  ██████  ████      ██      ████  ██████")
+        self.assertEqual(ui.LOGO[2], "████      ██    ████    ██████  ██      ████  ")
+
 
     def test_big_banner(self):
         lines = ui.banner(PLAIN, "9.9.9").split("\n")
-        self.assertEqual(len(lines), 8)  # six logo rows, the wave, the tagline
-        self.assertEqual(lines[:6], list(ui.LOGO))
+        self.assertEqual(len(lines), len(ui.LOGO) + 2)  # the logo rows, the wave, the tagline
+        self.assertEqual(lines[:len(ui.LOGO)], list(ui.LOGO))
         self.assertIn("9.9.9", lines[-1])
         self.assertIn(ui.TAGLINE, lines[-1])
         self.assertNotIn("\x1b", "\n".join(lines))
@@ -201,7 +226,7 @@ class BannerTest(unittest.TestCase):
     def test_big_banner_in_colour_keeps_its_shape(self):
         lines = ui.banner(styled(width=100), "1.0").split("\n")
         self.assertIn("\x1b[", lines[0])
-        self.assertEqual({ui.visible_len(r) for r in lines[:7]}, {49})
+        self.assertEqual({ui.visible_len(r) for r in lines[:len(ui.LOGO) + 1]}, {46})
 
     def test_compact_banner(self):
         narrow = ui.banner(ui.Style(width=40), "1.0")

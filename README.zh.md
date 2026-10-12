@@ -48,7 +48,7 @@ etrace import ~/Documents/diary --run    # 导入你的旧日记，并让 AI 去
 `--run` 需要 AI，所以先接入（只导入、不加 `--run` 随时都行）。两条命令都会在数据目录还没有时顺手建好。
 还没有旧日记？`etrace init`，然后 `etrace note` 打开今天这页，`etrace run daily` 让 AI 来读。
 
-<p align="center"><img src="docs/img/cli.png" alt="终端里的 etrace 命令：渐变横幅、带进度条的 G 报告、趋势折线和帮助页（虚构演示数据）" width="720"></p>
+<p align="center"><img src="docs/img/cli.png" alt="终端里的 etrace 命令：渐变像素 logo、一条命令导入日记并列出每一天、AI 状态（虚构演示数据）" width="720"></p>
 
 ## 导入你的日记
 
@@ -108,7 +108,7 @@ etrace ai models           # 这个服务提供哪些模型
 | `etrace schedule` / `checkpoint` / `notion` | 调度文件、git 提交、可选的 Notion 镜像 |
 
 `etrace 命令 --help` 查看单个命令的说明。管道输出是 JSON，在终端里是漂亮的视图
-（`--json`、`--pretty` 切换，`--no-color` 或 `NO_COLOR` 关闭颜色）。
+（`--json`、`--pretty` 切换，`--no-color` 或 `NO_COLOR` 关闭颜色）。logo 只用最普通的实心方块画成，在任何终端字体里看起来都一样。
 
 **其他方式：** 从[最新 Release](https://github.com/MaxonT/existence-trace/releases/latest) 下载 wheel 用 `pip install` 安装，
 或者用 GitHub Packages 上的容器：`docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`。
