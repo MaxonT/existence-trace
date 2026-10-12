@@ -4,11 +4,14 @@ Every key is optional. Unknown keys raise ConfigError naming the key, so a typo
 never silently falls back to a default.
 """
 
+import json
 import os
 import re
 import tomllib
 from dataclasses import dataclass, field, replace
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from etrace.store import write_text_atomic
 
 PRESETS = ("default", "tiger-method")
 LANGUAGES = ("zh", "en")
@@ -24,13 +27,29 @@ DEFAULT_TASKS = {
     "audit": "Sun 22:15",
 }
 
-_TOP_KEYS = ("timezone", "data_dir", "preset", "language", "outreach", "git_remote", "tasks", "credentials")
+AI_PROVIDERS = ("openai", "anthropic")  # "openai" = any OpenAI-compatible endpoint
+_AI_KEYS = ("provider", "model", "base_url", "key_env", "key_file")
+_TOP_KEYS = ("timezone", "data_dir", "preset", "language", "outreach", "git_remote", "tasks", "credentials", "ai")
 _CREDENTIAL_KEYS = ("email", "notion")
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
 class ConfigError(ValueError):
     """Raised when trace.toml is unreadable or invalid."""
+
+
+@dataclass(frozen=True)
+class AIConfig:
+    """Which AI API `etrace run` talks to. The key itself is never here: only where to find it."""
+    provider: str | None = None   # "openai" (OpenAI-compatible) or "anthropic"
+    model: str | None = None
+    base_url: str | None = None   # None: the provider's own address
+    key_env: str | None = None    # name of an environment variable that holds the key
+    key_file: str | None = None   # a TOML file outside the data folder: key = "..."
+
+    @property
+    def configured(self):
+        return bool(self.provider and self.model)
 
 
 @dataclass(frozen=True)
@@ -46,6 +65,7 @@ class Config:
     tasks: dict = field(default_factory=lambda: {k: _as_list(v) for k, v in DEFAULT_TASKS.items()})
     # Credential name -> file path or None. Secrets live in those files, never here.
     credentials: dict = field(default_factory=lambda: {k: None for k in _CREDENTIAL_KEYS})
+    ai: AIConfig = field(default_factory=AIConfig)
     source: str = ""
 
     @property
@@ -151,7 +171,30 @@ def from_dict(raw, base_dir="."):
     if values["outreach"] == "note+email" and creds["email"] is None:
         raise ConfigError("outreach = 'note+email' requires credentials.email")
 
+    values["ai"] = _ai_from_dict(raw.get("ai", {}), base_dir)
     return Config(**values)
+
+
+def _ai_from_dict(raw, base_dir):
+    if not isinstance(raw, dict):
+        raise ConfigError("[ai] must be a table")
+    _check_unknown(raw, _AI_KEYS, "ai.")
+    out = {}
+    for name in _AI_KEYS:
+        value = raw.get(name)
+        if value is not None:
+            _check_str(f"ai.{name}", value)
+        out[name] = value
+    if out["provider"] is not None:
+        _check_choice("ai.provider", out["provider"], AI_PROVIDERS)
+    if out["base_url"] is not None and not re.match(r"^https?://[^\s]+$", out["base_url"]):
+        raise ConfigError(f"ai.base_url must start with http:// or https://; got {out['base_url']!r}")
+    if out["key_env"] is not None and not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", out["key_env"]):
+        raise ConfigError(f"ai.key_env must be the NAME of an environment variable, not the key; "
+                          f"got a value that is not a variable name")
+    if out["key_file"] is not None:
+        out["key_file"] = _resolve_path(out["key_file"], base_dir)
+    return AIConfig(**out)
 
 
 def load(path):
@@ -165,3 +208,31 @@ def load(path):
         raise ConfigError(f"invalid TOML in {path}: {exc}") from None
     base_dir = os.path.dirname(os.path.abspath(path))
     return replace(from_dict(raw, base_dir), source=os.path.abspath(path))
+
+
+_AI_SECTION = re.compile(r"(?ms)^\[ai\][ \t]*\n.*?(?=^\[|\Z)")
+
+
+def write_ai(path, values):
+    """Replace (or add) the [ai] table of the trace.toml at PATH with VALUES; the rest stays as it is.
+
+    VALUES maps AI keys to strings (None drops a key). The result is validated before it is
+    written, so a bad value never leaves a broken config behind. Returns the reloaded Config.
+    """
+    unknown = [k for k in values if k not in _AI_KEYS]
+    if unknown:
+        raise ConfigError(f"unknown ai keys: {', '.join(unknown)}")
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    lines = [f"{k} = {json.dumps(values[k])}" for k in _AI_KEYS if values.get(k) is not None]
+    block = "[ai]\n" + "\n".join(lines) + "\n"
+    if _AI_SECTION.search(text):
+        new = _AI_SECTION.sub(lambda m: block + "\n", text, count=1).rstrip("\n") + "\n"
+    else:
+        new = text.rstrip("\n") + "\n\n" + block
+    try:
+        from_dict(tomllib.loads(new), os.path.dirname(os.path.abspath(path)))
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"refusing to write an invalid {path}: {exc}") from None
+    write_text_atomic(path, new)
+    return load(path)

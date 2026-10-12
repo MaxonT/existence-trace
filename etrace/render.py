@@ -7,6 +7,7 @@ never costs the user a result. Machine use is unchanged: JSON stays the default
 whenever stdout is not a terminal.
 """
 
+import os
 import textwrap
 
 from etrace import __version__, ui
@@ -52,9 +53,12 @@ def init(style, key, r):
         ("folder", style.paint(r["root"], ui.INK)), ("preset", style.paint(r["preset"], ui.PINK, True)),
         ("rules", f"v{r['rules_version']}"), ("today's note", r["note"])])
     # people copy these lines, so they are printed whole (no box that could cut a long path)
-    steps = ["  " + arrow(ui.PINK) + " export ETRACE_CONFIG=" + r["config"],
-             "  " + arrow(ui.AMBER) + " etrace validate",
-             "  " + arrow(ui.BLUE) + " etrace prompt daily --raw"]
+    steps = []
+    if os.path.realpath(r["root"]) != os.path.realpath(os.path.expanduser("~/existence-trace-data")):
+        steps.append("  " + arrow(ui.PINK) + " export ETRACE_CONFIG=" + r["config"])
+    steps += ["  " + arrow(ui.PINK) + " etrace ai set       " + style.muted("connect an AI (key stays outside this folder)"),
+              "  " + arrow(ui.AMBER) + " etrace note         " + style.muted("write today's journal"),
+              "  " + arrow(ui.BLUE) + " etrace run daily    " + style.muted("let the AI read it")]
     return "\n".join([
         ui.banner(style, __version__), "",
         style.ok(style.head("Your data folder is ready")), "", facts, "",
@@ -194,10 +198,129 @@ def generic(style, key, r, depth=0):
     return "\n".join(out)
 
 
+def note(style, key, r):
+    out = [_head(style, key, r["date"]), "",
+           _msg(style, "ok", "Created today's note" if r["created"] else "Today's note is ready"), "",
+           "  " + style.paint(style.icon("file"), ui.AMBER) + " " + r["note"], "",
+           style.muted("  write in the marked zones; `etrace note -e` opens it")]
+    return "\n".join(out)
+
+
+def _ai_lines(style, r):
+    if not r.get("provider"):
+        steps = ["  " + style.paint(style.icon("arrow"), ui.PINK, True) + " etrace ai set openai",
+                 "  " + style.paint(style.icon("arrow"), ui.AMBER, True) + " etrace ai set anthropic",
+                 "  " + style.paint(style.icon("arrow"), ui.BLUE, True) + " etrace ai set deepseek"
+                 + style.muted("   (also openrouter, ollama, custom --url URL)")]
+        return [style.info(style.muted("No AI is connected yet. Pick a service:"))] + steps
+    k = r["key"]
+    if not k["needed"]:
+        key_text = style.ok(style.muted("none needed (local service)"))
+    elif k["found"]:
+        key_text = style.ok(style.paint(k["masked"], ui.INK) + style.muted(f"  ({k['source']})"))
+    else:
+        key_text = style.fail(k["problem"] or "no key found: etrace ai set (or export ETRACE_AI_KEY)")
+    model = r["model"] and style.paint(r["model"], ui.PINK, True) or style.paint(
+        style.icon("warn"), ui.AMBER, True) + " " + style.muted("not chosen: etrace ai models")
+    out = [ui.kv(style, [("service", r["service"]), ("address", r["base_url"]), ("model", model),
+                         ("key", key_text)])]
+    if k.get("exposed"):
+        out += ["", style.warn("the key file is readable by other users: chmod 600 it")]
+    return out
+
+
+def _test_lines(style, t):
+    if not t:
+        return []
+    if not t.get("ok"):
+        return [_msg(style, "fail", "The API call failed", t.get("error") or "")]
+    out = [_msg(style, "ok", "API reachable", f"{t['ms']} ms, the model answered {t['reply']!r}")]
+    if t.get("tools"):
+        out.append(_msg(style, "ok", "Tool calling works", "etrace run can use this model"))
+    else:
+        out.append(_msg(style, "warn", "The test tool was not called",
+                        "`etrace run` needs tool calling: choose another model"))
+    return out
+
+
+def ai_status(style, key, r):
+    out = [_head(style, key), ""] + _ai_lines(style, r)
+    if r.get("provider") and r.get("model") and not r["key"]["problem"]:
+        out += ["", style.muted("  etrace ai test   check it"), style.muted("  etrace run daily   use it")]
+    return "\n".join(out)
+
+
+def ai_set(style, key, r):
+    out = [_head(style, key), "", _msg(style, "ok", "Saved", "the key is not in trace.toml"), ""]
+    out += _ai_lines(style, r)
+    tests = _test_lines(style, r.get("test"))
+    if tests:
+        out += [""] + tests
+    if r.get("next"):
+        out += ["", "  " + style.muted(r["next"])]
+    return "\n".join(out)
+
+
+def ai_test(style, key, r):
+    head = [_head(style, key, f"{r.get('provider')} {r.get('model')}"), ""]
+    return "\n".join(head + _test_lines(style, r))
+
+
+def ai_models(style, key, r):
+    models, cur = r["models"], r.get("current")
+    shown = models[:40]
+    out = [_head(style, key, f"{r['count']} model(s)"), ""]
+    for m in shown:
+        mark = style.paint(style.icon("arrow"), ui.PINK, True) if m == cur else " "
+        out.append("  " + mark + " " + (style.head(m) if m == cur else m))
+    if len(models) > len(shown):
+        out.append(style.muted(f"    … and {len(models) - len(shown)} more (etrace --json ai models lists all)"))
+    out += ["", style.muted("  etrace ai set --model NAME")]
+    return "\n".join(out)
+
+
+def progress_line(style, step):
+    """One line per tool call while `etrace run` works (printed to stderr)."""
+    call = ui.fit(step["call"], max(20, style.width - 14))
+    if step.get("error"):
+        return "  " + style.paint(style.icon("fail"), ui.RED, True) + " " + call + style.muted("  " + str(step["error"])[:60])
+    code = step.get("exit_code")
+    if code is None:
+        return "  " + style.paint(style.icon("key"), ui.GRAY) + " " + call
+    if code == 0:
+        return "  " + style.paint(style.icon("ok"), ui.GREEN, True) + " " + call
+    return "  " + style.paint(style.icon("fail"), ui.RED, True) + " " + call + style.muted(f"  exit {code}")
+
+
+def run(style, key, r):
+    steps = r["steps"]
+    bad = sum(1 for x in steps if x.get("error") or x.get("exit_code") not in (0, None))
+    out = [_head(style, key, r["task"], f"{r['provider']} {r['model']}"), ""]
+    for step in steps[-12:]:
+        out.append(progress_line(style, step))
+    if len(steps) > 12:
+        out.insert(2, style.muted(f"  … {len(steps) - 12} earlier step(s)"))
+    out.append("")
+    summary = f"{len(steps)} step(s)" + (f", {bad} failed" if bad else "")
+    if r["finished"]:
+        out.append(_msg(style, "ok", "The AI finished", summary))
+    else:
+        out.append(_msg(style, "fail", "The AI did not finish", summary))
+    if r.get("final"):
+        lines = []
+        for para in r["final"].split("\n"):
+            lines += textwrap.wrap(para, max(30, min(style.width, 96) - 4)) or [""]
+        out += ["", ui.panel(style, lines, title="Summary", width=min(style.width, 96))]
+    u = r.get("usage", {})
+    out += ["", style.muted(f"  tokens  {u.get('input', 0):,} in, {u.get('output', 0):,} out")]
+    return "\n".join(out)
+
+
 RENDERERS = {
     "init": init, "validate": validate, "xp score": xp_score, "g report": g_report,
     "g chart": g_chart, "pad chart": pad_chart, "rules list": rules_list,
-    "audit weekly": audit_weekly, "checkpoint": checkpoint,
+    "audit weekly": audit_weekly, "checkpoint": checkpoint, "note": note, "ai": ai_status, "ai set": ai_set,
+    "ai test": ai_test, "ai models": ai_models, "run": run,
 }
 
 SITE = "https://maxont.github.io/existence-trace/"
@@ -295,6 +418,9 @@ def home_screen(style, status=None):
 def render(style, key, result):
     """The pretty text for RESULT, or None if it cannot be drawn (caller prints JSON)."""
     try:
-        return RENDERERS.get(key, generic)(style, key, result)
+        text = RENDERERS.get(key, generic)(style, key, result)
     except (KeyError, TypeError, ValueError, AttributeError, IndexError):
         return None
+    if text and not style.unicode:
+        text = text.replace("…", "...")
+    return text

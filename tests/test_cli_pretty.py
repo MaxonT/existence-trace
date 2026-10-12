@@ -268,9 +268,9 @@ class PrettyCliTest(unittest.TestCase):
             text = parser.format_help()
         return text
 
-    def test_there_are_34_help_pages_and_each_one_renders(self):
+    def test_there_are_39_help_pages_and_each_one_renders(self):
         parsers = self.all_parsers()
-        self.assertEqual(len(parsers), 34)
+        self.assertEqual(len(parsers), 39)
         for parser in parsers:
             for tty, enc in ((False, "utf-8"), (True, "utf-8"), (False, "ascii")):
                 text = self.help_of(parser, tty, enc)
@@ -316,7 +316,7 @@ class PrettyCliTest(unittest.TestCase):
     def test_leaf_page_shows_arguments_options_defaults_and_choices(self):
         text = self.help_of(self.parser_for("init"))
         for needle in ("--preset {default,tiger-method}", "--dir DIR", "America/Chicago",
-                       "--language {zh,en}", "create a fresh data dir from a preset", "-h, --help", "--no-color"):
+                       "--language {zh,en}", "create your data folder", "-h, --help", "--no-color"):
             self.assertIn(needle, text)
         chart = self.help_of(self.parser_for("g chart"))
         self.assertIn("--days DAYS", chart)

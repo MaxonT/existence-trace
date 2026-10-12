@@ -363,10 +363,10 @@ footer .wrap{display:flex; gap:16px; flex-wrap:wrap; justify-content:space-betwe
         <div class="codebox"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><pre>Read https://maxont.github.io/existence-trace/install and install existence-trace for me.</pre></div>
         <p><span lang="zh">喜欢自己动手？一行命令装好 <code>etrace</code>（它不会替你建数据目录，也不会改 shell 配置）：</span><span lang="en">Prefer the terminal? One line installs the <code>etrace</code> command (it never creates your data folder or edits shell config):</span></p>
         <div class="codebox"><button data-copy><span lang="zh">复制</span><span lang="en">Copy</span><span class="ok" lang="zh">已复制</span><span class="ok" lang="en">Copied</span></button><pre>curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
-etrace init --preset default --language en --dir ~/existence-trace-data
-export ETRACE_CONFIG=~/existence-trace-data/trace.toml
-etrace validate</pre></div>
-        <p><span lang="zh">init 会生成配置文件、起步规则和今天的笔记，语言可以改成 zh；validate 应该显示 <code>"ok": true</code>。不知道选哪套预设就用 default，tiger-method 是作者自己调出来的一套。</span><span lang="en">init creates the config, the starter rules and today's note (use zh for Chinese); validate should print <code>"ok": true</code>. If unsure which preset to pick, use default; tiger-method is the author's own tuned set.</span></p>
+etrace init --language en
+etrace ai set
+etrace run daily</pre></div>
+        <p><span lang="zh">init 会在 <code>~/existence-trace-data</code> 生成配置文件、起步规则和今天的笔记（语言默认 zh）；<code>etrace ai set</code> 接入你的 AI（OpenAI、Anthropic、DeepSeek、OpenRouter、Ollama 或任何兼容地址），key 只存在你的 <code>~/.config</code>，不进数据目录；<code>etrace run daily</code> 让它读你的日记。不知道选哪套预设就用 default，tiger-method 是作者自己调出来的一套（<code>--preset tiger-method</code>）。</span><span lang="en">init creates the config, the starter rules and today's note in <code>~/existence-trace-data</code> (language defaults to zh); <code>etrace ai set</code> connects your AI (OpenAI, Anthropic, DeepSeek, OpenRouter, Ollama or any compatible address) and keeps the key in your <code>~/.config</code>, never in the data folder; <code>etrace run daily</code> lets it read your journal. If unsure which preset to pick, use default; tiger-method is the author's own tuned set (<code>--preset tiger-method</code>).</span></p>
       </div></div>
       <div class="big-step"><div class="n">2</div><div>
         <h3><span lang="zh">每天只需要写这四个区</span><span lang="en">Each day you only write four zones</span></h3>

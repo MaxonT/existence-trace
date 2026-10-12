@@ -41,13 +41,56 @@ curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
 加 `--dry-run` 可以先看它会做什么。然后：
 
 ```sh
-etrace init --preset default --language zh --dir ~/existence-trace-data
-export ETRACE_CONFIG=~/existence-trace-data/trace.toml
-etrace validate            # All clear（加 --json 得到机器可读的输出）
-etrace prompt daily --raw  # 代理跑日报时用的 prompt
+etrace init                # 在 ~/existence-trace-data 建好数据目录，不需要别的配置
+etrace ai set              # 接入 AI（会问你，见下）
+etrace note                # 今天的日记：在标好的区域里写
+etrace run daily           # AI 读完并写日报
 ```
 
 <p align="center"><img src="docs/img/cli.png" alt="终端里的 etrace 命令：渐变横幅、带进度条的 G 报告、趋势折线和帮助页（虚构演示数据）" width="720"></p>
+
+## 接入 AI
+
+`etrace run` 可以用任何你给它的 AI API。选一个服务，回答两个问题（key、模型）：
+
+```sh
+etrace ai set deepseek     # 或：openai  anthropic  openrouter  ollama
+etrace ai set custom --url https://my-proxy.example/v1    # 任何 OpenAI 兼容地址
+etrace ai                  # 看现在接的是什么
+etrace ai test             # 真实调用一次：连得上吗？模型支持工具调用吗？
+etrace ai models           # 这个服务提供哪些模型
+```
+
+直接运行 `etrace ai set` 会给你一个菜单。Anthropic 用它自己的格式，其余服务都用 OpenAI 格式。
+加 `--model 名字` 可以跳过选模型。
+
+**你的 key 不会进入数据目录。** 查找顺序：`$ETRACE_AI_KEY`，然后是 `[ai].key_file` 指向的文件
+（默认 `~/.config/etrace/ai.toml`，权限 600，由 `etrace ai set` 替你写好），最后是 `[ai].key_env`
+指向的环境变量。key 不接受命令行参数（会留在 shell 历史里），不会被打印（只显示 `…0123`），
+也不会写进 `trace.toml`（它在一个 git 仓库里）。写脚本时：`echo $KEY | etrace ai set openai --key-stdin`。
+
+`etrace run daily|g|feedback|calibrate|audit` 把任务交给模型，它只有两个工具：运行一条 `etrace`
+命令，以及读数据目录里的文件。没有 shell，也没有联网工具，`init`、`schedule`、`ai`、`run`
+这几个命令对 AI 是屏蔽的。最多 40 步（`--max-steps`）。想用自己的代理（Claude Code、Codex）？
+跳过这一节：`etrace prompt daily --raw` 会打印同一份 prompt。
+
+## 命令一览
+
+| 命令 | 作用 |
+|---|---|
+| `etrace init` | 创建数据目录 |
+| `etrace ai [set\|test\|models]` | 接入并检查 AI API |
+| `etrace run TASK` | 让 AI 做 `daily`、`g`、`feedback`、`calibrate` 或 `audit` |
+| `etrace note [-e]` | 创建今天的笔记并告诉你在哪；`-e` 直接打开 |
+| `etrace validate` | 检查数据链和笔记，有问题就以退出码 1 结束 |
+| `etrace pad` / `g` / `xp` | 三个视角：记录点、图表（`pad chart`、`g chart`）、打分 |
+| `etrace question` / `feedback` / `decide` / `usage` / `outreach` | 偏好闭环 |
+| `etrace rules` / `audit` | 查看规则；每周审计 |
+| `etrace prompt TASK` | 给你自己的代理用的 prompt |
+| `etrace schedule` / `checkpoint` / `notion` | 调度文件、git 提交、可选的 Notion 镜像 |
+
+`etrace 命令 --help` 查看单个命令的说明。管道输出是 JSON，在终端里是漂亮的视图
+（`--json`、`--pretty` 切换，`--no-color` 或 `NO_COLOR` 关闭颜色）。
 
 **其他方式：** 从[最新 Release](https://github.com/MaxonT/existence-trace/releases/latest) 下载 wheel 用 `pip install` 安装，
 或者用 GitHub Packages 上的容器：`docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`。

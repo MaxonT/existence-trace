@@ -58,6 +58,11 @@ jobs:
           "$etrace" validate --json | grep -q '"ok": true'
           "$etrace" validate --pretty --no-color | grep -q "All clear"
           "$etrace" prompt daily --raw | grep -q -- "--json"
+          "$etrace" ai --json | grep -q '"provider": null'
+          "$etrace" ai set ollama --model smoke --no-test --json | grep -q '"provider": "openai"'
+          "$etrace" ai --pretty --no-color | grep -q "smoke"
+          "$etrace" note --json | grep -q '"created"'
+          "$etrace" run --help | grep -q "max-steps"
 
       - name: GitHub Release
         env:
