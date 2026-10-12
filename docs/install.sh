@@ -70,9 +70,9 @@ cat <<'EOF'
 
 Next, create your own data directory (it lives outside any repository):
 
-  etrace init --preset default --language en --dir ~/existence-trace-data
-  export ETRACE_CONFIG=~/existence-trace-data/trace.toml
-  etrace validate
+  etrace init --language en
+  etrace ai set
+  etrace run daily
 
-Then ask your AI agent to run the daily task:  etrace prompt daily --raw
+Prefer your own agent? Run:  etrace prompt daily --raw
 EOF

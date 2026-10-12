@@ -21,13 +21,16 @@ FILE arguments hold agent JSON; '-' reads stdin. The config is found via
 
 import argparse
 import datetime
+import getpass
 import json
 import os
+import shlex
 import shutil
+import subprocess
 import sys
 from zoneinfo import ZoneInfo
 
-from etrace import __version__, chart, checkpoint, config, journal, presets, prompts, render, ui
+from etrace import __version__, agent, ai, chart, checkpoint, config, journal, presets, prompts, render, ui
 from etrace.adapters import notion, scheduler
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
@@ -72,17 +75,17 @@ class _Parser(argparse.ArgumentParser):
 
 # How `etrace --help` groups the commands; test_cli_pretty checks that every command is listed.
 HELP_GROUPS = (
-    ("Start", ("init", "validate", "prompt", "schedule")),
+    ("Start", ("init", "ai", "run", "validate")),
     ("Journal", ("note",)),
     ("Lenses", ("pad", "g", "xp")),
     ("The loop", ("question", "feedback", "decide", "usage", "outreach", "rules", "audit")),
-    ("Data", ("checkpoint", "notion")),
+    ("Tools", ("prompt", "schedule", "checkpoint", "notion")),
 )
 
 
 # One line for each subcommand that argparse was given no help text for.
 COMMAND_HELP = {
-    "note new": "create the note for a day",
+    "note new": "create the note for a day (default today)",
     "question add": "file an evidence-backed question for the user",
     "feedback ingest": "take new feedback from the notes and close answered questions",
     "usage add": "store a usage receipt (the write must be read back first)",
@@ -101,7 +104,7 @@ DEFAULT_ARG_HELP = {  # arguments that had no help text
     "file": "agent JSON file; '-' reads stdin",
     "date": "YYYY-MM-DD, 'today' or 'yesterday'",
     "block": "which ai block of the note to write",
-    "task": "which agent task to render the prompt for",
+    "task": "which agent task",
     "kind": "what to send: the day's open questions, or a report",
     "summary": "one or two sentences for the report",
     "as_of": "any date inside the week to audit (default today)",
@@ -337,6 +340,34 @@ def cmd_init(args):
 def cmd_note_new(ctx, args):
     path = journal.create_note(ctx.journal, ctx.day(args.date), ctx.cfg.preset, ctx.lang)
     return {"note": path}
+
+
+def _open_in_editor(path):
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if editor:
+        cmd = shlex.split(editor) + [path]
+    elif sys.platform == "darwin":
+        cmd = ["open", "-t", path]
+    elif sys.platform.startswith("linux"):
+        cmd = ["xdg-open", path]
+    else:
+        raise InputError("note: set $EDITOR to open the note from here")
+    try:
+        subprocess.run(cmd, check=False)
+    except OSError as exc:
+        raise Failure(f"cannot start {cmd[0]}: {exc.strerror}") from None
+
+
+def cmd_note_today(ctx, args):
+    """`etrace note`: make sure today's note exists, say where it is, optionally open it."""
+    day = ctx.day(None)
+    path = journal.note_path(ctx.journal, day)
+    created = not os.path.exists(path)
+    if created:
+        journal.create_note(ctx.journal, day, ctx.cfg.preset, ctx.lang)
+    if args.edit:
+        _open_in_editor(path)
+    return {"note": path, "date": day, "created": created}
 
 
 def _read_text(path):
@@ -591,6 +622,165 @@ def cmd_g_chart(ctx, args):
     return {"chart": path, "days": len(series), "points": counts, "trend": trend}
 
 
+# --- ai: `etrace ai ...` and `etrace run` ---------------------------------------------------
+
+def _ai_status(cfg):
+    a = cfg.ai
+    found, source, problem, exposed = None, "", None, False
+    if a.provider:
+        try:
+            found, source = ai.resolve_key(a)
+        except ai.AIError as exc:
+            problem = str(exc)
+        exposed = bool(a.key_file and source.startswith("file") and ai.key_file_exposed(a.key_file))
+    return {"configured": a.configured, "provider": a.provider, "service": ai.LABELS.get(a.provider),
+            "model": a.model, "base_url": ai.base_url(a) if a.provider else None,
+            "key": {"needed": ai.needs_key(a) if a.provider else None, "found": bool(found),
+                    "source": source, "masked": ai.mask_key(found), "exposed": exposed, "problem": problem},
+            "config": cfg.source}
+
+
+def _client(cfg, need_model=True):
+    a = cfg.ai
+    if not a.provider:
+        raise InputError("ai: no AI is set up yet; run `etrace ai set`")
+    if need_model and not a.model:
+        raise InputError("ai: no model chosen; run `etrace ai models`, then `etrace ai set --model NAME`")
+    try:
+        return ai.Client(a, ai.resolve_key(a)[0])
+    except ai.AIError as exc:
+        raise InputError(f"ai: {exc}") from None
+
+
+def cmd_ai_status(ctx, args):
+    return _ai_status(ctx.cfg)
+
+
+def cmd_ai_models(ctx, args):
+    client = _client(ctx.cfg, need_model=False)
+    try:
+        ids = client.models()
+    except ai.AIError as exc:
+        raise Failure(str(exc)) from None
+    return {"models": ids, "count": len(ids), "current": ctx.cfg.ai.model}
+
+
+def cmd_ai_test(ctx, args):
+    result = ai.check(_client(ctx.cfg))
+    if not result["ok"]:
+        raise Failure(result["error"], result)
+    return result
+
+
+def _say(text):
+    sys.stderr.write(text)
+    sys.stderr.flush()
+
+
+def _ask(prompt):
+    _say(prompt)
+    return sys.stdin.readline().strip()
+
+
+def _choose(label, options, default=None):
+    """Pick one of OPTIONS by number or name; Enter takes DEFAULT."""
+    for i, name in enumerate(options, 1):
+        _say(f"  {i:>2}  {name}\n")
+    while True:
+        answer = _ask(f"{label}{f' [{default}]' if default else ''}: ") or (default or "")
+        if answer in options:
+            return answer
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1]
+        _say("  not one of the choices, try again\n")
+
+
+def cmd_ai_set(ctx, args):
+    cur, interactive = ctx.cfg.ai, sys.stdin.isatty()
+    name = args.service
+    if name is None and not (args.url or args.provider or cur.provider) and interactive:
+        _say("Which AI service?\n")
+        name = _choose("service", list(ai.PRESETS), default="openai")
+    provider, url, key_env = cur.provider, cur.base_url, cur.key_env
+    if name:
+        provider, url, key_env = ai.PRESETS[name]
+    url = args.url or url
+    provider = args.provider or provider or ("openai" if url else None)  # an address alone means OpenAI-compatible
+    key_env = args.key_env or key_env
+    if not provider:
+        raise InputError("ai: say which service: etrace ai set openai | anthropic | deepseek | openrouter | "
+                         "ollama | custom --url URL")
+    if name == "custom" and not url:
+        raise InputError("ai: `custom` needs --url (the address of an OpenAI-compatible API)")
+
+    key_file = cur.key_file if not name else None  # a new service needs its own key
+    candidate = config.AIConfig(provider, None, url, key_env, key_file)
+    secret = None
+    if args.key_stdin:
+        secret = sys.stdin.read().strip()
+        if not secret:
+            raise InputError("ai: --key-stdin got no key on standard input")
+    elif (interactive and name != "ollama" and not os.environ.get(key_env or "")
+          and not (key_file and os.path.exists(key_file))):
+        secret = getpass.getpass("API key (hidden; Enter to skip): ", stream=sys.stderr).strip() or None
+    if secret:
+        try:
+            key_file = ai.write_key_file(os.path.expanduser(args.key_file or key_file or ai.default_key_file()),
+                                         secret)
+        except (ai.AIError, OSError) as exc:
+            raise Failure(f"could not store the key: {exc}") from None
+
+    model = args.model or (cur.model if not name else None)
+    if not model and interactive:
+        model = _pick_model(config.AIConfig(provider, None, url, key_env, key_file))
+    stored_url = None if url == ai.DEFAULT_BASE.get(provider) else url
+    try:
+        new_cfg = config.write_ai(ctx.cfg.source, {
+            "provider": provider, "model": model, "base_url": stored_url, "key_env": key_env,
+            "key_file": ai._tilde(key_file) if key_file else None})
+    except config.ConfigError as exc:
+        raise InputError(f"ai: {exc}") from None
+
+    out = dict(_ai_status(new_cfg), saved=True)
+    if new_cfg.ai.configured and not args.no_test:
+        try:
+            out["test"] = ai.check(ai.Client(new_cfg.ai, ai.resolve_key(new_cfg.ai)[0]))
+        except ai.AIError as exc:
+            out["test"] = {"ok": False, "error": str(exc)}
+        if not out["test"]["ok"]:
+            raise Failure("saved, but the test call failed: " + str(out["test"]["error"]), out)
+    elif not new_cfg.ai.configured:
+        out["next"] = "etrace ai models   then   etrace ai set --model NAME"
+    return out
+
+
+def _pick_model(candidate):
+    """Interactive: list the service's models and let the user pick one (or type a name)."""
+    try:
+        key = ai.resolve_key(candidate)[0]
+        ids = ai.Client(candidate, key, retries=0).models()  # no waiting on a service that is not there
+    except ai.AIError as exc:
+        _say(f"(could not list models: {exc})\n")
+        return _ask("model name: ") or None
+    shown = ids[:15]
+    _say(f"Models ({len(ids)} found; showing {len(shown)}):\n")
+    for i, m in enumerate(shown, 1):
+        _say(f"  {i:>2}  {m}\n")
+    answer = _ask("model (number or name): ")
+    if answer.isdigit() and 1 <= int(answer) <= len(shown):
+        return shown[int(answer) - 1]
+    return answer or None
+
+
+def cmd_run(ctx, args):
+    client = _client(ctx.cfg)
+    try:
+        return agent.run_task(ctx.cfg, client, args.task, ctx.store, args.language, args.max_steps,
+                              getattr(args, "progress", None))
+    except agent.AgentError as exc:
+        raise Failure(str(exc), exc.result) from None
+
+
 def cmd_g_report(ctx, args):
     day = ctx.day(args.date)
     snaps = g.predictions(ctx.store, day)
@@ -708,16 +898,19 @@ def build_parser():
                                                                  parser_class=_Parser)
         return sp
 
-    s = sub.add_parser("init", help="create a fresh data dir from a preset")
-    s.add_argument("--preset", required=True, choices=presets.NAMES)
+    s = sub.add_parser("init", help="create your data folder (no options needed)")
+    s.add_argument("--preset", default="default", choices=presets.NAMES)
     s.add_argument("--dir", help=f"data root (default {DEFAULT_ROOT})")
     s.add_argument("--language", default=config.Config.language, choices=config.LANGUAGES)
     s.add_argument("--timezone", default=config.Config.timezone)
     s.set_defaults(func=cmd_init, needs_ctx=False)
 
-    n = group("note", "journal notes")
+    nt_parser = sub.add_parser("note", help="today's note: create it and show where it is (-e opens it)")
+    nt_parser.add_argument("-e", "--edit", action="store_true", help="open it in $EDITOR (or the system editor)")
+    nt_parser.set_defaults(func=cmd_note_today)
+    n = nt_parser.add_subparsers(dest="action", parser_class=_Parser)
     s = n.add_parser("new")
-    s.add_argument("date")
+    s.add_argument("date", nargs="?", default="today")
     s.set_defaults(func=cmd_note_new)
     s = n.add_parser("write", help="replace the text of an ai block and read it back")
     s.add_argument("date")
@@ -758,7 +951,7 @@ def build_parser():
     s.add_argument("file")
     s.set_defaults(func=cmd_pad_add)
     s = pd.add_parser("chart")
-    s.add_argument("date")
+    s.add_argument("date", nargs="?", default="today")
     s.add_argument("--week", action="store_true", help="chart the Monday-Sunday week of DATE")
     s.set_defaults(func=cmd_pad_chart)
 
@@ -773,7 +966,7 @@ def build_parser():
     s.add_argument("--date")
     s.set_defaults(func=cmd_g_report)
     s = gg.add_parser("chart")
-    s.add_argument("date")
+    s.add_argument("date", nargs="?", default="today")
     s.add_argument("--days", type=int, default=30, help="window ending on DATE (default 30)")
     s.set_defaults(func=cmd_g_chart)
 
@@ -815,6 +1008,30 @@ def build_parser():
 
     s = sub.add_parser("validate", help="check the data chain and notes; exit 1 on any failure")
     s.set_defaults(func=cmd_validate)
+
+    s = sub.add_parser("ai", help="connect an AI API: show it, `set` it up, `test` it, list `models`")
+    s.set_defaults(func=cmd_ai_status)
+    a = s.add_subparsers(dest="action", parser_class=_Parser)
+    x = a.add_parser("set", help="choose the service, key and model (asks you when run in a terminal)")
+    x.add_argument("service", nargs="?", choices=tuple(ai.PRESETS), help="openai, anthropic, deepseek, openrouter, ollama or custom")
+    x.add_argument("--model", help="model name (see `etrace ai models`)")
+    x.add_argument("--url", help="API address, for `custom` or a proxy")
+    x.add_argument("--provider", choices=config.AI_PROVIDERS, help="wire format for `custom`")
+    x.add_argument("--key-env", help="NAME of the environment variable that holds the key")
+    x.add_argument("--key-file", help="where to store the key (default ~/.config/etrace/ai.toml)")
+    x.add_argument("--key-stdin", action="store_true", help="read the key from standard input")
+    x.add_argument("--no-test", action="store_true", help="save without calling the API")
+    x.set_defaults(func=cmd_ai_set)
+    x = a.add_parser("test", help="call the API once; also checks that the model supports tools")
+    x.set_defaults(func=cmd_ai_test)
+    x = a.add_parser("models", help="list the models the service offers")
+    x.set_defaults(func=cmd_ai_models)
+
+    s = sub.add_parser("run", help="let the AI do a task with the API from `etrace ai set`")
+    s.add_argument("task", choices=prompts.TASKS, help="daily, g, feedback, calibrate or audit")
+    s.add_argument("--language", choices=config.LANGUAGES, help="language of the prompt (default: trace.toml)")
+    s.add_argument("--max-steps", type=int, default=agent.DEFAULT_STEPS, help="stop after this many AI turns")
+    s.set_defaults(func=cmd_run)
     _describe(p)
     return p
 
@@ -903,6 +1120,7 @@ def main(argv=None):
 
     key = " ".join(x for x in (args.command, getattr(args, "action", None)) if x)
     pretty = fmt == "pretty" or (fmt is None and _is_tty(out))
+    args.progress = (lambda step: err.write(render.progress_line(err_style, step) + "\n")) if pretty else None
     is_validate = args.func is cmd_validate
     try:
         if getattr(args, "needs_ctx", True):
@@ -922,7 +1140,7 @@ def main(argv=None):
         for line in _errors(exc):
             say("error", line)
         return 1 if is_validate else 2
-    except (StoreError, checkpoint.CheckpointError, OSError) as exc:
+    except (StoreError, checkpoint.CheckpointError, ai.AIError, OSError) as exc:
         say("failed", exc)
         return 1
     _emit(result, out, key, pretty, out_style)

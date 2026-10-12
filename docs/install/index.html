@@ -93,8 +93,12 @@ etrace validate</pre>
 <p>Show the files and let the user wire them in. Do not load a LaunchAgent or edit crontab yourself.</p>
 
 <h3>7. Optional: run the first daily task</h3>
-<p>If the user wants to try it now, read the task prompt and follow it with the engine commands it lists:</p>
+<p>If the user wants to try it now, there are two ways. Either read the task prompt and follow it with the engine commands it lists:</p>
 <pre>etrace prompt daily --raw</pre>
+<p>Or let the user connect an AI API (OpenAI, Anthropic, DeepSeek, OpenRouter, Ollama or any compatible address) and let <code>etrace</code> drive it. <code>etrace ai set</code> asks for the key itself with hidden input; never ask the user to paste a key into the chat, never put it on a command line, and never write it into <code>trace.toml</code>:</p>
+<pre>etrace ai set deepseek
+etrace ai test
+etrace run daily</pre>
 
 <h3>8. Rules you must keep</h3>
 <ul>

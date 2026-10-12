@@ -24,6 +24,23 @@ RESULTS = {
         {"id": "r2", "scope": "pad", "text": "把 PAD 里的词当作提示，不当作最终的词。"}]},
     "audit weekly": {"week": "2026-W41", "passed": True, "broken": [], "report": "/data/audits/2026-W41.md"},
     "checkpoint": {"committed": True, "commit": "abcdef1234567890", "initialized": False, "pushed": False},
+    "note": {"date": "2026-10-12", "created": True, "note": "/data/trace/journal/2026-10-12.md"},
+    "ai": {"provider": "openai", "service": "DeepSeek", "base_url": "https://api.deepseek.com/v1",
+           "model": "deepseek-chat",
+           "key": {"needed": True, "found": True, "masked": "…0123", "source": "ETRACE_AI_KEY",
+                   "problem": None, "exposed": False}},
+    "ai set": {"provider": "anthropic", "service": "Anthropic", "base_url": "https://api.anthropic.com",
+               "model": "m-1",
+               "key": {"needed": True, "found": True, "masked": "…9999", "source": "~/.config/etrace/ai.toml",
+                       "problem": None, "exposed": False},
+               "test": {"ok": True, "ms": 120, "reply": "pong", "tools": True},
+               "next": "etrace run daily"},
+    "ai test": {"ok": True, "ms": 80, "reply": "pong", "tools": False, "provider": "openai", "model": "m-2"},
+    "ai models": {"count": 3, "models": ["a", "b", "c"], "current": "b"},
+    "run": {"task": "daily", "provider": "openai", "model": "m-2", "finished": True,
+            "steps": [{"call": "etrace note today", "exit_code": 0}, {"call": "etrace validate", "exit_code": 2},
+                      {"call": "read journal/x.md"}, {"call": "etrace bad", "error": "blocked"}],
+            "usage": {"input": 1234, "output": 56}, "final": "All done.\n\nSecond paragraph."},
 }
 
 
@@ -115,7 +132,37 @@ class RenderTest(unittest.TestCase):
         self.assertIn(ui.TAGLINE, text)
         self.assertIn("Your data folder is ready", text)
         self.assertIn("export ETRACE_CONFIG=/data/trace/trace.toml", text)
-        self.assertIn("etrace validate", text)
+        for step in ("etrace ai set", "etrace note", "etrace run daily"):
+            self.assertIn(step, text)
+
+    def test_ai_views(self):
+        self.assertIn("etrace ai set openai", plain(PLAIN, "ai", {"provider": None}))
+        shown = plain(PLAIN, "ai")
+        self.assertIn("…0123", shown)
+        self.assertIn("deepseek-chat", shown)
+        lost = dict(RESULTS["ai"], key={"needed": True, "found": False, "masked": None, "source": None,
+                                        "problem": "no key", "exposed": True})
+        self.assertIn("no key", plain(PLAIN, "ai", lost))
+        self.assertIn("chmod 600", plain(PLAIN, "ai", lost))
+        local = dict(RESULTS["ai"], model=None, key={"needed": False, "found": False, "problem": None})
+        self.assertIn("none needed", plain(PLAIN, "ai", local))
+        self.assertIn("Tool calling works", plain(PLAIN, "ai set"))
+        self.assertIn("needs tool calling", plain(PLAIN, "ai test"))
+        failed = plain(PLAIN, "ai test", {"ok": False, "error": "HTTP 401"})
+        self.assertIn("HTTP 401", failed)
+        self.assertIn("more", plain(PLAIN, "ai models", {"count": 45, "models": [f"m{i}" for i in range(45)]}))
+
+    def test_run_view_and_progress(self):
+        text = plain(PLAIN, "run")
+        self.assertIn("The AI finished", text)
+        self.assertIn("4 step(s), 2 failed", text)
+        self.assertIn("Second paragraph.", text)
+        self.assertIn("1,234 in", text)
+        self.assertIn("did not finish", plain(PLAIN, "run", dict(RESULTS["run"], finished=False, final="")))
+        many = dict(RESULTS["run"], steps=[{"call": f"etrace x{i}", "exit_code": 0} for i in range(20)])
+        self.assertIn("8 earlier step(s)", plain(PLAIN, "run", many))
+        for step in RESULTS["run"]["steps"]:
+            self.assertTrue(ui.strip_ansi(render.progress_line(PLAIN, step)).strip())
 
     def test_generic_view_handles_any_shape(self):
         result = {"note": "/x/y.md", "ok": True, "n": 3, "ratio": 0.5, "nothing": None,

@@ -45,3 +45,13 @@ audit = "Sun 22:15"
 #   Optional Notion mirror (`python3 -m etrace notion push`). The notion file is TOML
 #   with: token, parent_page_id (optional: api_version = "2022-06-28", api_url).
 #   Local Markdown stays the source of truth; Notion is never read back into notes.
+
+[ai]
+# The AI API behind `etrace run` (the built-in agent). Set it up with `etrace ai set`,
+# which writes this table for you. The API key is never stored here: only where to find it.
+# All keys are unset by default.
+# provider = "openai"       # "openai" (any OpenAI-compatible service) or "anthropic"
+# model = "pick one with `etrace ai models`"
+# base_url = "https://api.openai.com/v1"   # default: the provider's own address
+# key_env = "OPENAI_API_KEY"               # name of an environment variable holding the key
+# key_file = "~/.config/etrace/ai.toml"    # or a file outside the data folder: key = "..."

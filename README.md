@@ -43,13 +43,58 @@ curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
 Add `--dry-run` to see what it would do first. Then:
 
 ```sh
-etrace init --preset default --language en --dir ~/existence-trace-data
-export ETRACE_CONFIG=~/existence-trace-data/trace.toml
-etrace validate            # All clear  (add --json for machine-readable output)
-etrace prompt daily --raw  # the prompt an agent runs for the daily report
+etrace init --language en  # creates ~/existence-trace-data, nothing else to configure
+etrace ai set              # connect an AI (asks you, see below)
+etrace note                # today's journal: write in the marked zones
+etrace run daily           # the AI reads it and writes the report
 ```
 
 <p align="center"><img src="docs/img/cli.png" alt="The etrace command in a terminal: gradient banner, G report with bars, trend sparklines and a help page (synthetic demo data)" width="720"></p>
+
+## Connect an AI
+
+`etrace run` uses any AI API you give it. Pick a service and answer two questions (key, model):
+
+```sh
+etrace ai set deepseek     # or: openai  anthropic  openrouter  ollama
+etrace ai set custom --url https://my-proxy.example/v1    # any OpenAI-compatible address
+etrace ai                  # show what is connected
+etrace ai test             # one real call: reachable? does the model support tool calls?
+etrace ai models           # the models your service offers
+```
+
+Run `etrace ai set` with no arguments for a menu. Anthropic uses its own format; every other
+service speaks the OpenAI format. Pass `--model NAME` to skip the model question.
+
+**Your key never touches your data folder.** It is looked up in this order: `$ETRACE_AI_KEY`,
+then the file named by `[ai].key_file` (default `~/.config/etrace/ai.toml`, mode 600, which
+`etrace ai set` writes for you), then the variable named by `[ai].key_env`. It is never accepted
+as a command-line argument (shell history), never printed (only `…0123`), and never written
+to `trace.toml`, which lives in a git repository. For a script: `echo $KEY | etrace ai set openai --key-stdin`.
+
+`etrace run daily|g|feedback|calibrate|audit` hands the task to the model with two tools only:
+run one `etrace` command, and read files in your data folder. There is no shell and no network
+tool, and `init`, `schedule`, `ai` and `run` are blocked for the AI. It stops after 40 steps
+(`--max-steps`). Prefer your own agent (Claude Code, Codex)? Skip this section:
+`etrace prompt daily --raw` prints the same prompt.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `etrace init` | create your data folder |
+| `etrace ai [set\|test\|models]` | connect and check an AI API |
+| `etrace run TASK` | let the AI do `daily`, `g`, `feedback`, `calibrate` or `audit` |
+| `etrace note [-e]` | create today's note and show where it is; `-e` opens it |
+| `etrace validate` | check the data chain and notes; exit 1 on any failure |
+| `etrace pad` / `g` / `xp` | the three lenses: points, charts (`pad chart`, `g chart`), scores |
+| `etrace question` / `feedback` / `decide` / `usage` / `outreach` | the preference loop |
+| `etrace rules` / `audit` | read the rules; weekly audit |
+| `etrace prompt TASK` | the prompt for your own agent |
+| `etrace schedule` / `checkpoint` / `notion` | scheduler files, git commit, optional Notion mirror |
+
+`etrace COMMAND --help` explains one command. Piped output is JSON; in a terminal you get the
+pretty view (`--json` and `--pretty` switch it, `--no-color` or `NO_COLOR` turn colour off).
 
 **Other ways:** `pip install` the wheel from the [latest release](https://github.com/MaxonT/existence-trace/releases/latest),
 or run the container from GitHub Packages: `docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`.
