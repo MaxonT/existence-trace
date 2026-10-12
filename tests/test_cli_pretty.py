@@ -363,7 +363,7 @@ class PrettyCliTest(unittest.TestCase):
             code, out, err = self.run_cli(tty=False, config=False)
         self.assertEqual((code, err), (0, ""))
         self.assertIn("No data folder found yet", out)
-        self.assertIn("etrace init --preset default", out)
+        self.assertIn("etrace ai set", out)
 
     def test_bare_command_notes_a_missing_note(self):
         os.remove(os.path.join(self.root, "journal", f"{self.today.isoformat()}.md"))

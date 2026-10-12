@@ -217,7 +217,8 @@ class RenderTest(unittest.TestCase):
     def test_home_screen(self):
         none = ui.strip_ansi(render.home_screen(PLAIN, None))
         self.assertIn("No data folder found yet", none)
-        self.assertIn("etrace init --preset default", none)
+        self.assertIn("etrace ai set", none)
+        self.assertIn("etrace import ~/path/to/diary --run", none)
         status = {"root": "/d", "preset": "default", "language": "en", "timezone": "America/Chicago",
                   "note": "/d/journal/x.md", "note_exists": True}
         text = ui.strip_ansi(render.home_screen(PLAIN, status))
@@ -228,7 +229,7 @@ class RenderTest(unittest.TestCase):
 
     def test_home_screen_never_cuts_a_command_on_a_narrow_terminal(self):
         text = ui.strip_ansi(render.home_screen(ui.Style(width=40), None))
-        self.assertIn("etrace init --preset default --dir ~/existence-trace-data", text)
+        self.assertIn("etrace import ~/path/to/diary --run", text)
         self.assertNotIn("…", text)
 
 

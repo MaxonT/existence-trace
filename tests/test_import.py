@@ -243,11 +243,15 @@ class ImportCommandTest(AICliTest):
         with open(os.path.join(self.tmp, "existence-trace-data", "trace.toml"), encoding="utf-8") as fh:
             self.assertIn('language = "en"', fh.read())
 
-    def test_dry_run_without_a_data_folder_creates_nothing(self):
-        code, _, err = self.js("import", self.diary, "--dry-run", config=False)
-        self.assertEqual(code, 2)
+    def test_dry_run_without_a_data_folder_previews_and_creates_nothing(self):
+        code, out, err = self.js("import", self.diary, "--dry-run", config=False)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(out["dry_run"] and out["no_folder_yet"])
+        self.assertEqual((out["entries"], out["days"]), (4, 4))
         self.assertFalse(os.path.exists(os.path.join(self.tmp, "existence-trace-data")))
-        self.assertIn("etrace init", err)
+        code, text, _ = self.cli("--pretty", "--no-color", "import", self.diary, "--dry-run", config=False)
+        self.assertIn("Would import 4 entries", text)
+        self.assertIn("No data folder yet", text)
 
     def test_ai_set_on_a_fresh_machine_makes_the_data_folder_first(self):
         env = {"LANG": "zh_CN.UTF-8", "LC_ALL": "", "LC_MESSAGES": ""}
