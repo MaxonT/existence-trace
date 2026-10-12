@@ -43,9 +43,11 @@ curl -fsSL https://maxont.github.io/existence-trace/install.sh | bash
 ```sh
 etrace init --preset default --language zh --dir ~/existence-trace-data
 export ETRACE_CONFIG=~/existence-trace-data/trace.toml
-etrace validate            # {"ok": true, ...}
+etrace validate            # All clear（加 --json 得到机器可读的输出）
 etrace prompt daily --raw  # 代理跑日报时用的 prompt
 ```
+
+<p align="center"><img src="docs/img/cli.png" alt="终端里的 etrace 命令：渐变横幅、带进度条的 G 报告、趋势折线和帮助页（虚构演示数据）" width="720"></p>
 
 **其他方式：** 从[最新 Release](https://github.com/MaxonT/existence-trace/releases/latest) 下载 wheel 用 `pip install` 安装，
 或者用 GitHub Packages 上的容器：`docker run --rm -v ~/existence-trace-data:/data ghcr.io/maxont/existence-trace --help`。

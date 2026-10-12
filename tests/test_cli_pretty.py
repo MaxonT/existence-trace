@@ -257,12 +257,86 @@ class PrettyCliTest(unittest.TestCase):
             self.assertIn(name, out.getvalue())
             self.assertIn(helped, out.getvalue())
 
-    def test_subcommand_help_is_still_argparse(self):
-        out = Stream()
-        with mock.patch.dict(os.environ, CLEAN_ENV), mock.patch("sys.stdout", out):
-            code = cli.main(["g", "--help"])
-        self.assertEqual(code, 0)
-        self.assertIn("usage: etrace g", out.getvalue())
+    # --- every help page -------------------------------------------------------------------
+
+    def all_parsers(self):
+        return list(cli._walk(cli.build_parser()))
+
+    def help_of(self, parser, tty=False, encoding="utf-8", env=None):
+        out = Stream(tty=tty, encoding=encoding)
+        with mock.patch.dict(os.environ, dict(CLEAN_ENV, **(env or {}))), mock.patch("sys.stdout", out):
+            text = parser.format_help()
+        return text
+
+    def test_there_are_34_help_pages_and_each_one_renders(self):
+        parsers = self.all_parsers()
+        self.assertEqual(len(parsers), 34)
+        for parser in parsers:
+            for tty, enc in ((False, "utf-8"), (True, "utf-8"), (False, "ascii")):
+                text = self.help_of(parser, tty, enc)
+                self.assertTrue(text.strip(), parser.prog)
+                self.assertEqual("\x1b[" in text, tty, parser.prog)
+                self.assertTrue(text.strip().split("\n")[0].count("etrace") >= 1 or parser.prog == "etrace", parser.prog)
+                if enc == "ascii":
+                    self.assertTrue(text.isascii(), parser.prog)
+                self.assertFalse(any(c in text for c in "●○◯•"), parser.prog)
+
+    def test_every_help_page_is_reachable_with_help_and_exits_0(self):
+        for parser in self.all_parsers():
+            argv = parser.prog.split()[1:] + ["--help"]
+            code, out, err = self.run_cli(*argv, config=False)
+            self.assertEqual((code, err), (0, ""), argv)
+            self.assertTrue(out.strip(), argv)
+
+    def test_every_help_line_fits_the_terminal(self):
+        for parser in self.all_parsers():
+            with mock.patch.object(ui.shutil, "get_terminal_size", return_value=os.terminal_size((72, 24))):
+                text = self.help_of(parser, tty=True)
+            for line in ui.strip_ansi(text).split("\n"):
+                self.assertLessEqual(ui.visible_len(line), 72, (parser.prog, line))
+
+    def test_every_subcommand_has_a_summary_and_every_argument_some_help(self):
+        for parser in self.all_parsers():
+            if parser.prog != "etrace":
+                self.assertTrue(parser.description, parser.prog)
+            for action in parser._actions:
+                if isinstance(action, (argparse._HelpAction, argparse._SubParsersAction)):
+                    continue
+                if action.dest in ("json", "pretty", "no_color"):
+                    continue
+                self.assertTrue(action.help, (parser.prog, action.dest))
+
+    def test_group_page_lists_its_commands(self):
+        text = self.help_of(self.parser_for("g"))
+        for name in ("predict", "feedback", "report", "chart"):
+            self.assertIn(name, text)
+        self.assertIn("G estimates", text)
+        self.assertNotIn("usage: etrace", text)  # not argparse's own layout
+
+    def test_leaf_page_shows_arguments_options_defaults_and_choices(self):
+        text = self.help_of(self.parser_for("init"))
+        for needle in ("--preset {default,tiger-method}", "--dir DIR", "America/Chicago",
+                       "--language {zh,en}", "create a fresh data dir from a preset", "-h, --help", "--no-color"):
+            self.assertIn(needle, text)
+        chart = self.help_of(self.parser_for("g chart"))
+        self.assertIn("--days DAYS", chart)
+        self.assertIn("window ending on DATE (default 30)", chart)
+        self.assertEqual(chart.count("(default"), 1)  # a default already in the help text is not repeated
+        write = self.help_of(self.parser_for("note write"))
+        self.assertIn("{headline,xp,narrative}", write)
+        self.assertIn("agent JSON", self.help_of(self.parser_for("usage add")))
+
+    def test_help_page_in_colour_keeps_its_text(self):
+        plain = ui.strip_ansi(self.help_of(self.parser_for("g report"), tty=True))
+        self.assertEqual(plain, self.help_of(self.parser_for("g report")))
+
+    def parser_for(self, path):
+        return next(p for p in self.all_parsers() if p.prog == "etrace " + path)
+
+    def test_a_bad_option_is_still_an_error_not_a_help_page(self):
+        code, _, err = self.run_cli("g", "report", "--bogus")
+        self.assertEqual(code, 2)
+        self.assertTrue(err.startswith("error: usage"), err)
 
     def test_version_is_unchanged(self):
         code, out, _ = self.run_cli("--version", tty=True)
