@@ -21,6 +21,8 @@ into a rule, and proves every week that it actually used it. Python 3 standard l
 > whether you said it or the AI inferred it. Your data lives in your own folder, not in this
 > repository. PAD, G and XP are reflection aids, **not clinical scales**.
 
+<p align="center"><a href="docs/assets/demo/demo.en.mp4"><img src="docs/assets/demo/demo-cover.en.png" alt="existence-trace demo video cover (synthetic demo data); click to play the 81-second demo" width="720"></a><br><a href="docs/assets/demo/demo.en.mp4">▶ Watch the 81-second demo</a></p>
+
 ⭐ If this is the kind of memory you want an AI to keep for you, a star helps others find it.
 
 ## Install
