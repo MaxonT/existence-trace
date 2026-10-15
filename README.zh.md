@@ -19,6 +19,8 @@
 > **说明。** 你的原话逐字保存，AI 只写自己的区块。每个数值都标明是你说的还是 AI 推断的。
 > 你的数据在你自己的文件夹里，不在本仓库。PAD、G、XP 是个人反思辅助，**不是临床量表**。
 
+<p align="center"><a href="docs/assets/demo/demo.zh.mp4"><img src="docs/assets/demo/demo-cover.zh.png" alt="existence-trace 演示视频封面（虚构演示数据），点击播放 81 秒演示" width="720"></a><br><a href="docs/assets/demo/demo.zh.mp4">▶ 观看 81 秒演示</a></p>
+
 ⭐ 如果你也想让 AI 替你好好记住这些，点个 star 能帮更多人找到它。
 
 ## 安装
