@@ -52,6 +52,8 @@ etrace import ~/Documents/diary --run    # 导入你的旧日记，并让 AI 去
 
 <p align="center"><img src="docs/img/cli.png" alt="终端里的 etrace 命令：渐变像素 logo、一条命令导入日记并列出每一天、AI 状态（虚构演示数据）" width="720"></p>
 
+第一次成功运行命令后，CLI 会问一次：`Star MaxonT/existence-trace on GitHub? [y/N]`。默认是不点，以后不会再问；在 CI、管道和脚本里不会出现。回答 y 会用你自己的 `gh` 登录点 star（没装 `gh` 就只打印链接）。设置 `NO_STAR_PROMPT=1` 可以跳过这个问题。
+
 ## 导入你的日记
 
 ```sh

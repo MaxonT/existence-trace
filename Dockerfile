@@ -7,5 +7,6 @@ COPY pyproject.toml README.md LICENSE ./
 COPY etrace ./etrace
 RUN pip install --no-cache-dir . && rm -rf /src
 WORKDIR /data
+ENV NO_STAR_PROMPT=1
 ENTRYPOINT ["etrace"]
 CMD ["--help"]
