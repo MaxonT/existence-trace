@@ -25,7 +25,7 @@ class StarPromptTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
 
-    def ask(self, answer="y\n", env=None, tty=True, run=None, gh="/usr/bin/gh", stdin=None):
+    def ask(self, answer="y\n", env=None, tty=True, run=None, gh="/usr/bin/gh", stdin=None, out_tty=True):
         self.calls = []
 
         def fake_run(cmd, **kw):
@@ -36,7 +36,8 @@ class StarPromptTest(unittest.TestCase):
         self.err = Tty() if tty else io.StringIO()
         e = {"XDG_CONFIG_HOME": self.tmp.name}
         e.update(env or {})
-        return star_prompt.maybe_ask("MaxonT/demo", "demo", stdin=stdin, stderr=self.err, env=e,
+        return star_prompt.maybe_ask("MaxonT/demo", "demo", stdin=stdin, stdout=Tty() if out_tty else io.StringIO(),
+                                     stderr=self.err, env=e,
                                      run=fake_run, which=lambda name: gh)
 
     def test_yes_stars_through_gh(self):
@@ -59,6 +60,11 @@ class StarPromptTest(unittest.TestCase):
         self.assertEqual(self.ask(tty=False), "skipped: not a terminal")
         self.assertEqual(self.err.getvalue(), "")
         self.assertFalse(star_prompt.marker_path("demo", {"XDG_CONFIG_HOME": self.tmp.name}).exists())
+
+    def test_never_asks_when_stdout_is_captured(self):
+        # path=$(tool new ...): stdin and stderr are the terminal, stdout is not
+        self.assertEqual(self.ask(out_tty=False), "skipped: not a terminal")
+        self.assertEqual(self.err.getvalue(), "")
 
     def test_off_switch_and_ci(self):
         self.assertEqual(self.ask(env={"NO_STAR_PROMPT": "1"}), "skipped: disabled")
