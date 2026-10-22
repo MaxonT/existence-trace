@@ -55,6 +55,8 @@ creates your data folder if it is not there yet. No old diary? `etrace init`, th
 
 <p align="center"><img src="docs/img/cli.png" alt="The etrace command in a terminal: a gradient pixel logo, the one-command diary import with its day list, and the AI status (synthetic demo data)" width="720"></p>
 
+After your first successful command, the CLI asks once: `Star MaxonT/existence-trace on GitHub? [y/N]`. The default is no, it never asks again, and it stays silent in CI, pipes and scripts. A yes stars the repo through your own `gh` login (or prints the link if `gh` is missing). Set `NO_STAR_PROMPT=1` to skip the question.
+
 ## Bring in your diary
 
 ```sh

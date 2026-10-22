@@ -31,7 +31,7 @@ import sys
 import tempfile
 from zoneinfo import ZoneInfo
 
-from etrace import __version__, agent, ai, chart, checkpoint, config, importer, journal, presets, prompts, render, ui
+from etrace import __version__, agent, ai, chart, checkpoint, config, importer, journal, presets, prompts, render, star_prompt, ui
 from etrace.adapters import notion, scheduler
 from etrace.container import audit, decisions, feedback, questions, rules, usage, validate
 from etrace.models import g, pad, xp
@@ -1299,4 +1299,5 @@ def main(argv=None):
         say("failed", exc)
         return 1
     _emit(result, out, key, pretty, out_style, streamed=args.progress is not None)
+    star_prompt.maybe_ask("MaxonT/existence-trace", "etrace")
     return 0
