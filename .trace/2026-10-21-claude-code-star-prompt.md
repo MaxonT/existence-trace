@@ -16,3 +16,5 @@ base_sha: 44a585c
 2026-10-21T22:16:09-05:00 | shell: python3 -m unittest discover -s tests | full suite | fail: test_non_utf8_terminal_gets_an_ascii_look; the pty check ran etrace init, which created ~/existence-trace-data and the home screen read it
 2026-10-21T22:16:09-05:00 | mv ~/existence-trace-data ~/.Trash/ | removed the folder the pty check created (init skeleton only) | ok
 2026-10-21T22:16:09-05:00 | shell: python3 -W error::ResourceWarning -m unittest discover -s tests | full suite | ok
+2026-10-21T22:19:45-05:00 | gh pr view 18 (TRACES.md) | Codex review P2: prompt could block when stdout is piped or captured, e.g. path=$(traces new ...) | fail: real bug
+2026-10-21T22:19:45-05:00 | edit: etrace/star_prompt.py, tests/test_star_prompt.py | also require stdout to be a terminal; test for captured stdout; pty check with | cat did not ask | ok
