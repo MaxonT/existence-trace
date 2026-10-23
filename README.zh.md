@@ -175,6 +175,26 @@ etrace ai models           # 这个服务提供哪些模型
 PAD、G、XP 是个人反思辅助，**不是临床量表**，不做任何医学或心理学判断，也不能替代专业帮助。
 如果你正在经历困难，请联系合格的专业人士或当地危机热线。
 
+## 付费入口（预览）
+
+本地跑的定价页：一个免费层、一个付费层，「Subscribe」按钮打开 Stripe Checkout。现在还没部署到任何地方，只在你自己的电脑上跑。
+
+```bash
+cp .env.example .env        # 然后填下面三个 key
+set -a; . ./.env; set +a
+python3 pay/server.py       # 打开 http://127.0.0.1:8787
+```
+
+| Key | 在哪拿 |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe 后台 → Developers → API keys（测试模式是 `sk_test_...`） |
+| `STRIPE_PRICE_ID` | 建一个产品和按月收费的价格，复制它的 `price_...` |
+| `STRIPE_WEBHOOK_SECRET` | `stripe listen --forward-to 127.0.0.1:8787/webhook` 会打印 `whsec_...` |
+
+- 页面上的价格是占位值：改 `PAY_PRICE_LABEL`（例如 `$9 / month`）；真正扣的钱以 `STRIPE_PRICE_ID` 对应的 Stripe 价格为准。
+- 没填 key 时页面照常显示，点 Subscribe 返回 503，不会误扣钱。
+- 切到真实模式：后台切 live，建 live 价格，把三个值换成 `sk_live_...`、live 的 `price_...` 和 live 的 webhook secret。key 只从环境变量读，`.env` 已被 git 忽略。
+
 ## 隐私
 
 你的数据只在你自己的数据目录里，不在本仓库。邮件只带回答问题所需的最少上下文，不复制日记全文。
