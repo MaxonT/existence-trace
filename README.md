@@ -183,6 +183,27 @@ PAD, G and XP are personal reflection aids. They are **not clinical scales**, ma
 psychological judgement, and are no substitute for professional care. If you are struggling,
 please reach out to a qualified professional or a local crisis line.
 
+## Paid tier (preview)
+
+A local pricing page with a Free plan and one paid plan, whose Subscribe button
+opens Stripe Checkout. It is not deployed anywhere yet; it runs on your machine.
+
+```bash
+cp .env.example .env        # then fill in the three keys below
+set -a; . ./.env; set +a
+python3 pay/server.py       # open http://127.0.0.1:8787
+```
+
+| Key | Where to get it |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys (`sk_test_...` in test mode) |
+| `STRIPE_PRICE_ID` | Create a product with a recurring price, copy its `price_...` id |
+| `STRIPE_WEBHOOK_SECRET` | `stripe listen --forward-to 127.0.0.1:8787/webhook` prints a `whsec_...` |
+
+- The price on the page is a placeholder: set `PAY_PRICE_LABEL` (for example `$9 / month`); the amount actually charged is the Stripe price behind `STRIPE_PRICE_ID`.
+- Without keys the page still renders and Subscribe answers 503, so nothing is charged by accident.
+- Real mode: switch the Dashboard to live, create the live price, and replace the three values with `sk_live_...`, the live `price_...` and the live webhook secret. Keys are read from the environment only; `.env` is git-ignored.
+
 ## Privacy
 
 Your data lives only in your data directory, outside this repository. Email carries only the
