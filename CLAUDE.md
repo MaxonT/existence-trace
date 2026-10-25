@@ -18,6 +18,7 @@
 - Example images use synthetic persona data (Juniper), never the owner's real records, even if the owner sends a real chart as the model. Keep the layout and say the data is synthetic. It must look real: smooth, rounded curves with realistic complexity (several overlapping rhythms, noise, spikes, dips, gaps), never flat or toy-like lines.
 - The repo sidebar must not be empty: every release has a GitHub Release (wheel + sdist attached) and a package on GitHub Packages (`ghcr.io/maxont/existence-trace`). To release: bump `version` in `pyproject.toml` and `etrace/__init__.py`, run the full tests, commit, push, then push tag `vX.Y.Z`; `.github/workflows/release.yml` publishes both. Check that the release and the package exist afterwards.
 - A CLI is mandatory (`etrace`, a console script) and it must be well tested: unit tests for every command plus an install-and-run check from the built wheel (the release workflow does the latter).
+- Change sync (改动牵连同步, 2026-10-24): before a rule or format change counts as done, find every place that executes it (scheduled-task prompts, skills, rule files, generator scripts, checkers), change them all in the same round and read them back; name who fixes anything you could not change. Changing only memory or the current output does not count.
 
 ### Working style & judgment (cross-project)
 - Reply in Chinese (中文) by default; code, identifiers, commit messages, and public English docs stay in English.
