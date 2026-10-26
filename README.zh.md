@@ -1,27 +1,63 @@
 <p align="center"><img src="docs/banner.svg" alt="existence-trace banner" width="100%"></p>
 
-# existence-trace（存在痕迹）：会读懂你日记的 AI 代理
+<h1 align="center">existence-trace（存在痕迹）</h1>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python 3](https://img.shields.io/badge/python-3-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Dependencies: stdlib only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg)](#)
-[![Last commit](https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg)](https://github.com/MaxonT/existence-trace/commits)
-[![GitHub stars](https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social)](https://github.com/MaxonT/existence-trace/stargazers)
+<p align="center"><b>你的 AI 读过你的每一行代码。<br>却从没读过你生活里的任何一天。</b></p>
 
-[English](README.md) · [网站](https://maxont.github.io/existence-trace/) · [开发者版](https://maxont.github.io/existence-trace/developers.html) · [安装页](https://maxont.github.io/existence-trace/install/) · [方法论](https://maxont.github.io/existence-trace/methodology.html)
+<p align="center">一个每天读你日记的 AI：没把握的地方来问你，把你的回答变成规则，<br>而且必须<b>证明</b>它真的用上了。文件归你，模型随你选，MIT 协议。</p>
 
-**记录你的存在痕迹。**
+<p align="center">
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+<a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3-3776AB.svg?logo=python&logoColor=white" alt="Python 3"></a>
+<img src="https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg" alt="Dependencies: stdlib only">
+<a href="https://github.com/MaxonT/existence-trace/commits"><img src="https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg" alt="Last commit"></a>
+<a href="https://github.com/MaxonT/existence-trace/stargazers"><img src="https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social" alt="GitHub stars"></a>
+</p>
 
-你每天写日记。AI 代理用三个视角去理解你的一天：PAD（情绪）、G（稳定与探索）、XP（成长），
-写成日报。但最重要的是接下来发生的事：一套**会自我迭代的偏好系统**。它在没把握的地方来问你，
-把你的回答变成规则，并且每周证明自己真的用上了。只用 Python 3 标准库，MIT 协议。
+<p align="center"><a href="README.md">English</a> · <a href="https://maxont.github.io/existence-trace/">网站</a> · <a href="https://maxont.github.io/existence-trace/developers.html">开发者版</a> · <a href="https://maxont.github.io/existence-trace/install/">安装页</a> · <a href="https://maxont.github.io/existence-trace/methodology.html">方法论</a></p>
+
+<p align="center"><a href="docs/assets/demo/demo.zh.mp4"><img src="docs/assets/demo/demo-cover.zh.png" alt="existence-trace 演示视频封面（虚构演示数据），点击播放 81 秒演示" width="720"></a><br><a href="docs/assets/demo/demo.zh.mp4">▶ 观看 81 秒演示</a></p>
+
+## 半年以后，你还记得今天是什么感觉吗？
+
+大概记不太清了。你的 AI 记得的只会更少。
+
+你每周花好几个小时和 Claude、ChatGPT、Codex 打交道。它们记住了你的技术栈、你的仓库、你的命名习惯。
+可它们对**你这个人**的了解（什么让你累、什么让你骄傲、你做了什么决定、为什么）要么存在厂商那份你没法逐条核对的记忆里，要么根本没存下来。
+
+existence-trace 补上缺的那一半：一本你的 AI 真的会读的日记，文件在你自己手里。
+
+- **你写。** 每天几行就够。也可以一条命令导入好几年的旧日记（`.md`、`.txt`、Day One）。
+- **它读。** 每天用三个视角写一份日报：情绪（PAD）、稳定与探索（G）、成长（XP）。
+- **它问。** 对你没把握的地方，它带着证据来问你一个真问题，而不是瞎猜。
+- **它证明。** 你的回答变成规则。规则一旦改动了日报，它就记一张回执，写清改之前和改之后。每周审计，哪条规则从没被用上就判失败。
+
+> 把你的偏好写进提示词，什么也证明不了。**读到不等于用上。**
+> 在这里，每一句"我用了你的偏好"都附一张你能打开查看的回执。
+
+它不取代 Claude 或 ChatGPT，而是给它们一些真正值得记住的东西。
+
+## 聊天自带的记忆 vs. existence-trace
+
+| | 聊天自带的记忆 | existence-trace |
+|---|---|---|
+| 存在哪里 | 厂商的账号里 | 你自己文件夹里的纯文本文件，用 git 管版本 |
+| 谁决定记什么 | 主要是模型 | 你：它来问，你回答，回答变成带版本号的规则 |
+| 你的原话 | 被概括 | 逐字保存在任何东西都改不了的区块里 |
+| 用上了的证据 | 没有 | 一张写着改前改后的回执，外加会判失败的每周审计 |
+| 用哪个 AI | 一家厂商 | 随你：Anthropic、OpenAI、DeepSeek、OpenRouter、Ollama，或你自己的代理 |
+| 想离开 | 如果提供的话可以导出 | 不用导出，本来就是你的文件 |
+
+## 适合谁
+
+- 你天天泡在 Claude Code、Codex 或 ChatGPT 里，想要一个懂你这个人、而不只是懂你仓库的 AI。
+- 你在写日记，或者一直想开始写。
+- 你希望这份记忆归你自己：能读、能 grep、能备份、能删除的文件。
 
 > **说明。** 你的原话逐字保存，AI 只写自己的区块。每个数值都标明是你说的还是 AI 推断的。
 > 你的数据在你自己的文件夹里，不在本仓库。PAD、G、XP 是个人反思辅助，**不是临床量表**。
 
-<p align="center"><a href="docs/assets/demo/demo.zh.mp4"><img src="docs/assets/demo/demo-cover.zh.png" alt="existence-trace 演示视频封面（虚构演示数据），点击播放 81 秒演示" width="720"></a><br><a href="docs/assets/demo/demo.zh.mp4">▶ 观看 81 秒演示</a></p>
-
-⭐ 如果你也想让 AI 替你好好记住这些，点个 star 能帮更多人找到它。
+⭐ 如果你也想要一个必须证明自己懂你的 AI，点个 star 能帮更多人找到它。
 
 ## 安装
 
