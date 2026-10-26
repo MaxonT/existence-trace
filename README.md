@@ -1,29 +1,66 @@
 <p align="center"><img src="docs/banner.svg" alt="existence-trace banner" width="100%"></p>
 
-# existence-trace: AI agents that learn to read your journal
+<h1 align="center">existence-trace</h1>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python 3](https://img.shields.io/badge/python-3-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Dependencies: stdlib only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg)](#)
-[![Last commit](https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg)](https://github.com/MaxonT/existence-trace/commits)
-[![GitHub stars](https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social)](https://github.com/MaxonT/existence-trace/stargazers)
+<p align="center"><b>Your AI has read every line of your code.<br>It has never read a single day of your life.</b></p>
 
-[中文](README.zh.md) · [Website](https://maxont.github.io/existence-trace/) · [For developers](https://maxont.github.io/existence-trace/developers.html) · [Install page](https://maxont.github.io/existence-trace/install/) · [Methodology](https://maxont.github.io/existence-trace/methodology.html)
+<p align="center">An AI that reads your journal every day, asks you where it is unsure, turns your answers into rules,<br>and has to <b>prove</b> it used them. Your files, any model, MIT.</p>
 
-**Record your traces of existence.**
+<p align="center">
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+<a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3-3776AB.svg?logo=python&logoColor=white" alt="Python 3"></a>
+<img src="https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg" alt="Dependencies: stdlib only">
+<a href="https://github.com/MaxonT/existence-trace/commits"><img src="https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg" alt="Last commit"></a>
+<a href="https://github.com/MaxonT/existence-trace/stargazers"><img src="https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social" alt="GitHub stars"></a>
+</p>
 
-You write a journal. An AI agent reads it through three lenses (PAD for emotion, G for stability
-and exploration, XP for growth) and writes a daily report. The part that matters most is what happens
-next: a **self-improving preference system** that asks you where it is unsure, turns your answer
-into a rule, and proves every week that it actually used it. Python 3 standard library only, MIT.
+<p align="center"><a href="README.zh.md">中文</a> · <a href="https://maxont.github.io/existence-trace/">Website</a> · <a href="https://maxont.github.io/existence-trace/developers.html">For developers</a> · <a href="https://maxont.github.io/existence-trace/install/">Install page</a> · <a href="https://maxont.github.io/existence-trace/methodology.html">Methodology</a></p>
+
+<p align="center"><a href="docs/assets/demo/demo.en.mp4"><img src="docs/assets/demo/demo-cover.en.png" alt="existence-trace demo video cover (synthetic demo data); click to play the 81-second demo" width="720"></a><br><a href="docs/assets/demo/demo.en.mp4">▶ Watch the 81-second demo</a></p>
+
+## Six months from now, what will you remember about today?
+
+Probably very little. Your AI will remember even less.
+
+You spend hours a week with Claude, ChatGPT or Codex. They learn your stack, your repo, your naming
+style. What they pick up about *you* (what drained you, what you were proud of, what you decided and
+why) ends up in a vendor's memory you cannot fully check, or nowhere at all.
+
+existence-trace is the missing half: a journal your AI actually reads, in files you own.
+
+- **You write.** A few lines a day. Or bring in years of old diary (`.md`, `.txt`, Day One) with one command.
+- **It reads.** Each day it writes a report through three lenses: emotion (PAD), stability and exploration (G), growth (XP).
+- **It asks.** When it is unsure about you, it asks one real question with evidence instead of guessing.
+- **It proves.** Your answer becomes a rule. When a rule changes a report, it records a receipt with the
+  before and the after. A weekly audit fails if a rule was never applied.
+
+> An AI with your preferences in its prompt has proven nothing. **Reading is not using.**
+> Here, every "I used your preference" comes with a receipt you can open.
+
+It does not replace Claude or ChatGPT. It gives them something worth remembering.
+
+## Built-in chat memory vs. existence-trace
+
+| | Built-in chat memory | existence-trace |
+|---|---|---|
+| Where it lives | the vendor's account | plain text files in your own folder, versioned with git |
+| Who decides what is remembered | mostly the model | you: it asks, you answer, the answer becomes a versioned rule |
+| Your own words | summarized | kept word for word in a block nothing can rewrite |
+| Proof it used what it knows | none | a receipt with before and after, and a weekly audit that fails |
+| Which AI | one vendor | any: Anthropic, OpenAI, DeepSeek, OpenRouter, Ollama, or your own agent |
+| Leaving | export, if offered | nothing to export: it is already your files |
+
+## Who it is for
+
+- You already live in Claude Code, Codex or ChatGPT and want an AI that knows you, not only your repo.
+- You journal, or you keep meaning to start.
+- You want that memory to be yours: files you can read, grep, back up and delete.
 
 > **Note.** Your words stay word for word; the AI only writes its own blocks. Every number says
 > whether you said it or the AI inferred it. Your data lives in your own folder, not in this
 > repository. PAD, G and XP are reflection aids, **not clinical scales**.
 
-<p align="center"><a href="docs/assets/demo/demo.en.mp4"><img src="docs/assets/demo/demo-cover.en.png" alt="existence-trace demo video cover (synthetic demo data); click to play the 81-second demo" width="720"></a><br><a href="docs/assets/demo/demo.en.mp4">▶ Watch the 81-second demo</a></p>
-
-⭐ If this is the kind of memory you want an AI to keep for you, a star helps others find it.
+⭐ If you want an AI that has to prove it knows you, a star helps others find it.
 
 ## Install
 
