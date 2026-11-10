@@ -127,7 +127,7 @@ etrace ai models           # 这个服务提供哪些模型
 也不会写进 `trace.toml`（它在一个 git 仓库里）。写脚本时：`echo $KEY | etrace ai set openai --key-stdin`。
 
 `etrace run daily|g|feedback|calibrate|audit` 把任务交给模型，它只有两个工具：运行一条 `etrace`
-命令，以及读数据目录里的文件。没有 shell，也没有联网工具，`init`、`schedule`、`ai`、`run`
+命令，以及读数据目录里的文件。没有 shell，也没有联网工具，`init`、`schedule`、`ai`、`run`、`import`
 这几个命令对 AI 是屏蔽的。最多 40 步（`--max-steps`）。想用自己的代理（Claude Code、Codex）？
 跳过这一节：`etrace prompt daily --raw` 会打印同一份 prompt。
 
