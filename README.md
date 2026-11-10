@@ -134,7 +134,7 @@ to `trace.toml`, which lives in a git repository. For a script: `echo $KEY | etr
 
 `etrace run daily|g|feedback|calibrate|audit` hands the task to the model with two tools only:
 run one `etrace` command, and read files in your data folder. There is no shell and no network
-tool, and `init`, `schedule`, `ai` and `run` are blocked for the AI. It stops after 40 steps
+tool, and `init`, `schedule`, `ai`, `run` and `import` are blocked for the AI. It stops after 40 steps
 (`--max-steps`). Prefer your own agent (Claude Code, Codex)? Skip this section:
 `etrace prompt daily --raw` prints the same prompt.
 
