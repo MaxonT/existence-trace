@@ -224,6 +224,89 @@ class WeeklyTest(Base):
         self.assertTrue(validate.validate(self.data, now=NOW).ok)
         self.assertTrue(self.run_audit()["passed"])
 
+    def pair(self, same_decision=False, reason="low days only", prefix="narrative"):
+        """Two active rules in sibling scopes; returns their decision ids."""
+        ids = []
+        for day, text in ((5, "Keep it short."), (6, "On bad days I want more.")):
+            feedback.ingest_note(self.data, f"2026-10-{day:02d}", [text], now=at(day, 12))
+            ids.append([r for r in feedback.read_all(self.data) if r["text"] == text][0]["id"])
+        short = dict(rule_id="narrative-length", scope=f"{prefix}:length", text="Three or four sentences.",
+                     expressed_at=at(5, 12).isoformat())
+        more = dict(rule_id="bad-day-detail", scope=f"{prefix}:bad-days", text="Longer on low days.",
+                    expressed_at=at(6, 12).isoformat(), scope_reason=reason)
+        if same_decision:
+            d = decisions.decide(self.data, ids, "both", "user", now=at(6, 13),
+                                 rule_changes=[short, dict(more, source_feedback_id=ids[1])])
+            return d["id"], d["id"]
+        d1 = decisions.decide(self.data, [ids[0]], "short", "user", now=at(5, 13), rule_changes=[short])
+        d2 = decisions.decide(self.data, [ids[1]], "more", "agent_decision", now=at(6, 13), rule_changes=[more])
+        return d1["id"], d2["id"]
+
+    def receipt(self, did, day, status, target=None):
+        return usage.record(self.data, "daily", target or f"journal/2026-10-{day:02d}.md#ai:narrative",
+                            rules.version(self.data), [], [did], "four sentences",
+                            "nine sentences" if status == "changed" else "four sentences", status, True,
+                            now=at(day, 19))
+
+    def test_sibling_rules_cited_for_one_output_are_listed_not_broken(self):
+        short, more = self.pair()
+        self.receipt(short, 7, "confirmed")                 # a good day: only the short rule is cited
+        self.receipt(more, 8, "changed")                    # a bad day: the agent had to pick
+        self.receipt(short, 8, "not_applicable")
+        report = self.run_audit(language="en")
+        self.assertTrue(report["passed"], self.problems(report))
+        self.assertEqual(report["scope_overlaps"], [{
+            "rule_ids": ["bad-day-detail", "narrative-length"],
+            "scopes": ["narrative:bad-days", "narrative:length"],
+            "outputs": ["daily -> journal/2026-10-08.md#ai:narrative"],
+            "only_one_applied": 1, "scope_reason": "low days only"}])
+        with open(os.path.join(self.audits, "2026-W41.md"), encoding="utf-8") as fh:
+            md = fh.read()
+        self.assertIn("## Rules under one prefix cited for the same output", md)
+        self.assertIn("narrative:bad-days (bad-day-detail) and narrative:length (narrative-length): "
+                      "cited together for 1 output(s); on 1 only one of the two was applied.", md)
+        self.assertIn("reason given for the new scope: low days only", md)
+
+    def test_one_receipt_naming_both_decisions_is_an_overlap(self):
+        short, more = self.pair()
+        usage.record(self.data, "daily", "journal/2026-10-08.md#ai:narrative", rules.version(self.data),
+                     [], [short, more], "four sentences", "nine sentences", "changed", True, now=at(8, 19))
+        overlaps = self.run_audit()["scope_overlaps"]
+        self.assertEqual([(p["rule_ids"], p["only_one_applied"]) for p in overlaps],
+                         [(["bad-day-detail", "narrative-length"], 0)])
+
+    def test_no_overlap_without_a_shared_output(self):
+        short, more = self.pair()
+        self.receipt(short, 7, "confirmed")
+        self.receipt(more, 8, "changed")
+        report = self.run_audit()
+        self.assertEqual(report["scope_overlaps"], [])
+        with open(os.path.join(self.audits, "2026-W41.md"), encoding="utf-8") as fh:
+            self.assertNotIn("同一前缀", fh.read())
+
+    def test_rules_from_one_decision_are_not_an_overlap(self):
+        d, _ = self.pair(same_decision=True)
+        self.receipt(d, 8, "changed")
+        self.assertEqual(self.run_audit()["scope_overlaps"], [])
+
+    def test_overlap_ignores_other_prefixes_superseded_rules_and_older_weeks(self):
+        short, more = self.pair()
+        _, _, other, _ = self.chain(day=8, receipt=None)    # scope pad.pad-evening: another prefix
+        self.receipt(other["id"], 8, "changed")
+        self.receipt(more, 8, "changed")
+        self.receipt(short, 8, "blocked")
+        self.assertEqual(len(self.run_audit()["scope_overlaps"]), 1)
+        # the same receipts are outside next week's window
+        later = self.run_audit(as_of="2026-10-18", now=datetime.datetime(2026, 10, 18, 22, 15, tzinfo=TZ))
+        self.assertEqual(later["scope_overlaps"], [])
+        # once the old rule is replaced, the pair is gone
+        feedback.ingest_note(self.data, "2026-10-09", ["Always long."], now=at(9, 12))
+        fid = [r for r in feedback.read_all(self.data) if r["text"] == "Always long."][0]["id"]
+        decisions.decide(self.data, [fid], "long", "user", now=at(9, 13), rule_changes=[
+            dict(rule_id="narrative-long", scope="narrative:length", text="Always long.",
+                 expressed_at=at(9, 12).isoformat())])
+        self.assertEqual(self.run_audit()["scope_overlaps"], [])
+
     def test_bad_input(self):
         with self.assertRaises(AuditError):
             audit.weekly(self.data, "2026-13-01", self.audits)

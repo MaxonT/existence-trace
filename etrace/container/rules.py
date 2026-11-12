@@ -7,6 +7,12 @@ superseded by the newer one. A superseded rule leaves active_rules() but stays i
 rules.json with superseded_by and superseded_reason, so the evidence of who
 replaced whom (and why) is kept. Different scopes never affect each other.
 
+That makes the scope name a decision of its own: reusing a scope replaces its
+rule, a new scope leaves every other rule in force. Scopes are written
+'prefix:detail' ('narrative:length'); prefix() groups them, so decisions.decide
+can make the agent say why a new scope next to active rules is new, and
+audit.weekly can list rules under one prefix that were cited for one output.
+
 rules.json = {"version": N, "rules": [...]}. Every change bumps version by one
 and is written atomically under the store lock (read-modify-write).
 
@@ -138,6 +144,11 @@ def active_rules(data_dir, scope=None):
     if scope is not None:
         rules = [r for r in rules if r["scope"] == scope]
     return sorted(rules, key=lambda r: r["scope"])
+
+
+def prefix(scope):
+    """'narrative:length' -> 'narrative'. A scope without ':' is its own prefix."""
+    return scope.split(":", 1)[0]
 
 
 def get(data_dir, rule_id):

@@ -208,5 +208,111 @@ class ValidateTest(Base):
         self.assertEqual(len(result.problems), 2)
 
 
+class ScopeNamingTest(Base):
+    """A new scope next to active rules under one prefix must say why it is new."""
+
+    LENGTH = dict(rule_id="narrative-length", scope="narrative:length",
+                  text="Keep the daily narrative to three or four sentences.",
+                  expressed_at="2026-09-20T21:00:00-05:00")
+    BAD_DAYS = dict(rule_id="bad-day-detail", scope="narrative:bad-days",
+                    text="On low days, write a longer narrative with detail.",
+                    expressed_at="2026-10-06T21:00:00-05:00")
+
+    def setUp(self):
+        super().setUp()
+        self.first = self.feedback_id("Keep it short.", date="2026-09-20")
+        decisions.decide(self.dir, [self.first], "short narrative", "user", now=NOW,
+                         rule_changes=[dict(self.LENGTH)])
+        self.fid = self.feedback_id("On bad days I want more. Don't cut it short.")
+
+    def second(self, *changes):
+        return decisions.decide(self.dir, [self.fid], "more on bad days", "agent_decision", now=NOW,
+                                rule_changes=list(changes))
+
+    def test_new_sibling_scope_without_reason_is_refused_and_lists_the_rules(self):
+        with self.assertRaises(DecisionError) as cm:
+            self.second(dict(self.BAD_DAYS))
+        msg = str(cm.exception)
+        for part in ("narrative:bad-days", "narrative:length", "narrative-length",
+                     "three or four sentences", "scope_reason", "do not guess"):
+            self.assertIn(part, msg)
+        # nothing was written: one rule, one decision, the feedback still has no decision
+        self.assertEqual(rules.version(self.dir), 1)
+        self.assertEqual(len(decisions.all_decisions(self.dir)), 1)
+
+    def test_reason_is_kept_in_the_record_with_the_scopes_it_was_checked_against(self):
+        d = self.second(dict(self.BAD_DAYS, scope_reason="only low days; the short rule covers the rest"))
+        change = d["rule_changes"][0]
+        self.assertEqual(change["sibling_scopes"], ["narrative:length"])
+        self.assertEqual(change["scope_reason"], "only low days; the short rule covers the rest")
+        self.assertEqual(decisions.get(self.dir, d["id"])["rule_changes"][0]["scope_reason"],
+                         change["scope_reason"])
+        self.assertEqual([r["id"] for r in rules.active_rules(self.dir)], ["bad-day-detail", "narrative-length"])
+
+    def test_reusing_the_scope_replaces_and_needs_no_reason(self):
+        d = self.second(dict(self.BAD_DAYS, scope="narrative:length"))
+        self.assertNotIn("scope_reason", d["rule_changes"][0])
+        self.assertNotIn("sibling_scopes", d["rule_changes"][0])
+        self.assertEqual([r["id"] for r in rules.active_rules(self.dir)], ["bad-day-detail"])
+        self.assertEqual(rules.get(self.dir, "narrative-length")["superseded_by"], "bad-day-detail")
+
+    def test_reason_on_a_scope_that_is_not_new_is_refused(self):
+        with self.assertRaises(DecisionError) as cm:
+            self.second(dict(self.BAD_DAYS, scope="narrative:length", scope_reason="a new idea"))
+        self.assertIn("is not new", str(cm.exception))
+        self.assertIn("narrative-length", str(cm.exception))
+        self.assertEqual(rules.version(self.dir), 1)
+
+    def test_narrowing_rewrites_the_old_rule_in_the_same_decision(self):
+        d = self.second(
+            dict(self.LENGTH, rule_id="narrative-length-2", expressed_at="2026-10-06T21:00:00-05:00",
+                 text="Keep the narrative to three or four sentences, except on low days."),
+            dict(self.BAD_DAYS, scope_reason="low days only; the length rule now excludes them"))
+        self.assertEqual([c["status"] for c in d["rule_changes"]], ["active", "active"])
+        self.assertEqual([r["id"] for r in rules.active_rules(self.dir)],
+                         ["bad-day-detail", "narrative-length-2"])
+        self.assertEqual(rules.get(self.dir, "narrative-length")["status"], "superseded")
+
+    def test_changes_in_one_decision_count_as_siblings_of_each_other(self):
+        fid = self.feedback_id("two things about questions")
+        one = dict(rule_id="q-low", scope="questions:low-energy", text="Ask less when I am tired.",
+                   expressed_at="2026-10-06T21:00:00-05:00")
+        two = dict(rule_id="q-tired", scope="questions:tired", text="Ask about sleep first.",
+                   expressed_at="2026-10-06T21:00:00-05:00")
+        with self.assertRaises(DecisionError) as cm:
+            decisions.decide(self.dir, [fid], "x", "user", now=NOW, rule_changes=[one, two])
+        self.assertIn("questions:low-energy", str(cm.exception))
+        self.assertEqual(rules.version(self.dir), 1)   # the first change was not applied either
+        d = decisions.decide(self.dir, [fid], "x", "user", now=NOW,
+                             rule_changes=[one, dict(two, scope_reason="what to ask, not how much")])
+        self.assertNotIn("sibling_scopes", d["rule_changes"][0])
+        self.assertEqual(d["rule_changes"][1]["sibling_scopes"], ["questions:low-energy"])
+
+    def test_new_prefix_needs_no_reason_and_a_dot_is_not_a_prefix(self):
+        d = self.second(dict(self.BAD_DAYS, scope="pad:self-word"))
+        self.assertNotIn("sibling_scopes", d["rule_changes"][0])
+        fid = self.feedback_id("evenings")
+        decisions.decide(self.dir, [fid], "x", "user", now=NOW, rule_changes=[
+            self.change(), self.change(rule_id="R-pad-night", scope="pad.night")])
+        self.assertEqual(rules.prefix("narrative:length"), "narrative")
+        self.assertEqual(rules.prefix("pad.evening"), "pad.evening")
+
+    def test_superseded_rules_are_not_siblings(self):
+        self.second(dict(self.BAD_DAYS, scope="narrative:length"))   # narrative-length is history now
+        fid = self.feedback_id("and a calm tone")
+        with self.assertRaises(DecisionError) as cm:
+            decisions.decide(self.dir, [fid], "x", "user", now=NOW, rule_changes=[
+                dict(rule_id="tone", scope="narrative:tone", text="Calm tone.",
+                     expressed_at="2026-10-07T08:00:00-05:00")])
+        self.assertIn("[bad-day-detail]", str(cm.exception))
+        self.assertNotIn("[narrative-length]", str(cm.exception))
+
+    def test_blank_reason_is_refused(self):
+        with self.assertRaises(DecisionError):
+            self.second(dict(self.BAD_DAYS, scope_reason="  "))
+        with self.assertRaises(DecisionError):
+            self.second(dict(self.BAD_DAYS, scope_reason=3))
+
+
 if __name__ == "__main__":
     unittest.main()

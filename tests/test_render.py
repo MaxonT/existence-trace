@@ -118,6 +118,9 @@ class RenderTest(unittest.TestCase):
 
     def test_audit(self):
         self.assertIn("Audit passed", plain(PLAIN, "audit weekly"))
+        self.assertNotIn("same output", plain(PLAIN, "audit weekly"))
+        both = plain(PLAIN, "audit weekly", RESULTS["audit weekly"] | {"scope_overlaps": [["r-short", "r-long"]]})
+        self.assertIn("r-short and r-long were cited for the same output", both)
         failed = plain(PLAIN, "audit weekly", RESULTS["audit weekly"] | {"passed": False, "broken": ["fb-1"]})
         self.assertIn("Audit failed", failed)
         self.assertIn("fb-1", failed)

@@ -10,7 +10,7 @@ $rules
 ## 步骤
 1. `python3 -m etrace checkpoint "audit: before"`
 2. `python3 -m etrace audit weekly`。它检查 提问 → 反馈 → 决定 → 规则 → 回执 链条，写出 audits/YYYY-Www.md。
-3. 读报告。对抽查的已应用回执和不适用回执，打开目标产物，确认改动真的在（或确实不该在）。记下任何不一致。
+3. 读报告。对抽查的已应用回执和不适用回执，打开目标产物，确认改动真的在（或确实不该在）。记下任何不一致。如果报告列出了「同一前缀下、被同一份产出引用的规则」，把两条规则都读一遍（`python3 -m etrace rules list`）：它们会在同一天给每日 Agent 相反指示的话，就需要用户判断。
 4. 只有发现漏用或需要用户判断时才外联：`python3 -m etrace outreach send --scan ok --kind report --summary "审计发现了什么"`。否则保持安静。
 5. `python3 -m etrace checkpoint "audit: after"`
 6. `python3 -m etrace validate`

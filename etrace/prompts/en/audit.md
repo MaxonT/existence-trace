@@ -10,7 +10,7 @@ $rules
 ## Steps
 1. `python3 -m etrace checkpoint "audit: before"`
 2. `python3 -m etrace audit weekly`. It checks question -> feedback -> decision -> rule -> receipt chains and writes audits/YYYY-Www.md.
-3. Read the report. For the sampled applied and not_applicable receipts, open the target and confirm the product really shows (or rightly lacks) the change. Note any mismatch.
+3. Read the report. For the sampled applied and not_applicable receipts, open the target and confirm the product really shows (or rightly lacks) the change. Note any mismatch. If the report lists rules under one prefix cited for the same output, read both rules (`python3 -m etrace rules list`): if they can tell the daily agent opposite things on the same day, that needs the user's judgment.
 4. Only if something was not used or needs the user's judgment: `python3 -m etrace outreach send --scan ok --kind report --summary "what the audit found"`. Otherwise stay quiet.
 5. `python3 -m etrace checkpoint "audit: after"`
 6. `python3 -m etrace validate`

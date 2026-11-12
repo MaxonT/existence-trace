@@ -20,6 +20,14 @@ still open, and reports:
 - the user's reaction to each decision: explicit approval, objection or
   another reply (feedback naming the decision id), or silence. Silence is never
   approval and is listed separately.
+- scope overlaps: pairs of active rules in different scopes under one prefix
+  ('narrative:length' and 'narrative:bad-days') whose receipts this week name
+  the same task and target. Different scopes never replace each other, so two
+  such rules can tell an agent opposite things and both stay in force; a
+  shared output is where it had to weigh them. Listed for a person to read
+  (with how often only one of the two was applied), never a broken chain: two
+  rules that agree also share outputs. A pair made by one decision is skipped,
+  because a receipt names decisions and cannot tell its rules apart.
 
 Structural completeness is not a pass: validate() only checks that the links
 exist, while the audit also requires that every decision was really applied on
@@ -191,6 +199,47 @@ def _check_feedback(chain, fid, ctx):
             _check_decision(chain, d, ctx)
 
 
+def _scope_overlaps(all_rules, all_decisions, receipts):
+    """Pairs of active sibling-scope rules cited for one (task, target). See the module docstring."""
+    active = {r["id"]: r for r in all_rules if r["status"] == "active"}
+    cites = {rid: set() for rid in active}   # rule id -> the decision / feedback ids that stand for it
+    why = {}                                 # rule id -> scope_reason given at decide time
+    for d in all_decisions:
+        for c in d.get("rule_changes", []):
+            if c["rule_id"] in active:
+                cites[c["rule_id"]].add(("decision", d["id"]))
+                if c.get("scope_reason"):
+                    why[c["rule_id"]] = c["scope_reason"]
+    for rid, rule in active.items():
+        if rule.get("source_feedback_id"):
+            cites[rid].add(("feedback", rule["source_feedback_id"]))
+
+    outputs = {}  # (task, target) -> {rule id: applied on this output?}
+    for r in receipts:
+        named = {("decision", i) for i in r.get("decision_ids", [])}
+        named |= {("feedback", i) for i in r.get("feedback_ids", [])}
+        seen = outputs.setdefault((r["task"], r["target"]), {})
+        for rid, keys in cites.items():
+            if keys & named:
+                seen[rid] = seen.get(rid, False) or r["status"] in usage.APPLIED_STATUSES
+
+    pairs = {}
+    for (task, target), seen in sorted(outputs.items()):
+        ids = sorted(seen)
+        for i, a in enumerate(ids):
+            for b in ids[i + 1:]:
+                ra, rb = active[a], active[b]
+                if (ra["scope"] == rb["scope"] or rules.prefix(ra["scope"]) != rules.prefix(rb["scope"])
+                        or cites[a] & cites[b]):
+                    continue
+                pair = pairs.setdefault((a, b), {
+                    "rule_ids": [a, b], "scopes": [ra["scope"], rb["scope"]], "outputs": [],
+                    "only_one_applied": 0, "scope_reason": why.get(a) or why.get(b)})
+                pair["outputs"].append(f"{task} -> {target}")
+                pair["only_one_applied"] += seen[a] != seen[b]
+    return sorted(pairs.values(), key=lambda p: (-p["only_one_applied"], p["rule_ids"]))
+
+
 def weekly(data_dir, as_of, audits_dir, now=None, language="zh"):
     """Run the weekly audit for the 7 days ending on as_of and write the report.
 
@@ -327,6 +376,7 @@ def weekly(data_dir, as_of, audits_dir, now=None, language="zh"):
         "receipts_without_readback": unverified,
         "samples": {"applied": sample(usage.APPLIED_STATUSES), "not_applicable": sample(("not_applicable",))},
         "reactions": reactions,
+        "scope_overlaps": _scope_overlaps(ctx["rules"].values(), all_decisions, week_receipts),
     }
     os.makedirs(audits_dir, exist_ok=True)
     base = os.path.join(audits_dir, report["week"])
@@ -350,6 +400,10 @@ _T = {
         "reactions": "## 你对决定的态度",
         "approved": "明确赞成", "objected": "明确反对", "replied": "回复了但没表态",
         "silence": "没有回应（沉默不算赞成）",
+        "overlaps": "## 同一前缀下、被同一份产出引用的规则",
+        "overlaps_note": "不同范围的规则互不替代，所以这两条会同时生效。请确认它们不会在同一天给出相反的指示（不算断链）。",
+        "overlap": "- {a_scope}（{a}）和 {b_scope}（{b}）：{n} 份产出同时引用，其中 {one} 份只用上了一条。",
+        "overlap_why": "  新范围当时给的理由：{r}",
     },
     "en": {
         "title": "# Weekly implementation audit {week} ({start} – {end})",
@@ -367,6 +421,12 @@ _T = {
         "approved": "explicitly approved", "objected": "explicitly objected",
         "replied": "replied without approving or objecting",
         "silence": "no reply (silence is not approval)",
+        "overlaps": "## Rules under one prefix cited for the same output",
+        "overlaps_note": "Rules in different scopes never replace each other, so both of these stay in force. "
+                         "Check that they cannot tell the agent opposite things on the same day (not a broken chain).",
+        "overlap": "- {a_scope} ({a}) and {b_scope} ({b}): cited together for {n} output(s); "
+                   "on {one} only one of the two was applied.",
+        "overlap_why": "  reason given for the new scope: {r}",
     },
 }
 
@@ -399,4 +459,12 @@ def render(report, language="zh"):
         lines[-1] += ", ".join(f"{i['decision_id']} ({i['feedback_id']})" for i in items) or "-"
     silence = ", ".join(report["reactions"]["silence"]) or "-"
     lines.append((f"- {t['silence']}：" if language == "zh" else f"- {t['silence']}: ") + silence)
+    overlaps = report.get("scope_overlaps") or []
+    if overlaps:
+        lines += ["", t["overlaps"], t["overlaps_note"]]
+        for p in overlaps:
+            lines.append(t["overlap"].format(a=p["rule_ids"][0], b=p["rule_ids"][1], a_scope=p["scopes"][0],
+                                             b_scope=p["scopes"][1], n=len(p["outputs"]), one=p["only_one_applied"]))
+            if p["scope_reason"]:
+                lines.append(t["overlap_why"].format(r=p["scope_reason"]))
     return "\n".join(lines) + "\n"

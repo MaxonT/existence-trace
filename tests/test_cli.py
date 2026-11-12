@@ -207,6 +207,16 @@ class CliTest(unittest.TestCase):
         code, out, _ = self.run_cli("rules", "list", "--scope", "questions:tired")
         self.assertEqual([r["id"] for r in out["rules"]], ["r-sleep"])
 
+        # a new scope next to an active one under the same prefix must say why it is new
+        near = {"feedback_ids": [fid], "decision_text": "ask less on low days", "value_source": "agent_decision",
+                "rule_changes": [{"rule_id": "r-low", "scope": "questions:low-energy", "text": "ask less",
+                                  "expressed_at": EXPRESSED}]}
+        code, _, err = self.run_cli("decide", self.write_json("d3.json", near))
+        self.assertEqual(code, 2)
+        self.assertIn("questions:tired [r-sleep] ask about sleep", err)
+        self.assertIn("scope_reason", err)
+        self.assertEqual(len(decisions.all_decisions(self.data)), 1)
+
         receipt = {"task": "daily", "target": f"journal/{self.today}.md", "rule_version": rules.version(self.data),
                    "decision_ids": [did], "before": "no sleep question", "after": "sleep question",
                    "status": "changed", "verified_readback": True}
@@ -224,6 +234,7 @@ class CliTest(unittest.TestCase):
         code, out, _ = self.run_cli("audit", "weekly")
         self.assertEqual(code, 0)
         self.assertTrue(out["passed"])
+        self.assertEqual(out["scope_overlaps"], [])
         self.assertTrue(os.path.exists(out["report"]))
 
     def test_outreach_requires_scan_flag(self):

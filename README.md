@@ -173,9 +173,9 @@ or run the container from GitHub Packages: `docker run --rm -v ~/existence-trace
 
 1. **Question.** The agent finds a real doubt in your notes, with evidence and two candidate readings.
 2. **Feedback.** You answer in the protected zone of a note, or reply to the email.
-3. **Decision.** It decides with reasons instead of waiting, and the newest feedback wins. You can overrule it.
+3. **Decision.** It decides with reasons instead of waiting, and the newest feedback wins. You can overrule it. A new answer either replaces an old rule (same scope) or sits next to it (new scope); `decide` makes the agent say which, and why, before two rules under one prefix can both stay in force.
 4. **Receipt.** When a decision really changes a report, the agent reads the file back and records it. Reading a rule is not using it.
-5. **Audit.** Every week `audit weekly` follows each chain and fails if a decision was never applied.
+5. **Audit.** Every week `audit weekly` follows each chain and fails if a decision was never applied. It also lists rules under one prefix that were cited for the same output, where the agent had to choose between them.
 
 `etrace validate` checks the whole chain at any time and exits 1 on any problem.
 
