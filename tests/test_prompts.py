@@ -100,6 +100,21 @@ class RenderTest(unittest.TestCase):
                         honest = {"zh": "没做成的事要直说", "en": "Say plainly what did not work"}[lang]
                         self.assertIn(honest, text)
 
+    def test_scope_is_named_before_deciding_in_both_languages(self):
+        for lang in prompts.LANGUAGES:
+            with self.subTest(lang=lang):
+                cfg = self.cfg(language=lang)
+                fb = prompts.render("feedback", cfg, self.store)
+                # the check, the two honest moves and the way out when the agent cannot tell
+                self.assertIn('"scope_reason"', fb)
+                self.assertIn("question add FILE", fb)
+                self.assertIn({"zh": "不要猜", "en": "do not guess"}[lang], fb)
+                self.assertIn({"zh": "相反的指示", "en": "opposite things"}[lang], fb)
+                # the daily agent records a choice between two rules instead of making it silently
+                self.assertIn("`blocked`", prompts.render("daily", cfg, self.store))
+                self.assertIn({"zh": "同一前缀", "en": "under one prefix"}[lang],
+                              prompts.render("audit", cfg, self.store))
+
     def test_values_come_from_trace_toml(self):
         cfg = self.cfg(timezone="Asia/Tokyo", tasks={"feedback": ["07:05", "13:40"], "audit": "Sat 08:00"},
                        outreach="note", language="en")

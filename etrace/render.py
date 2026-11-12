@@ -155,6 +155,9 @@ def audit_weekly(style, key, r):
     else:
         out.append(_msg(style, "fail", "Audit failed: a decision was never applied"))
         out += ["  " + style.paint(style.icon("bullet"), ui.RED) + " " + str(b) for b in r.get("broken", [])]
+    for a, b in r.get("scope_overlaps", []):
+        out.append(_msg(style, "warn", f"{a} and {b} were cited for the same output",
+                        "two scopes under one prefix: check they cannot disagree"))
     out += ["", "  " + style.paint(style.icon("file"), ui.BLUE) + " " + r["report"]]
     return "\n".join(out)
 

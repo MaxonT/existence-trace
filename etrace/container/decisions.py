@@ -11,6 +11,14 @@ A decision may change rules. Each rule change is applied through
 etrace.container.rules (scoped supersession), and the decision record keeps
 the resulting rule ids, statuses and rules.json version.
 
+The scope of a rule change settles what the user meant: reusing a scope
+replaces its rule, a new scope leaves every other rule in force. So a change
+that opens a new scope next to active rules under the same prefix
+('narrative:bad-days' next to 'narrative:length') must carry a scope_reason
+saying why it is new; without one decide() refuses and lists those rules. The
+reason and the sibling scopes it was checked against are kept in the record.
+The judgment stays with the agent; it just becomes a recorded step.
+
 History is append-only. A decision is one 'decision' record ('D-YYYYMMDD-N');
 mark_pending appends a 'pending' record saying why it has not been applied
 yet. validate.py treats a pending decision as known-open instead of missed.
@@ -25,7 +33,7 @@ from etrace.store import Store
 
 NAME = "decisions"
 VALUE_SOURCES = ("user", "agent_decision")
-_CHANGE_KEYS = {"rule_id", "scope", "text", "expressed_at", "source_feedback_id", "reason"}
+_CHANGE_KEYS = {"rule_id", "scope", "text", "expressed_at", "source_feedback_id", "reason", "scope_reason"}
 
 
 class DecisionError(Exception):
@@ -88,6 +96,43 @@ def _rule_changes(value, feedback_ids, existing):
     return changes
 
 
+def _name_scopes(changes, active):
+    """Check every change's scope against the rules in force; return one note per change.
+
+    A note is None when the change reuses a scope (it replaces that rule) and
+    {'scope_reason', 'sibling_scopes'} when it opens a new one. Changes earlier
+    in the same decision count as in force for the later ones.
+    """
+    in_force = {r["scope"]: (r["id"], r["text"]) for r in active}
+    notes = []
+    for c in changes:
+        scope, rule_id, why = c["scope"], c["rule_id"], c.get("scope_reason")
+        if why is not None:
+            _text(why, "scope_reason")
+        if scope in in_force:
+            if why is not None:
+                raise DecisionError(
+                    f"rule {rule_id!r}: scope {scope!r} is not new, rule {in_force[scope][0]!r} is active in it "
+                    "and this change replaces it. Drop scope_reason to replace it, or pick a new scope if both "
+                    "should stay in force")
+            notes.append(None)
+        else:
+            head = rules.prefix(scope)
+            near = sorted(s for s in in_force if rules.prefix(s) == head)
+            if near and why is None:
+                listed = "; ".join(f"{s} [{in_force[s][0]}] {in_force[s][1]}" for s in near)
+                raise DecisionError(
+                    f"rule {rule_id!r}: scope {scope!r} is new and sits next to active rules under {head!r} "
+                    f"({listed}) Would this rule and any of them ever tell an agent opposite things on the same "
+                    "day, or say the same thing? If it replaces or repeats one, reuse that scope. If both should "
+                    "stay in force, rewrite the old rule in its own scope so the two cannot collide and add "
+                    "\"scope_reason\" to this change saying why this scope is new. If you cannot tell which the "
+                    "user meant, do not guess: leave the rule change out and ask them (question add)")
+            notes.append({"scope_reason": why, "sibling_scopes": near} if near or why is not None else None)
+        in_force[scope] = (rule_id, c["text"])
+    return notes
+
+
 def read_all(data_dir):
     return _store(data_dir).read_all(NAME)
 
@@ -119,7 +164,8 @@ def decide(data_dir, feedback_ids, decision_text, value_source, rule_changes=Non
 
     rule_changes: list of {'rule_id', 'scope', 'text', 'expressed_at',
     optional 'source_feedback_id' (defaults to the first feedback id, must be
-    one of feedback_ids), optional 'reason'}.
+    one of feedback_ids), optional 'reason', and 'scope_reason': why this scope
+    is new, required when the scope is new and active rules share its prefix}.
     """
     store = _store(data_dir)
     at = _now(now)
@@ -129,13 +175,16 @@ def decide(data_dir, feedback_ids, decision_text, value_source, rule_changes=Non
         raise DecisionError(f"value_source must be one of {VALUE_SOURCES}")
     existing = {r["id"] for r in rules.read(store)["rules"]}
     changes = _rule_changes(rule_changes, ids, existing)
+    notes = _name_scopes(changes, rules.active_rules(store))
 
     applied = []
-    for c in changes:
+    for c, note in zip(changes, notes):
         rule = rules.add_rule(store, c["rule_id"], c["scope"], c["text"], c["expressed_at"],
                               source_feedback_id=c["source_feedback_id"], reason=c.get("reason"))
         applied.append({"rule_id": rule["id"], "scope": rule["scope"], "status": rule["status"],
                         "superseded_by": rule["superseded_by"], "reason": c.get("reason")})
+        if note:
+            applied[-1].update(note)
 
     record = {
         "type": "decision",
