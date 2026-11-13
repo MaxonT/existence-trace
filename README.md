@@ -39,6 +39,11 @@ existence-trace is the missing half: a journal your AI actually reads, in files 
 
 It does not replace Claude or ChatGPT. It gives them something worth remembering.
 
+##See it
+
+https://github.com/user-attachments/assets/af186670-92f3-4ed9-8670-6417c1acf194
+
+
 ## Built-in chat memory vs. existence-trace
 
 | | Built-in chat memory | existence-trace |
