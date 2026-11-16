@@ -960,6 +960,7 @@ def cmd_audit_weekly(ctx, args):
     report = audit.weekly(ctx.store, as_of, ctx.audits, language=ctx.lang)
     week = audit.week_id(as_of)
     return {"week": week, "passed": report["passed"],
+            "chains_audited": report["chains_audited"],
             "broken": [c["root"] for c in report["chains"] if c["problems"]],
             "scope_overlaps": [p["rule_ids"] for p in report["scope_overlaps"]],
             "report": os.path.join(ctx.audits, f"{week}.md")}

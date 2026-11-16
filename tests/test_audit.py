@@ -59,6 +59,16 @@ class Base(unittest.TestCase):
 
 
 class WeeklyTest(Base):
+    def test_empty_week_reports_zero_audited_chains(self):
+        report = self.run_audit(language="en")
+        self.assertTrue(report["passed"])
+        self.assertEqual(report["chains_audited"], 0)
+        with open(os.path.join(self.audits, "2026-W41.md"), encoding="utf-8") as fh:
+            self.assertIn("Result: passed (0 chains this week, nothing was audited).", fh.read())
+        report = self.run_audit(language="zh")
+        with open(os.path.join(self.audits, "2026-W41.md"), encoding="utf-8") as fh:
+            self.assertIn("本周审计链条数：0。", fh.read())
+
     def test_complete_applied_chain_passes_and_writes_files(self):
         self.chain()
         report = self.run_audit()
