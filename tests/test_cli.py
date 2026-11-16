@@ -84,6 +84,14 @@ class CliTest(unittest.TestCase):
         code, out, _ = self.run_cli("validate")
         self.assertEqual((code, out["ok"]), (0, True))
 
+    def test_empty_weekly_audit_reports_zero_audited_chains(self):
+        code, out, _ = self.run_cli("audit", "weekly")
+        self.assertEqual(code, 0)
+        self.assertTrue(out["passed"])
+        self.assertEqual(out["chains_audited"], 0)
+        with open(out["report"], encoding="utf-8") as fh:
+            self.assertIn("Result: passed (0 chains this week, nothing was audited).", fh.read())
+
     def test_init_refuses_a_used_dir(self):
         code, _, err = self.run_cli("init", "--preset", "default", "--dir", self.root, config=False)
         self.assertEqual(code, 2)
