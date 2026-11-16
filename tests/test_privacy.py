@@ -16,6 +16,9 @@ EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za
 ALLOWED_DOMAINS = ("example.com", "example.org", "example.net")
 HEX32 = re.compile(r"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{32}|[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12})"
                    r"(?![0-9A-Fa-f])")
+# GitHub's web editor stores uploaded images and videos as public attachment URLs. The uuid in such a URL is
+# an address anyone can open, not a private id, so only this exact URL shape is skipped by the id check.
+GITHUB_ATTACHMENT = re.compile(r"https://github\.com/user-attachments/assets/[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}")
 # A home path is the prefix followed by a user name; the bare prefix may appear in rules text.
 HOME_PATH = re.compile("/" + "Users" + r"/[A-Za-z0-9._-]")
 
@@ -41,7 +44,7 @@ def find_problems(rel, text):
             domain = m.group(1).lower()
             if not any(domain == d or domain.endswith("." + d) for d in ALLOWED_DOMAINS):
                 problems.append(f"{rel}:{lineno}: email {m.group(0)!r}")
-        for m in HEX32.finditer(line):
+        for m in HEX32.finditer(GITHUB_ATTACHMENT.sub("", line)):
             problems.append(f"{rel}:{lineno}: Notion-style id {m.group(0)!r}")
         if HOME_PATH.search(line):
             problems.append(f"{rel}:{lineno}: absolute home path")
@@ -73,6 +76,15 @@ class PrivacyScanTest(unittest.TestCase):
         ])
         problems = find_problems("x.md", text)
         self.assertEqual([p.split(": ", 1)[0] for p in problems], ["x.md:1", "x.md:3", "x.md:4", "x.md:5"])
+
+    def test_github_attachment_urls_are_allowed_but_other_ids_are_not(self):
+        uid = "01234567-89ab-" + "cdef-0123-456789abcdef"
+        attachment = "https://github.com/user-attachments/assets/" + uid
+        self.assertEqual(find_problems("x.md", attachment), [])
+        self.assertEqual(find_problems("x.md", "<video src=\"" + attachment + "\"></video>"), [])
+        for line in ("id " + uid, "https://www.notion.so/page-" + uid, "https://example.com/assets/" + uid,
+                     attachment + " and also " + uid):
+            self.assertEqual(len(find_problems("x.md", line)), 1, line)
 
 
 if __name__ == "__main__":
