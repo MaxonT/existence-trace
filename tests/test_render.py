@@ -124,6 +124,9 @@ class RenderTest(unittest.TestCase):
         failed = plain(PLAIN, "audit weekly", RESULTS["audit weekly"] | {"passed": False, "broken": ["fb-1"]})
         self.assertIn("Audit failed", failed)
         self.assertIn("fb-1", failed)
+        empty = plain(PLAIN, "audit weekly", RESULTS["audit weekly"] | {"chains_audited": 0})
+        self.assertIn("nothing was audited", empty)
+        self.assertIn("Chains audited  0", empty)
 
     def test_checkpoint(self):
         text = plain(PLAIN, "checkpoint")
