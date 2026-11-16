@@ -370,6 +370,7 @@ def weekly(data_dir, as_of, audits_dir, now=None, language="zh"):
         "to": end.isoformat(),
         "generated_at": now.isoformat(),
         "passed": not broken,
+        "chains_audited": len(audited),
         "chains": [c.to_dict() for c in audited],
         "broken_chains": len(broken),
         "decisions_without_receipt": no_receipt,
@@ -389,7 +390,9 @@ _T = {
     "zh": {
         "title": "# 每周落实审计 {week}（{start} – {end}）",
         "passed": "结论：通过。所有链条都完整，并且决定真的被用上了。",
+        "empty_passed": "结论：通过（本周 0 条链，未审计任何内容）。",
         "failed": "结论：未通过。有 {n} 条链条断了。",
+        "chains_audited": "本周审计链条数：{n}。",
         "note": "结构完整不等于通过：每个决定都要有已核验、真正应用（changed / confirmed）的回执。",
         "broken": "## 断链", "open": "## 未闭环（不算断）", "none": "无。",
         "no_receipt": "## 没有回执的决定", "pending": "（已标记暂缓：{r}）",
@@ -408,7 +411,9 @@ _T = {
     "en": {
         "title": "# Weekly implementation audit {week} ({start} – {end})",
         "passed": "Result: passed. Every chain is complete and every decision was really applied.",
+        "empty_passed": "Result: passed (0 chains this week, nothing was audited).",
         "failed": "Result: failed. {n} chain(s) are broken.",
+        "chains_audited": "Chains audited: {n}.",
         "note": "Structural completeness is not a pass: every decision needs a verified receipt "
                 "that really applied it (changed / confirmed).",
         "broken": "## Broken chains", "open": "## Still open (not broken)", "none": "None.",
@@ -437,7 +442,11 @@ def render(report, language="zh"):
         raise AuditError(f"language must be one of {tuple(_T)}")
     t = _T[language]
     lines = [t["title"].format(week=report["week"], start=report["from"], end=report["to"]), ""]
-    lines.append(t["passed"] if report["passed"] else t["failed"].format(n=report["broken_chains"]))
+    if report["passed"] and report["chains_audited"] == 0:
+        lines.append(t["empty_passed"])
+    else:
+        lines.append(t["passed"] if report["passed"] else t["failed"].format(n=report["broken_chains"]))
+    lines.append(t["chains_audited"].format(n=report["chains_audited"]))
     lines += [t["note"], "", t["broken"]]
     broken = [p for c in report["chains"] for p in c["problems"]]
     lines += [f"- {p}" for p in broken] or [t["none"]]
