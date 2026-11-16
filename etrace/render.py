@@ -151,10 +151,14 @@ def rules_list(style, key, r):
 def audit_weekly(style, key, r):
     out = [_head(style, key, r["week"]), ""]
     if r["passed"]:
-        out.append(_msg(style, "ok", "Audit passed", "every feedback chain was followed through"))
+        detail = ("0 chains this week; nothing was audited" if r.get("chains_audited") == 0
+                  else "every feedback chain was followed through")
+        out.append(_msg(style, "ok", "Audit passed", detail))
     else:
         out.append(_msg(style, "fail", "Audit failed: a decision was never applied"))
         out += ["  " + style.paint(style.icon("bullet"), ui.RED) + " " + str(b) for b in r.get("broken", [])]
+    if "chains_audited" in r:
+        out.append(_msg(style, "info", "Chains audited", str(r["chains_audited"])))
     for a, b in r.get("scope_overlaps", []):
         out.append(_msg(style, "warn", f"{a} and {b} were cited for the same output",
                         "two scopes under one prefix: check they cannot disagree"))
