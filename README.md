@@ -10,6 +10,7 @@
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
 <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3-3776AB.svg?logo=python&logoColor=white" alt="Python 3"></a>
 <img src="https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg" alt="Dependencies: stdlib only">
+<a href="https://github.com/MaxonT/existence-trace/actions/workflows/ci.yml"><img src="https://github.com/MaxonT/existence-trace/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <a href="https://github.com/MaxonT/existence-trace/commits"><img src="https://img.shields.io/github/last-commit/MaxonT/existence-trace.svg" alt="Last commit"></a>
 <a href="https://github.com/MaxonT/existence-trace/stargazers"><img src="https://img.shields.io/github/stars/MaxonT/existence-trace.svg?style=social" alt="GitHub stars"></a>
 </p>
@@ -39,7 +40,7 @@ existence-trace is the missing half: a journal your AI actually reads, in files 
 
 It does not replace Claude or ChatGPT. It gives them something worth remembering.
 
-##See it
+## See it
 
 https://github.com/user-attachments/assets/af186670-92f3-4ed9-8670-6417c1acf194
 
